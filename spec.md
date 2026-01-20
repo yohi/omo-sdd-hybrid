@@ -207,6 +207,65 @@ export SDD_SCOPE_FORMAT=lenient
 git checkout HEAD -- specs/tasks.md
 ```
 
+### 4.3 移行ポリシー（Phase 0 → Phase 1）
+
+#### 移行タイミング
+
+以下の条件を満たした時点で Phase 1 へ移行:
+1. Phase 0 での運用期間が **2週間以上**
+2. warn ログの誤検知率が **5%以下**
+3. チーム全体が Scope 記述に習熟
+
+#### 移行手順
+
+**Step 1: tasks.md のフォーマット変換**
+
+Migration script を実行:
+```bash
+# Dry-run（変更内容のプレビュー）
+npx sdd migrate-tasks --format=backtick-required --dry-run
+
+# 実行
+npx sdd migrate-tasks --format=backtick-required
+```
+
+**変換例:**
+```markdown
+# Before (Phase 0)
+* [ ] Task-1: Title (Scope: src/auth/**, tests/auth/**)
+
+# After (Phase 1)
+* [ ] Task-1: Title (Scope: `src/auth/**`, `tests/auth/**`)
+```
+
+**Step 2: 環境変数の更新**
+
+```bash
+# Phase 0 → Phase 1
+export SDD_GUARD_MODE=block  # warn から block へ
+export SDD_SCOPE_FORMAT=strict  # 旧形式を拒否
+```
+
+**Step 3: 検証**
+
+全タスクで `sdd_start_task` が成功することを確認:
+```bash
+# 全タスクの構文チェック
+npx sdd lint-tasks
+```
+
+#### ロールバック手順
+
+Phase 1 で問題が発生した場合:
+```bash
+# Phase 1 → Phase 0
+export SDD_GUARD_MODE=warn
+export SDD_SCOPE_FORMAT=lenient
+
+# tasks.md を Phase 0 形式に戻す（バックアップから復元）
+git checkout HEAD -- specs/tasks.md
+```
+
 ---
 
 ## 5. State ファイル仕様（`.opencode/state/current_context.json`）
@@ -685,14 +744,11 @@ function validatePathForEdit(
 * 各タスク行に `(Scope: ...)` を **必ず** 付ける（後述の文法に従う）
 * 設計後、影響ファイル（Impacted Files）を明記する
 
-#### MAY（任意統合: kiro/cc-sdd が利用可能な場合）
 
 * `kiro:spec-init` で初期化テンプレートを生成してもよい
 * `kiro:spec-requirements` で要件抽出を補助してもよい
 * `kiro:spec-design` で設計ドキュメント生成を補助してもよい
 * `kiro:spec-tasks` でタスク分割を補助してもよい
-
-#### MUST NOT（kiro が利用不可の場合）
 
 * kiro コマンドの不在を理由にプロセスを止めてはならない
 * 代わりに `specs/` 配下のテンプレートファイルを手動作成する
