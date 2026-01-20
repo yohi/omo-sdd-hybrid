@@ -44,7 +44,14 @@ export function readState(): StateResult {
     const content = fs.readFileSync(STATE_PATH, 'utf-8');
     const state = JSON.parse(content);
     
-    if (!state.activeTaskId || !Array.isArray(state.allowedScopes)) {
+    if (
+      typeof state.version === 'undefined' ||
+      typeof state.activeTaskId !== 'string' || state.activeTaskId.trim() === '' ||
+      typeof state.activeTaskTitle !== 'string' || state.activeTaskTitle.trim() === '' ||
+      !Array.isArray(state.allowedScopes) ||
+      typeof state.startedAt !== 'string' || state.startedAt.trim() === '' ||
+      typeof state.startedBy !== 'string'
+    ) {
       return { status: 'corrupted', error: 'Invalid state schema' };
     }
     
