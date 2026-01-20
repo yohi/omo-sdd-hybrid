@@ -11,7 +11,7 @@
    ```
 
 2. **タスクを開始する**
-   ```
+   ```bash
    sdd_start_task Task-1
    ```
 
@@ -20,7 +20,7 @@
    - Scope 外の編集は警告される（Phase 0）
 
 4. **タスクを終了する**
-   ```
+   ```bash
    sdd_end_task
    ```
 
@@ -41,7 +41,7 @@
 
 ## ファイル構成
 
-```
+```text
 .opencode/
 ├── plugins/
 │   └── sdd-gatekeeper.ts    # ファイル編集の監視
