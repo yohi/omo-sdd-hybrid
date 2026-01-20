@@ -45,12 +45,12 @@ export function readState(): StateResult {
     const state = JSON.parse(content);
     
     if (
-      typeof state.version === 'undefined' ||
+      typeof state.version !== 'number' || !Number.isFinite(state.version) ||
       typeof state.activeTaskId !== 'string' || state.activeTaskId.trim() === '' ||
       typeof state.activeTaskTitle !== 'string' || state.activeTaskTitle.trim() === '' ||
       !Array.isArray(state.allowedScopes) ||
       typeof state.startedAt !== 'string' || state.startedAt.trim() === '' ||
-      typeof state.startedBy !== 'string'
+      typeof state.startedBy !== 'string' || state.startedBy.trim() === ''
     ) {
       return { status: 'corrupted', error: 'Invalid state schema' };
     }
