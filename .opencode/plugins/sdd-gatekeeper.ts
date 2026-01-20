@@ -10,7 +10,7 @@
  * - State ファイルの読み込みとスコープチェック
  */
 
-import type { Plugin } from '@opencode-ai/plugin';
+import type { Plugin } from '../lib/plugin-stub';
 
 /**
  * SDD Gatekeeper Plugin (スタブ)
