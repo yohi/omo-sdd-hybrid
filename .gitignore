@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build outputs
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sisyphus internal state
+.sisyphus/boulder.json
+.sisyphus/notepads/
+
+# Temporary OpenCode clone
+opencode/
+
+# State files (runtime generated)
+.opencode/state/*.json
+!.opencode/state/.gitkeep
