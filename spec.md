@@ -159,6 +159,15 @@ Gatekeeper は以下を**常に編集許可**する（プロセスを止めな�
 
 #### 移行手順
 
+**CLI Tool Origin & Delivery Plan:**
+- **`sdd` Tool Status**: In-repo CLI utility (to be implemented in this repository)
+- **Phase 0 Deliverables**:
+  - `migrate-tasks`: Task format migration utility (converts Phase 0 to Phase 1 syntax)
+  - `lint-tasks`: Task syntax validation utility
+- **Implementation Location**: `scripts/sdd/` or `.opencode/cli/sdd/` (TBD)
+- **Package Dependency**: Not yet added to `package.json` (will be added upon implementation)
+- **Note**: `npx sdd` commands shown below assume future implementation; use manual fallback steps until then
+
 **Step 1: tasks.md のフォーマット変換**
 
 Migration script を実行:
@@ -169,6 +178,33 @@ npx sdd migrate-tasks --format=backtick-required --dry-run
 # 実行
 npx sdd migrate-tasks --format=backtick-required
 ```
+
+**Fallback: Manual Migration Steps (when `sdd` is not yet available)**
+
+If `sdd` CLI tool is not yet implemented, perform manual migration:
+
+1. **Dry-run (Preview changes):**
+   ```bash
+   # Backup current tasks.md
+   cp specs/tasks.md specs/tasks.md.backup
+   
+   # Manually inspect each task line in specs/tasks.md
+   # Look for patterns like: (Scope: src/auth/**, tests/auth/**)
+   # Identify lines needing conversion to: (Scope: `src/auth/**`, `tests/auth/**`)
+   ```
+
+2. **Apply changes:**
+   - Open `specs/tasks.md` in your editor
+   - For each task line with Scope:
+     - Find: `(Scope: path1, path2, ...)`
+     - Replace with: `(Scope: \`path1\`, \`path2\`, ...)`
+   - Ensure each glob pattern is wrapped in backticks
+   - Separate patterns with `, ` (comma + space)
+
+3. **Verify syntax:**
+   - Check that all task lines match: `* [ ] TaskID: Title (Scope: \`glob1\`, \`glob2\`, ...)`
+   - Ensure TaskID follows pattern: `[A-Za-z][A-Za-z0-9_-]*-\\d+`
+   - Verify all globs are in backticks
 
 **変換例:**
 ```markdown
@@ -195,64 +231,26 @@ export SDD_SCOPE_FORMAT=strict  # 旧形式を拒否
 npx sdd lint-tasks
 ```
 
-#### ロールバック手順
+**Fallback: Manual Validation (when `sdd` is not yet available)**
 
-Phase 1 で問題が発生した場合:
-```bash
-# Phase 1 → Phase 0
-export SDD_GUARD_MODE=warn
-export SDD_SCOPE_FORMAT=lenient
+If `lint-tasks` is not yet implemented, perform manual validation:
 
-# tasks.md を Phase 0 形式に戻す（バックアップから復元）
-git checkout HEAD -- specs/tasks.md
-```
+1. **Test each task with sdd_start_task:**
+   ```bash
+   # In OpenCode session, try starting each task
+   # sdd_start_task Task-1
+   # sdd_start_task Task-2
+   # etc.
+   ```
 
-### 4.3 移行ポリシー（Phase 0 → Phase 1）
+2. **Check for parsing errors:**
+   - Each `sdd_start_task` call should succeed without `E_SCOPE_FORMAT` error
+   - Verify `allowedScopes` in `.opencode/state/current_context.json` is correctly populated
 
-#### 移行タイミング
-
-以下の条件を満たした時点で Phase 1 へ移行:
-1. Phase 0 での運用期間が **2週間以上**
-2. warn ログの誤検知率が **5%以下**
-3. チーム全体が Scope 記述に習熟
-
-#### 移行手順
-
-**Step 1: tasks.md のフォーマット変換**
-
-Migration script を実行:
-```bash
-# Dry-run（変更内容のプレビュー）
-npx sdd migrate-tasks --format=backtick-required --dry-run
-
-# 実行
-npx sdd migrate-tasks --format=backtick-required
-```
-
-**変換例:**
-```markdown
-# Before (Phase 0)
-* [ ] Task-1: Title (Scope: src/auth/**, tests/auth/**)
-
-# After (Phase 1)
-* [ ] Task-1: Title (Scope: `src/auth/**`, `tests/auth/**`)
-```
-
-**Step 2: 環境変数の更新**
-
-```bash
-# Phase 0 → Phase 1
-export SDD_GUARD_MODE=block  # warn から block へ
-export SDD_SCOPE_FORMAT=strict  # 旧形式を拒否
-```
-
-**Step 3: 検証**
-
-全タスクで `sdd_start_task` が成功することを確認:
-```bash
-# 全タスクの構文チェック
-npx sdd lint-tasks
-```
+3. **Manual regex validation:**
+   - All task lines must match: `^\* \[([ x])\] ([A-Za-z][A-Za-z0-9_-]*-\d+): .+ \(Scope: (\`[^\`]+\`)(, \`[^\`]+\`)*\)$`
+   - Each Scope pattern must be in backticks
+   - No bare patterns (without backticks) should exist in Phase 1
 
 #### ロールバック手順
 
