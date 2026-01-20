@@ -22,18 +22,33 @@ type AskInput = {
   metadata: { [key: string]: any };
 };
 
-export function tool<Args extends z.ZodRawShape>(input: {
-  description: string;
-  args: Args;
-  execute(args: z.infer<z.ZodObject<Args>>, context: ToolContext): Promise<string>;
-}) {
-  return {
-    ...input,
-    schema: z.object(input.args),
+interface ToolFactory {
+  <Args extends z.ZodRawShape>(input: {
+    description: string;
+    args: Args;
+    execute(args: z.infer<z.ZodObject<Args>>, context: ToolContext): Promise<string>;
+  }): {
+    description: string;
+    args: Args;
+    execute(args: z.infer<z.ZodObject<Args>>, context: ToolContext): Promise<string>;
+    schema: z.ZodObject<Args>;
   };
+  schema: typeof z;
 }
 
-tool.schema = z;
+export const tool: ToolFactory = Object.assign(
+  <Args extends z.ZodRawShape>(input: {
+    description: string;
+    args: Args;
+    execute(args: z.infer<z.ZodObject<Args>>, context: ToolContext): Promise<string>;
+  }) => {
+    return {
+      ...input,
+      schema: z.object(input.args),
+    };
+  },
+  { schema: z }
+);
 
 export type ToolDefinition = ReturnType<typeof tool>;
 
