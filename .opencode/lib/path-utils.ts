@@ -25,8 +25,16 @@ export function isSymlink(filePath: string): boolean {
 
 export function isOutsideWorktree(filePath: string, worktreeRoot: string): boolean {
   const absolutePath = path.resolve(filePath);
-  const relativePath = path.relative(worktreeRoot, absolutePath);
-  return relativePath.startsWith('..');
+  const worktreeRootResolved = path.resolve(worktreeRoot);
+  
+  const fileRoot = path.parse(absolutePath).root;
+  const worktreeRootParsed = path.parse(worktreeRootResolved).root;
+  if (fileRoot !== worktreeRootParsed) {
+    return true;
+  }
+  
+  const relative = path.relative(worktreeRootResolved, absolutePath);
+  return relative === '..' || relative.startsWith('..' + path.sep);
 }
 
 export function normalizeToRepoRelative(filePath: string, worktreeRoot: string): string {

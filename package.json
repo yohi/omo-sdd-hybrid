@@ -12,5 +12,8 @@
     "proper-lockfile": "^4.1.2",
     "write-file-atomic": "^5.0.1",
     "zod": "^3.22.0"
+  },
+  "comments": {
+    "sdd-cli": "The 'sdd' CLI tool (migrate-tasks, lint-tasks) is planned for in-repo implementation. Not added as dependency until implementation is complete. See spec.md section 4.3 for usage details and manual fallback steps."
   }
 }
