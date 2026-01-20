@@ -30,7 +30,14 @@ export function evaluateAccess(
     return { allowed: true, warned: false };
   }
   
-  if (!filePath) return { allowed: true, warned: false };
+  if (!filePath) {
+    return { 
+      allowed: false, 
+      warned: true, 
+      message: 'MISSING_FILEPATH: filePath が指定されていないため、スコープチェックをスキップできません',
+      rule: 'Rule1'
+    };
+  }
   
   const normalizedPath = normalizeToRepoRelative(filePath, worktreeRoot);
   

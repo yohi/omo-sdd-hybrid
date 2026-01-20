@@ -132,12 +132,12 @@ function loadState(): State | null {
 Phase 0 では以下の2形式の両方をパースする必要がある（`spec.md:L116-L120`）:
 
 1. **バッククォートあり（推奨）**:
-   ```
+   ```markdown
    * [ ] Task-1: Title (Scope: `src/auth/**`, `tests/**`)
    ```
 
 2. **バッククォートなし（レガシー、非推奨だが許容）**:
-   ```
+   ```markdown
    * [ ] Task-1: Title (Scope: src/auth/**, tests/**)
    ```
 
@@ -286,11 +286,11 @@ OmO-SDD-Hybrid プラグインの Phase 0（warn モード）を TDD で実装�
 > **⚠️ 実装時の最初のタスク**: OpenCode リポジトリを確認し、上記の仮定が正しいか検証すること。異なる場合は設定形式を調整する。これは Task 0 の前に行う必須確認事項。
 
 ### Definition of Done
-- [ ] `bun test` で全テストが pass
-- [ ] シナリオ A-I がすべて手動で再現可能（9シナリオ）
-- [ ] `sdd_start_task Task-1` でタスク開始 → State 生成
-- [ ] Scope 外ファイル編集時に WARN ログ出力
-- [ ] `specs/**`, `.opencode/**` は常に編集可能
+- [x] `bun test` で全テストが pass
+- [x] シナリオ A-I がすべて手動で再現可能（9シナリオ）
+- [x] `sdd_start_task Task-1` でタスク開始 → State 生成
+- [x] Scope 外ファイル編集時に WARN ログ出力
+- [x] `specs/**`, `.opencode/**` は常に編集可能
 
 ### Must Have
 - sdd_start_task: tasks.md パース → State 生成
@@ -422,10 +422,10 @@ grep -r "execute\.before\|beforeExecute\|onToolExecute" . --include="*.ts" 2>/de
 **Acceptance Criteria**:
 
 **確認項目:**
-- [ ] `tool.execute.before` フックが存在するか → YES/NO
-- [ ] `.opencode/plugins.json` 形式が正しいか → YES/NO/別形式
-- [ ] Tools 自動検出が機能するか → YES/NO
-- [ ] Skills 自動検出が機能するか → YES/NO
+- [x] `tool.execute.before` フックが存在するか → YES/NO
+- [x] `.opencode/plugins.json` 形式が正しいか → YES/NO/別形式
+- [x] Tools 自動検出が機能するか → YES/NO
+- [x] Skills 自動検出が機能するか → YES/NO
 
 **調整記録（仕様が異なる場合）:**
 ```markdown
@@ -665,22 +665,22 @@ export interface ToolExecuteBeforeEvent {
 **Acceptance Criteria**:
 
 **Setup:**
-- [ ] `package.json` 作成（zod 含む、すべての依存はここに）
-- [ ] `.opencode/package.json` 作成（設定ファイル、依存なし）
-- [ ] `bun install` 実行 → `node_modules/` 作成
-- [ ] Task -1 の結果に基づき:
+- [x] `package.json` 作成（zod 含む、すべての依存はここに）
+- [x] `.opencode/package.json` 作成（設定ファイル、依存なし）
+- [x] `bun install` 実行 → `node_modules/` 作成
+- [x] Task -1 の結果に基づき:
   - `@opencode-ai/plugin` が存在 → ルート `package.json` に依存追加
   - 存在しない → `.opencode/lib/plugin-stub.ts` 作成
 
 **TDD (RED):**
-- [ ] `__tests__/example.test.ts` 作成
-- [ ] テストコマンド: `bun test`
-- [ ] 期待: テストが実行される（pass または fail）
+- [x] `__tests__/example.test.ts` 作成
+- [x] テストコマンド: `bun test`
+- [x] 期待: テストが実行される（pass または fail）
 
 **Manual Verification:**
-- [ ] `bun install` → 成功（exit code 0）
-- [ ] `ls node_modules | grep picomatch` → `picomatch` 表示
-- [ ] `bun test` → テスト結果が表示される
+- [x] `bun install` → 成功（exit code 0）
+- [x] `ls node_modules | grep picomatch` → `picomatch` 表示
+- [x] `bun test` → テスト結果が表示される
 
 **Commit**: YES
 - Message: `chore: setup test infrastructure with bun`
@@ -1002,33 +1002,33 @@ export function parseTasksFile(content: string): ParsedTask[] {
 **TDD (RED → GREEN):**
 
 _path-utils.ts:_
-- [ ] テスト: `normalizeToRepoRelative('/home/user/repo/src/a.ts', '/home/user/repo')` → `'src/a.ts'`
-- [ ] テスト: `isOutsideWorktree('../secret', '/home/user/repo')` → `true`
-- [ ] テスト: `isOutsideWorktree('src/a.ts', '/home/user/repo')` → `false`
-- [ ] テスト: `isSymlink('/path/to/symlink')` → Symlink なら `true`（spec.md:L475-L488 準拠）
-- [ ] テスト: `isSymlink('/path/to/regular-file')` → 通常ファイルなら `false`
-- [ ] `bun test __tests__/lib/path-utils.test.ts` → PASS
+- [x] テスト: `normalizeToRepoRelative('/home/user/repo/src/a.ts', '/home/user/repo')` → `'src/a.ts'`
+- [x] テスト: `isOutsideWorktree('../secret', '/home/user/repo')` → `true`
+- [x] テスト: `isOutsideWorktree('src/a.ts', '/home/user/repo')` → `false`
+- [x] テスト: `isSymlink('/path/to/symlink')` → Symlink なら `true`（spec.md:L475-L488 準拠）
+- [x] テスト: `isSymlink('/path/to/regular-file')` → 通常ファイルなら `false`
+- [x] `bun test __tests__/lib/path-utils.test.ts` → PASS
 
 _glob-utils.ts:_
-- [ ] テスト: `matchesScope('src/auth/login.ts', ['src/auth/**'])` → `true`
-- [ ] テスト: `matchesScope('src/pay/x.ts', ['src/auth/**'])` → `false`
-- [ ] テスト: `matchesScope('specs/a.md', [])` → `false`（空配列）
-- [ ] `bun test __tests__/lib/glob-utils.test.ts` → PASS
+- [x] テスト: `matchesScope('src/auth/login.ts', ['src/auth/**'])` → `true`
+- [x] テスト: `matchesScope('src/pay/x.ts', ['src/auth/**'])` → `false`
+- [x] テスト: `matchesScope('specs/a.md', [])` → `false`（空配列）
+- [x] `bun test __tests__/lib/glob-utils.test.ts` → PASS
 
 _state-utils.ts:_
-- [ ] テスト: `writeState(state)` → `.opencode/state/current_context.json` 作成
-- [ ] テスト: `readState()` (正常) → `{ status: 'ok', state: {...} }`
-- [ ] テスト: `readState()` (ファイルなし) → `{ status: 'not_found' }`
-- [ ] テスト: `readState()` (破損JSON) → `{ status: 'corrupted', error: '...' }`
-- [ ] テスト: `clearState()` → ファイル削除
-- [ ] `bun test __tests__/lib/state-utils.test.ts` → PASS
+- [x] テスト: `writeState(state)` → `.opencode/state/current_context.json` 作成
+- [x] テスト: `readState()` (正常) → `{ status: 'ok', state: {...} }`
+- [x] テスト: `readState()` (ファイルなし) → `{ status: 'not_found' }`
+- [x] テスト: `readState()` (破損JSON) → `{ status: 'corrupted', error: '...' }`
+- [x] テスト: `clearState()` → ファイル削除
+- [x] `bun test __tests__/lib/state-utils.test.ts` → PASS
 
 _tasks-parser.ts:_
-- [ ] テスト: `parseTask('* [ ] Task-1: Title (Scope: \`src/**\`)')` → `{ id: 'Task-1', scopes: ['src/**'], done: false }` (バッククォートあり)
-- [ ] テスト: `parseTask('* [ ] Task-2: Title (Scope: src/auth/**, tests/**)')` → `{ id: 'Task-2', scopes: ['src/auth/**', 'tests/**'], done: false }` (バッククォートなし、Phase 0 lenient)
-- [ ] テスト: `parseTask('* [x] Task-3: Done (Scope: \`a/**\`)')` → `{ done: true }`
-- [ ] テスト: `parseTasksFile(content)` → タスク配列
-- [ ] `bun test __tests__/lib/tasks-parser.test.ts` → PASS
+- [x] テスト: `parseTask('* [ ] Task-1: Title (Scope: \`src/**\`)')` → `{ id: 'Task-1', scopes: ['src/**'], done: false }` (バッククォートあり)
+- [x] テスト: `parseTask('* [ ] Task-2: Title (Scope: src/auth/**, tests/**)')` → `{ id: 'Task-2', scopes: ['src/auth/**', 'tests/**'], done: false }` (バッククォートなし、Phase 0 lenient)
+- [x] テスト: `parseTask('* [x] Task-3: Done (Scope: \`a/**\`)')` → `{ done: true }`
+- [x] テスト: `parseTasksFile(content)` → タスク配列
+- [x] `bun test __tests__/lib/tasks-parser.test.ts` → PASS
 
 **Commit**: YES
 - Message: `feat(lib): add utility modules for path, glob, state, and tasks parsing`
@@ -1170,17 +1170,17 @@ describe('sdd_start_task', () => {
 - これにより各テストが独立して実行可能
 
 **TDD (RED → GREEN):**
-- [ ] テスト: 正常系 - タスク開始 → State 生成、正しい JSON 形式
-- [ ] テスト: E_TASKS_NOT_FOUND - `specs/tasks.md` が存在しない → エラー
-- [ ] テスト: E_TASK_NOT_FOUND - 存在しない taskId → エラー
-- [ ] テスト: E_TASK_ALREADY_DONE - `[x]` タスク → エラー
-- [ ] テスト: E_SCOPE_MISSING - Scope なし → エラー
-- [ ] `bun test __tests__/tools/sdd_start_task.test.ts` → PASS
+- [x] テスト: 正常系 - タスク開始 → State 生成、正しい JSON 形式
+- [x] テスト: E_TASKS_NOT_FOUND - `specs/tasks.md` が存在しない → エラー
+- [x] テスト: E_TASK_NOT_FOUND - 存在しない taskId → エラー
+- [x] テスト: E_TASK_ALREADY_DONE - `[x]` タスク → エラー
+- [x] テスト: E_SCOPE_MISSING - Scope なし → エラー
+- [x] `bun test __tests__/tools/sdd_start_task.test.ts` → PASS
 
 **Manual Verification:**
-- [ ] `specs/tasks.md` に `* [ ] Task-1: Test (Scope: \`src/**\`)` を追加
-- [ ] `sdd_start_task Task-1` 実行
-- [ ] `.opencode/state/current_context.json` が以下の形式で生成:
+- [x] `specs/tasks.md` に `* [ ] Task-1: Test (Scope: \`src/**\`)` を追加
+- [x] `sdd_start_task Task-1` 実行
+- [x] `.opencode/state/current_context.json` が以下の形式で生成:
   ```json
   {
     "version": 1,
@@ -1330,22 +1330,22 @@ describe('sdd_end_task / sdd_show_context', () => {
 **TDD (RED → GREEN):**
 
 _sdd_end_task:_
-- [ ] テスト: State 存在時 (status: 'ok') → ファイル削除、完了メッセージ
-- [ ] テスト: State 不在時 (status: 'not_found') → 「アクティブなタスクはありません」
-- [ ] テスト: State 破損時 (status: 'corrupted') → クリア + 警告メッセージ
-- [ ] `bun test __tests__/tools/sdd_end_task.test.ts` → PASS
+- [x] テスト: State 存在時 (status: 'ok') → ファイル削除、完了メッセージ
+- [x] テスト: State 不在時 (status: 'not_found') → 「アクティブなタスクはありません」
+- [x] テスト: State 破損時 (status: 'corrupted') → クリア + 警告メッセージ
+- [x] `bun test __tests__/tools/sdd_end_task.test.ts` → PASS
 
 _sdd_show_context:_
-- [ ] テスト: State 存在時 (status: 'ok') → activeTaskId, allowedScopes 含む出力
-- [ ] テスト: State 不在時 (status: 'not_found') → 「タスク未開始」メッセージ
-- [ ] テスト: State 破損時 (status: 'corrupted') → エラーメッセージ + 対処法
-- [ ] `bun test __tests__/tools/sdd_show_context.test.ts` → PASS
+- [x] テスト: State 存在時 (status: 'ok') → activeTaskId, allowedScopes 含む出力
+- [x] テスト: State 不在時 (status: 'not_found') → 「タスク未開始」メッセージ
+- [x] テスト: State 破損時 (status: 'corrupted') → エラーメッセージ + 対処法
+- [x] `bun test __tests__/tools/sdd_show_context.test.ts` → PASS
 
 **Manual Verification:**
-- [ ] `sdd_start_task Task-1` 実行後
-- [ ] `sdd_show_context` → `現在のタスク: Task-1 ...` 表示
-- [ ] `sdd_end_task` → `タスク終了: Task-1 ...` 表示
-- [ ] `sdd_show_context` → `タスク未開始 ...` 表示
+- [x] `sdd_start_task Task-1` 実行後
+- [x] `sdd_show_context` → `現在のタスク: Task-1 ...` 表示
+- [x] `sdd_end_task` → `タスク終了: Task-1 ...` 表示
+- [x] `sdd_show_context` → `タスク未開始 ...` 表示
 
 **Commit**: YES
 - Message: `feat(tools): implement sdd_end_task and sdd_show_context`
@@ -1618,29 +1618,29 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
 **TDD (RED → GREEN):**
 
 _Rule 0 テスト:_
-- [ ] `specs/a.md` 編集 → allow（State 不問）
-- [ ] `.opencode/state/x.json` 編集 → allow
+- [x] `specs/a.md` 編集 → allow（State 不問）
+- [x] `.opencode/state/x.json` 編集 → allow
 
 _Rule 1 テスト:_
-- [ ] State なし + `src/a.ts` 編集 → warn ログ出力 + 実行許可
+- [x] State なし + `src/a.ts` 編集 → warn ログ出力 + 実行許可
 
 _Rule 2 テスト:_
-- [ ] State あり (Scope: `src/auth/**`) + `src/auth/x.ts` → allow
-- [ ] State あり (Scope: `src/auth/**`) + `src/pay/y.ts` → warn ログ出力
+- [x] State あり (Scope: `src/auth/**`) + `src/auth/x.ts` → allow
+- [x] State あり (Scope: `src/auth/**`) + `src/pay/y.ts` → warn ログ出力
 
 _Rule 3 テスト:_
-- [ ] `../secrets.txt` 編集 → warn ログ出力
+- [x] `../secrets.txt` 編集 → warn ログ出力
 
 _Rule 4 テスト:_
-- [ ] bash `rm -rf /` → warn ログ出力
-- [ ] bash `ls` → allow（ログなし）
+- [x] bash `rm -rf /` → warn ログ出力
+- [x] bash `ls` → allow（ログなし）
 
-- [ ] `bun test __tests__/plugins/sdd-gatekeeper.test.ts` → PASS
+- [x] `bun test __tests__/plugins/sdd-gatekeeper.test.ts` → PASS
 
 **Manual Verification:**
-- [ ] `sdd_start_task Task-1` (Scope: `src/auth/**`) 実行
-- [ ] `src/auth/login.ts` に対して edit → 成功（ログなし）
-- [ ] `src/pay/checkout.ts` に対して edit → WARN ログ出力、実行は許可
+- [x] `sdd_start_task Task-1` (Scope: `src/auth/**`) 実行
+- [x] `src/auth/login.ts` に対して edit → 成功（ログなし）
+- [x] `src/pay/checkout.ts` に対して edit → WARN ログ出力、実行は許可
 
 **Commit**: YES
 - Message: `feat(plugins): implement sdd-gatekeeper with warn mode`
@@ -1725,13 +1725,13 @@ describe('sdd_validate_gap', () => {
 ```
 
 **TDD (RED → GREEN):**
-- [ ] テスト: `sdd_validate_gap Task-1` → フォールバックメッセージ（手動確認手順含む）
-- [ ] テスト: taskId 未指定 → Zod バリデーションエラー（必須パラメータ）
-- [ ] `bun test __tests__/tools/sdd_validate_gap.test.ts` → PASS
+- [x] テスト: `sdd_validate_gap Task-1` → フォールバックメッセージ（手動確認手順含む）
+- [x] テスト: taskId 未指定 → Zod バリデーションエラー（必須パラメータ）
+- [x] `bun test __tests__/tools/sdd_validate_gap.test.ts` → PASS
 
 **Manual Verification:**
-- [ ] `sdd_validate_gap Task-1` 実行
-- [ ] 出力に「kiro:validate-gap は利用できません」+ 4ステップの手動確認手順
+- [x] `sdd_validate_gap Task-1` 実行
+- [x] 出力に「kiro:validate-gap は利用できません」+ 4ステップの手動確認手順
 
 **Commit**: YES
 - Message: `feat(tools): add sdd_validate_gap stub for future kiro integration`
@@ -1847,10 +1847,10 @@ priority: 10
 **Acceptance Criteria**:
 
 **Manual Verification:**
-- [ ] `.opencode/skills/sdd-architect/SKILL.md` 存在
-- [ ] `.opencode/skills/sdd-implementer/SKILL.md` 存在
-- [ ] YAML frontmatter が正しくパース可能
-- [ ] 内容が spec.md セクション 8 と一致
+- [x] `.opencode/skills/sdd-architect/SKILL.md` 存在
+- [x] `.opencode/skills/sdd-implementer/SKILL.md` 存在
+- [x] YAML frontmatter が正しくパース可能
+- [x] 内容が spec.md セクション 8 と一致
 
 **Commit**: YES
 - Message: `feat(skills): add sdd-architect and sdd-implementer skills`
@@ -2130,17 +2130,17 @@ describe('Acceptance Criteria A-I', () => {
 **Acceptance Criteria**:
 
 **TDD (全シナリオ):**
-- [ ] Scenario A: state なし → WARN NO_ACTIVE_TASK
-- [ ] Scenario B: Scope 内 → allow
-- [ ] Scenario C: Scope 外 → WARN SCOPE_DENIED
-- [ ] Scenario D: specs/** → allow (Rule 0)
-- [ ] Scenario E: worktree 外 → WARN OUTSIDE_WORKTREE
-- [ ] Scenario F: 破壊的 bash → WARN
-- [ ] Scenario G: multiedit with mixed scope → partial WARN
-- [ ] Scenario H: state corrupted → WARN STATE_CORRUPTED
-- [ ] Scenario I: state corrupted + specs/** → allow (Rule 0)
+- [x] Scenario A: state なし → WARN NO_ACTIVE_TASK
+- [x] Scenario B: Scope 内 → allow
+- [x] Scenario C: Scope 外 → WARN SCOPE_DENIED
+- [x] Scenario D: specs/** → allow (Rule 0)
+- [x] Scenario E: worktree 外 → WARN OUTSIDE_WORKTREE
+- [x] Scenario F: 破壊的 bash → WARN
+- [x] Scenario G: multiedit with mixed scope → partial WARN
+- [x] Scenario H: state corrupted → WARN STATE_CORRUPTED
+- [x] Scenario I: state corrupted + specs/** → allow (Rule 0)
 
-- [ ] `bun test __tests__/e2e/acceptance.test.ts` → 9/9 PASS
+- [x] `bun test __tests__/e2e/acceptance.test.ts` → 9/9 PASS
 
 **Commit**: YES
 - Message: `test(e2e): add acceptance test scenarios A-I (including multiedit and state corruption)`
@@ -2256,15 +2256,15 @@ _specs/tasks.md:_
 **Acceptance Criteria**:
 
 **Manual Verification:**
-- [ ] `specs/tasks.md` が存在
-- [ ] サンプルタスクが含まれる
-- [ ] フォーマットが spec.md 準拠
-- [ ] `.opencode/state/.gitkeep` が存在
-- [ ] `README.md` に以下のセクションが存在:
-  - [ ] クイックスタート（4ステップ）
-  - [ ] コマンド一覧テーブル
-  - [ ] 環境変数テーブル（`SDD_GUARD_MODE`）
-  - [ ] ファイル構成
+- [x] `specs/tasks.md` が存在
+- [x] サンプルタスクが含まれる
+- [x] フォーマットが spec.md 準拠
+- [x] `.opencode/state/.gitkeep` が存在
+- [x] `README.md` に以下のセクションが存在:
+  - [x] クイックスタート（4ステップ）
+  - [x] コマンド一覧テーブル
+  - [x] 環境変数テーブル（`SDD_GUARD_MODE`）
+  - [x] ファイル構成
 
 **Commit**: YES
 - Message: `chore: add tasks.md template, README, and initial structure`
@@ -2308,9 +2308,9 @@ sdd_show_context
 ```
 
 ### Final Checklist
-- [ ] 全テスト pass (`bun test`)
-- [ ] sdd_start_task が動作する
-- [ ] sdd-gatekeeper が warn モードで動作する
-- [ ] Skills が読み込める
-- [ ] specs/tasks.md テンプレートが存在する
-- [ ] 受け入れ基準シナリオ A-I すべて pass（9シナリオ）
+- [x] 全テスト pass (`bun test`)
+- [x] sdd_start_task が動作する
+- [x] sdd-gatekeeper が warn モードで動作する
+- [x] Skills が読み込める
+- [x] specs/tasks.md テンプレートが存在する
+- [x] 受け入れ基準シナリオ A-I すべて pass（9シナリオ）

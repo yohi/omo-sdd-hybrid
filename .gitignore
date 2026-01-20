@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build outputs
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sisyphus session state (PC-specific)
+.sisyphus/boulder.json
+
+# Note: .sisyphus/plans/ and .sisyphus/notepads/ are committed
+# for team collaboration and context preservation
+
+# Temporary OpenCode clone
+opencode/
+
+# State files (runtime generated)
+.opencode/state/*.json
+!.opencode/state/.gitkeep
