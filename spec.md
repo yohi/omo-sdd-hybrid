@@ -140,13 +140,13 @@ Gatekeeper は以下を**常に編集許可**する（プロセスを止めな�
 - `src/**`（広すぎる）：タスク単位で絞る
 
 ### 4.2 例
-```
+```markdown
 
 * [ ] Task-1: ユーザー認証APIの実装 (Scope: `src/auth/**`, `src/users/**`, `tests/auth/**`)
 * [ ] Task-2: 決済DBスキーマ作成 (Scope: `src/db/migrations/**`)
 * [x] Task-3: ログイン画面の作成 (Scope: `src/ui/login/**`, `src/ui/components/Button.tsx`)
 
-````
+```
 
 ### 4.3 移行ポリシー（Phase 0 → Phase 1）
 
@@ -159,6 +159,15 @@ Gatekeeper は以下を**常に編集許可**する（プロセスを止めな�
 
 #### 移行手順
 
+**CLI Tool Origin & Delivery Plan:**
+- **`sdd` Tool Status**: In-repo CLI utility (to be implemented in this repository)
+- **Phase 0 Deliverables**:
+  - `migrate-tasks`: Task format migration utility (converts Phase 0 to Phase 1 syntax)
+  - `lint-tasks`: Task syntax validation utility
+- **Implementation Location**: `scripts/sdd/` or `.opencode/cli/sdd/` (TBD)
+- **Package Dependency**: Not yet added to `package.json` (will be added upon implementation)
+- **Note**: `npx sdd` commands shown below assume future implementation; use manual fallback steps until then
+
 **Step 1: tasks.md のフォーマット変換**
 
 Migration script を実行:
@@ -169,6 +178,33 @@ npx sdd migrate-tasks --format=backtick-required --dry-run
 # 実行
 npx sdd migrate-tasks --format=backtick-required
 ```
+
+**Fallback: Manual Migration Steps (when `sdd` is not yet available)**
+
+If `sdd` CLI tool is not yet implemented, perform manual migration:
+
+1. **Dry-run (Preview changes):**
+   ```bash
+   # Backup current tasks.md
+   cp specs/tasks.md specs/tasks.md.backup
+   
+   # Manually inspect each task line in specs/tasks.md
+   # Look for patterns like: (Scope: src/auth/**, tests/auth/**)
+   # Identify lines needing conversion to: (Scope: `src/auth/**`, `tests/auth/**`)
+   ```
+
+2. **Apply changes:**
+   - Open `specs/tasks.md` in your editor
+   - For each task line with Scope:
+     - Find: `(Scope: path1, path2, ...)`
+     - Replace with: `(Scope: \`path1\`, \`path2\`, ...)`
+   - Ensure each glob pattern is wrapped in backticks
+   - Separate patterns with `, ` (comma + space)
+
+3. **Verify syntax:**
+   - Check that all task lines match: `* [ ] TaskID: Title (Scope: \`glob1\`, \`glob2\`, ...)`
+   - Ensure TaskID follows pattern: `[A-Za-z][A-Za-z0-9_-]*-\\d+`
+   - Verify all globs are in backticks
 
 **変換例:**
 ```markdown
@@ -194,6 +230,27 @@ export SDD_SCOPE_FORMAT=strict  # 旧形式を拒否
 # 全タスクの構文チェック
 npx sdd lint-tasks
 ```
+
+**Fallback: Manual Validation (when `sdd` is not yet available)**
+
+If `lint-tasks` is not yet implemented, perform manual validation:
+
+1. **Test each task with sdd_start_task:**
+   ```bash
+   # In OpenCode session, try starting each task
+   # sdd_start_task Task-1
+   # sdd_start_task Task-2
+   # etc.
+   ```
+
+2. **Check for parsing errors:**
+   - Each `sdd_start_task` call should succeed without `E_SCOPE_FORMAT` error
+   - Verify `allowedScopes` in `.opencode/state/current_context.json` is correctly populated
+
+3. **Manual regex validation:**
+   - All task lines must match: `^\* \[([ x])\] ([A-Za-z][A-Za-z0-9_-]*-\d+): .+ \(Scope: (\`[^\`]+\`)(, \`[^\`]+\`)*\)$`
+   - Each Scope pattern must be in backticks
+   - No bare patterns (without backticks) should exist in Phase 1
 
 #### ロールバック手順
 
@@ -678,21 +735,18 @@ function validatePathForEdit(
 
 ### 8.1 `sdd-architect`（Requirements→Design→Tasks）
 
-**MUST**
+#### MUST
 
 * 新機能開始時は `specs/<feature>/` ディレクトリを作成する
 * Requirements → Design → Tasks の順に文書を作成する
 * 各タスク行に `(Scope: ...)` を **必ず** 付ける（後述の文法に従う）
 * 設計後、影響ファイル（Impacted Files）を明記する
 
-**MAY（任意統合: kiro/cc-sdd が利用可能な場合）**
 
 * `kiro:spec-init` で初期化テンプレートを生成してもよい
 * `kiro:spec-requirements` で要件抽出を補助してもよい
 * `kiro:spec-design` で設計ドキュメント生成を補助してもよい
 * `kiro:spec-tasks` でタスク分割を補助してもよい
-
-**MUST NOT（kiro が利用不可の場合）**
 
 * kiro コマンドの不在を理由にプロセスを止めてはならない
 * 代わりに `specs/` 配下のテンプレートファイルを手動作成する
