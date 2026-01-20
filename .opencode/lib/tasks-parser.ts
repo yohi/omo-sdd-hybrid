@@ -11,7 +11,12 @@ export interface ParsedTask {
 function parseScopes(scopeStr: string): string[] {
   const backtickMatches = [...scopeStr.matchAll(BACKTICK_SCOPE_REGEX)];
   if (backtickMatches.length > 0) {
-    return backtickMatches.map(m => m[1]);
+    return backtickMatches.map(m => m[1]).filter(Boolean);
+  }
+  
+  // Handle empty backticks case: `` or multiple empty ``
+  if (/^[`\s,]*$/.test(scopeStr)) {
+    return [];
   }
   
   return scopeStr.split(/,\s*/).map(s => s.trim()).filter(Boolean);
