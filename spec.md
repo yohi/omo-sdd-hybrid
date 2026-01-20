@@ -140,13 +140,13 @@ Gatekeeper は以下を**常に編集許可**する（プロセスを止めな�
 - `src/**`（広すぎる）：タスク単位で絞る
 
 ### 4.2 例
-```
+```markdown
 
 * [ ] Task-1: ユーザー認証APIの実装 (Scope: `src/auth/**`, `src/users/**`, `tests/auth/**`)
 * [ ] Task-2: 決済DBスキーマ作成 (Scope: `src/db/migrations/**`)
 * [x] Task-3: ログイン画面の作成 (Scope: `src/ui/login/**`, `src/ui/components/Button.tsx`)
 
-````
+```
 
 ### 4.3 移行ポリシー（Phase 0 → Phase 1）
 
@@ -678,21 +678,21 @@ function validatePathForEdit(
 
 ### 8.1 `sdd-architect`（Requirements→Design→Tasks）
 
-**MUST**
+#### MUST
 
 * 新機能開始時は `specs/<feature>/` ディレクトリを作成する
 * Requirements → Design → Tasks の順に文書を作成する
 * 各タスク行に `(Scope: ...)` を **必ず** 付ける（後述の文法に従う）
 * 設計後、影響ファイル（Impacted Files）を明記する
 
-**MAY（任意統合: kiro/cc-sdd が利用可能な場合）**
+#### MAY（任意統合: kiro/cc-sdd が利用可能な場合）
 
 * `kiro:spec-init` で初期化テンプレートを生成してもよい
 * `kiro:spec-requirements` で要件抽出を補助してもよい
 * `kiro:spec-design` で設計ドキュメント生成を補助してもよい
 * `kiro:spec-tasks` でタスク分割を補助してもよい
 
-**MUST NOT（kiro が利用不可の場合）**
+#### MUST NOT（kiro が利用不可の場合）
 
 * kiro コマンドの不在を理由にプロセスを止めてはならない
 * 代わりに `specs/` 配下のテンプレートファイルを手動作成する
