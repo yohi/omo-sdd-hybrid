@@ -51,11 +51,14 @@ function runScopedTests(allowedScopes: string[]): string {
   const bunArgs = ['test', ...testPatterns.map(p => `./${p}`)];
   const result = spawnSync('bun', bunArgs, {
     encoding: 'utf-8',
-    timeout: 30000,
-    shell: true
+    timeout: 30000
   });
   
   const output = (result.stdout || '') + (result.stderr || '');
+  
+  if (result.error) {
+    return `ERROR: ${result.error.message}\n${output}`;
+  }
   
   if (result.status === 0) {
     return `PASS:\n${output}`;
