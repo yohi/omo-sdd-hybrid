@@ -1,7 +1,7 @@
 import { tool } from '../lib/plugin-stub';
 import { readState } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
-import { parseTasksFile, ScopeFormatError } from '../lib/tasks-parser';
+import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parser';
 import { execSync, spawnSync } from 'child_process';
 import fs from 'fs';
 
@@ -54,7 +54,7 @@ function runScopedTests(allowedScopes: string[]): string {
   
   const testPatterns = allowedScopes
     .filter(s => s.includes('__tests__') || s.includes('test'))
-    .map(s => s.replace('**', ''));
+    .map(s => s.replaceAll('**', ''));
   
   if (testPatterns.length === 0) {
     return 'SKIP: テストスコープが定義されていません';
@@ -107,7 +107,20 @@ export default tool({
       }
       
       const content = fs.readFileSync(TASKS_PATH, 'utf-8');
-      const tasks = parseTasksFile(content);
+      let tasks: ParsedTask[];
+      try {
+        tasks = parseTasksFile(content);
+      } catch (error) {
+        if (error instanceof ScopeFormatError) {
+          console.error(`エラー: ${TASKS_PATH} の形式が不正です: ${error.message}`);
+          process.exit(1);
+        }
+        if (error instanceof Error) {
+          console.error(`エラー: ${TASKS_PATH} の解析に失敗しました: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
       
       const task = tasks.find(t => t.id === taskId);
       if (!task) {
