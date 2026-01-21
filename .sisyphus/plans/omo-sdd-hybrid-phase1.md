@@ -63,11 +63,11 @@ Phase 1（block モード + 自律ループ）を TDD で実装し、「タス�
 | `__tests__/tools/sdd_validate_gap.enhanced.test.ts` | **新規作成** | 強化版テスト |
 
 ### Definition of Done
-- [ ] `bun test` で全テストが pass（既存 + 新規）
-- [ ] `SDD_GUARD_MODE=block` で Scope 外編集がエラー
-- [ ] `SDD_SCOPE_FORMAT=strict` でバッククォートなし Scope がエラー
-- [ ] `sdd_validate_gap` が lsp_diagnostics + テスト + スコープ検証を実行
-- [ ] `sdd-orchestrator` スキルが利用可能
+- [x] `bun test` で全テストが pass（既存 + 新規）
+- [x] `SDD_GUARD_MODE=block` で Scope 外編集がエラー
+- [x] `SDD_SCOPE_FORMAT=strict` でバッククォートなし Scope がエラー
+- [x] `sdd_validate_gap` が lsp_diagnostics + テスト + スコープ検証を実行
+- [x] `sdd-orchestrator` スキルが利用可能
 
 ### Must Have
 - Gatekeeper block モード（環境変数制御）
@@ -203,17 +203,17 @@ export function evaluateAccess(
 **Acceptance Criteria**:
 
 **TDD (RED → GREEN):**
-- [ ] テストファイル作成: `__tests__/plugins/sdd-gatekeeper.block.test.ts`
-- [ ] テスト: `SDD_GUARD_MODE=block` + State なし + `src/a.ts` 編集 → エラースロー
-- [ ] テスト: `SDD_GUARD_MODE=block` + Scope 外編集 → エラースロー
-- [ ] テスト: `SDD_GUARD_MODE=block` + worktree 外編集 → エラースロー
-- [ ] テスト: `SDD_GUARD_MODE=block` + 破壊的 bash → エラースロー
-- [ ] テスト: `SDD_GUARD_MODE=warn`（デフォルト）→ 既存動作維持
-- [ ] `bun test __tests__/plugins/sdd-gatekeeper.block.test.ts` → PASS
+- [x] テストファイル作成: `__tests__/plugins/sdd-gatekeeper.block.test.ts`
+- [x] テスト: `SDD_GUARD_MODE=block` + State なし + `src/a.ts` 編集 → エラースロー
+- [x] テスト: `SDD_GUARD_MODE=block` + Scope 外編集 → エラースロー
+- [x] テスト: `SDD_GUARD_MODE=block` + worktree 外編集 → エラースロー
+- [x] テスト: `SDD_GUARD_MODE=block` + 破壊的 bash → エラースロー
+- [x] テスト: `SDD_GUARD_MODE=warn`（デフォルト）→ 既存動作維持
+- [x] `bun test __tests__/plugins/sdd-gatekeeper.block.test.ts` → PASS
 
 **Manual Verification:**
-- [ ] `SDD_GUARD_MODE=block bun test` → 全テスト pass
-- [ ] 既存テスト `__tests__/plugins/sdd-gatekeeper.test.ts` → pass（後方互換）
+- [x] `SDD_GUARD_MODE=block bun test` → 全テスト pass
+- [x] 既存テスト `__tests__/plugins/sdd-gatekeeper.test.ts` → pass（後方互換）
 
 **Commit**: YES
 - Message: `feat(gatekeeper): add block mode for Phase 1`
@@ -282,11 +282,11 @@ function parseScopes(scopeStr: string, format: ScopeFormat = getScopeFormat()): 
 **Acceptance Criteria**:
 
 **TDD (RED → GREEN):**
-- [ ] テストファイル作成: `__tests__/lib/tasks-parser.strict.test.ts`
-- [ ] テスト: strict + `(Scope: \`src/**\`)` → 正常パース
-- [ ] テスト: strict + `(Scope: src/**)` → ScopeFormatError
-- [ ] テスト: lenient + `(Scope: src/**)` → 正常パース（後方互換）
-- [ ] `bun test __tests__/lib/tasks-parser.strict.test.ts` → PASS
+- [x] テストファイル作成: `__tests__/lib/tasks-parser.strict.test.ts`
+- [x] テスト: strict + `(Scope: \`src/**\`)` → 正常パース
+- [x] テスト: strict + `(Scope: src/**)` → ScopeFormatError
+- [x] テスト: lenient + `(Scope: src/**)` → 正常パース（後方互換）
+- [x] `bun test __tests__/lib/tasks-parser.strict.test.ts` → PASS
 
 **Commit**: YES
 - Message: `feat(parser): add strict scope format for Phase 1`
@@ -337,9 +337,9 @@ async execute({ taskId }, context) {
 **Acceptance Criteria**:
 
 **TDD (RED → GREEN):**
-- [ ] テスト: strict + 不正 Scope タスク開始 → E_SCOPE_FORMAT エラー
-- [ ] テスト: strict + 正常 Scope タスク開始 → 成功
-- [ ] 既存テスト → pass
+- [x] テスト: strict + 不正 Scope タスク開始 → E_SCOPE_FORMAT エラー
+- [x] テスト: strict + 正常 Scope タスク開始 → 成功
+- [x] 既存テスト → pass
 
 **Commit**: YES
 - Message: `feat(start_task): integrate strict scope validation`
@@ -431,11 +431,11 @@ async function runScopedTests(state: State): string {
 **Acceptance Criteria**:
 
 **TDD (RED → GREEN):**
-- [ ] テストファイル作成: `__tests__/tools/sdd_validate_gap.enhanced.test.ts`
-- [ ] テスト: State あり → スコープ検証結果を含む出力
-- [ ] テスト: 変更ファイルが Scope 外 → 警告出力
-- [ ] テスト: テストファイルが存在 → テスト結果を含む出力
-- [ ] `bun test __tests__/tools/sdd_validate_gap.enhanced.test.ts` → PASS
+- [x] テストファイル作成: `__tests__/tools/sdd_validate_gap.enhanced.test.ts`
+- [x] テスト: State あり → スコープ検証結果を含む出力
+- [x] テスト: 変更ファイルが Scope 外 → 警告出力
+- [x] テスト: テストファイルが存在 → テスト結果を含む出力
+- [x] `bun test __tests__/tools/sdd_validate_gap.enhanced.test.ts` → PASS
 
 **Commit**: YES
 - Message: `feat(validate_gap): add lsp diagnostics, test execution, scope verification`
@@ -505,9 +505,9 @@ priority: 15
 **Acceptance Criteria**:
 
 **Manual Verification:**
-- [ ] `.opencode/skills/sdd-orchestrator/SKILL.md` が存在
-- [ ] YAML frontmatter が正しい形式
-- [ ] 手順が明確に記載
+- [x] `.opencode/skills/sdd-orchestrator/SKILL.md` が存在
+- [x] YAML frontmatter が正しい形式
+- [x] 手順が明確に記載
 
 **Commit**: YES
 - Message: `feat(skills): add sdd-orchestrator for autonomous validation loop`
@@ -545,11 +545,11 @@ priority: 15
 | H' | state 破損 + block | 編集 | BLOCK (STATE_CORRUPTED) |
 
 **TDD (RED → GREEN):**
-- [ ] テスト: シナリオ A' → エラースロー
-- [ ] テスト: シナリオ C' → エラースロー
-- [ ] テスト: シナリオ E' → エラースロー
-- [ ] テスト: シナリオ H' → エラースロー
-- [ ] `bun test __tests__/e2e/acceptance.test.ts` → PASS
+- [x] テスト: シナリオ A' → エラースロー
+- [x] テスト: シナリオ C' → エラースロー
+- [x] テスト: シナリオ E' → エラースロー
+- [x] テスト: シナリオ H' → エラースロー
+- [x] `bun test __tests__/e2e/acceptance.test.ts` → PASS
 
 **Commit**: YES
 - Message: `test(e2e): add Phase 1 block mode acceptance tests`
@@ -586,9 +586,9 @@ SDD_SCOPE_FORMAT=strict bun test
 ```
 
 ### Final Checklist
-- [ ] `bun test` → 全 pass
-- [ ] `SDD_GUARD_MODE=block` で Scope 外編集 → エラー
-- [ ] `SDD_SCOPE_FORMAT=strict` でバッククォートなし → エラー
-- [ ] `sdd_validate_gap` が 3 つの検証を実行
-- [ ] `sdd-orchestrator` スキルが利用可能
-- [ ] 既存テストが全て pass（後方互換性）
+- [x] `bun test` → 全 pass
+- [x] `SDD_GUARD_MODE=block` で Scope 外編集 → エラー
+- [x] `SDD_SCOPE_FORMAT=strict` でバッククォートなし → エラー
+- [x] `sdd_validate_gap` が 3 つの検証を実行
+- [x] `sdd-orchestrator` スキルが利用可能
+- [x] 既存テストが全て pass（後方互換性）
