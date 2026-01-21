@@ -31,7 +31,8 @@ describe('Acceptance Criteria A-I', () => {
       activeTaskTitle: 'Test',
       allowedScopes: ['src/auth/**'],
       startedAt: new Date().toISOString(),
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     });
     
     const result = simulateEdit('src/auth/x.ts');
@@ -46,7 +47,8 @@ describe('Acceptance Criteria A-I', () => {
       activeTaskTitle: 'Test',
       allowedScopes: ['src/auth/**'],
       startedAt: new Date().toISOString(),
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     });
     
     const result = simulateEdit('src/pay/y.ts');
@@ -80,7 +82,8 @@ describe('Acceptance Criteria A-I', () => {
       activeTaskTitle: 'Test',
       allowedScopes: ['src/auth/**'],
       startedAt: new Date().toISOString(),
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     });
     
     const files = [

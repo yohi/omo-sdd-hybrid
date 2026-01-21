@@ -28,7 +28,8 @@ describe('state-utils', () => {
         activeTaskTitle: 'Test Task',
         allowedScopes: ['src/auth/**'],
         startedAt: new Date().toISOString(),
-        startedBy: 'test'
+        startedBy: 'test',
+        validationAttempts: 0
       };
       
       await writeState(state);
@@ -83,7 +84,8 @@ describe('state-utils', () => {
         activeTaskTitle: 'Test',
         allowedScopes: ['src/**'],
         startedAt: new Date().toISOString(),
-        startedBy: 'test'
+        startedBy: 'test',
+        validationAttempts: 0
       };
       
       await writeState(state);

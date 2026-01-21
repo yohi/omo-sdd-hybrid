@@ -17,9 +17,9 @@ priority: 15
 - `sdd_show_context` でアクティブなタスクがあることを確認
 - タスクがない場合は `sdd_start_task` を先に実行
 
-### 2. 検証ループ（最大 5 回）
+### 2. 検証ループ(最大 5 回)
 
-```
+```text
 ループ開始:
   1. `sdd_validate_gap` を実行
   2. 結果を確認:
@@ -29,11 +29,13 @@ priority: 15
 ```
 
 #### 検証項目
+
 | 項目 | PASS 条件 |
 |------|-----------|
 | スコープ検証 | 変更ファイルがすべて allowedScopes 内 |
 | Diagnostics | lsp_diagnostics でエラーなし |
 | テスト | 関連テストがすべて pass |
+
 
 ### 3. 完了処理
 検証通過後のみ実行：
@@ -63,11 +65,11 @@ priority: 15
 
 ## 使用例
 
-```
+```bash
 # 1. タスク開始
 sdd_start_task Task-1
 
-# 2. 実装（省略）
+# 2. 実装(省略)
 
 # 3. Orchestrator スキルで検証ループ
 /sdd-orchestrator

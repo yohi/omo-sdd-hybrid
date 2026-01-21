@@ -35,11 +35,12 @@ describe('sdd_validate_gap', () => {
       activeTaskTitle: 'Test',
       allowedScopes: ['src/**'],
       startedAt: new Date().toISOString(),
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     }));
     
     const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-    const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
+    const result = await sddValidateGap.default.execute({}, {} as any);
     
     expect(result).toContain('Task-1');
     expect(result).toContain('sdd_end_task');

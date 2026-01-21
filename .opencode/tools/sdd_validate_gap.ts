@@ -1,11 +1,12 @@
 import { tool } from '../lib/plugin-stub';
-import { readState } from '../lib/state-utils';
+import { readState, writeState } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
 import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parser';
 import { execSync, spawnSync } from 'child_process';
 import fs from 'fs';
 
 const TASKS_PATH = 'specs/tasks.md';
+const MAX_VALIDATION_ATTEMPTS = 5;
 
 function getChangedFiles(): string[] | null {
   const result = spawnSync('git', ['diff', '--name-only', 'HEAD'], {
@@ -100,6 +101,27 @@ export default tool({
     const state = stateResult.state;
     const effectiveTaskId = taskId || state.activeTaskId;
     
+    const currentAttempts = state.validationAttempts + 1;
+    
+    if (currentAttempts > MAX_VALIDATION_ATTEMPTS) {
+      return `❌ エスカレーション: 検証が ${MAX_VALIDATION_ATTEMPTS} 回連続で失敗しました
+
+タスク: ${effectiveTaskId}
+試行回数: ${currentAttempts}回 / ${MAX_VALIDATION_ATTEMPTS}回上限
+
+**次のアクション**:
+1. 現在の問題を整理してください
+2. 人間にエスカレーションし、追加の指示を待ってください
+3. 自動修正を中断してください
+
+検証ループを続けるには、sdd_end_task → sdd_start_task でタスクをリセットしてください。`;
+    }
+    
+    await writeState({
+      ...state,
+      validationAttempts: currentAttempts
+    });
+    
     let allowedScopes: string[];
     if (taskId) {
       if (!fs.existsSync(TASKS_PATH)) {
@@ -141,6 +163,7 @@ export default tool({
     const sections: string[] = [];
     
     sections.push(`# 検証レポート: ${effectiveTaskId}`);
+    sections.push(`試行回数: ${currentAttempts} / ${MAX_VALIDATION_ATTEMPTS}`);
     sections.push(`許可スコープ: ${allowedScopes.join(', ')}`);
     
     sections.push('\n## スコープ検証');
