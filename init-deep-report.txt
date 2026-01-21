@@ -1,0 +1,19 @@
+=== init-deep Complete ===
+
+Mode: update
+
+Files:
+  ✓ ./AGENTS.md (root, 67 lines)
+  ✓ ./.opencode/AGENTS.md (src/plugin-core, 26 lines)
+  ✓ ./specs/AGENTS.md (sdd-specs, 19 lines)
+  ✓ ./__tests__/AGENTS.md (test-suite, 28 lines)
+
+Dirs Analyzed: 14
+AGENTS.md Created: 4
+AGENTS.md Updated: 0
+
+Hierarchy:
+  ./AGENTS.md
+  ├── .opencode/AGENTS.md
+  ├── specs/AGENTS.md
+  └── __tests__/AGENTS.md
