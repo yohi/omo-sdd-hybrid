@@ -1,7 +1,11 @@
 import { tool } from '../lib/plugin-stub';
 import { readState } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
+import { parseTasksFile, ScopeFormatError } from '../lib/tasks-parser';
 import { execSync, spawnSync } from 'child_process';
+import fs from 'fs';
+
+const TASKS_PATH = 'specs/tasks.md';
 
 function getChangedFiles(): string[] | null {
   const result = spawnSync('git', ['diff', '--name-only', 'HEAD'], {
@@ -82,7 +86,7 @@ function checkDiagnostics(allowedScopes: string[]): string {
 export default tool({
   description: '仕様とコードの差分を検証（lsp_diagnostics + テスト + スコープ）',
   args: {
-    taskId: tool.schema.string().optional().describe('検証対象タスクID（省略時は現在のタスク）')
+    taskId: tool.schema.string().optional().describe('検証するタスクID（省略時は現在アクティブなタスク）')
   },
   async execute({ taskId }) {
     const stateResult = readState();
@@ -95,21 +99,45 @@ export default tool({
     
     const state = stateResult.state;
     const effectiveTaskId = taskId || state.activeTaskId;
+    
+    let allowedScopes: string[];
+    if (taskId) {
+      if (!fs.existsSync(TASKS_PATH)) {
+        return `エラー: ${TASKS_PATH} が見つかりません`;
+      }
+      
+      const content = fs.readFileSync(TASKS_PATH, 'utf-8');
+      const tasks = parseTasksFile(content);
+      
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) {
+        return `エラー: タスク ${taskId} が見つかりません`;
+      }
+      
+      if (task.scopes.length === 0) {
+        return `エラー: タスク ${taskId} に Scope が定義されていません`;
+      }
+      
+      allowedScopes = task.scopes;
+    } else {
+      allowedScopes = state.allowedScopes;
+    }
+    
     const changedFiles = getChangedFiles();
     
     const sections: string[] = [];
     
     sections.push(`# 検証レポート: ${effectiveTaskId}`);
-    sections.push(`許可スコープ: ${state.allowedScopes.join(', ')}`);
+    sections.push(`許可スコープ: ${allowedScopes.join(', ')}`);
     
     sections.push('\n## スコープ検証');
-    sections.push(validateScopes(state.allowedScopes, changedFiles));
+    sections.push(validateScopes(allowedScopes, changedFiles));
     
     sections.push('\n## Diagnostics');
-    sections.push(checkDiagnostics(state.allowedScopes));
+    sections.push(checkDiagnostics(allowedScopes));
     
     sections.push('\n## テスト');
-    sections.push(runScopedTests(state.allowedScopes));
+    sections.push(runScopedTests(allowedScopes));
     
     sections.push('\n---');
     sections.push('検証完了後、sdd_end_task を実行してタスクを終了してください。');
