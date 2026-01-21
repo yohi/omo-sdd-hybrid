@@ -100,6 +100,7 @@ export function evaluateMultiEdit(
   );
   
   const warnings = results.filter(r => r.warned);
+  const allowed = results.every(r => r.allowed);
   
   if (warnings.length === 0) {
     return { allowed: true, warned: false };
@@ -107,7 +108,7 @@ export function evaluateMultiEdit(
   
   const messages = warnings.map(w => w.message).filter(Boolean);
   return {
-    allowed: true,
+    allowed,
     warned: true,
     message: `multiedit: ${warnings.length}/${files.length} ファイルで警告\n${messages.join('\n')}`,
     rule: warnings[0].rule
@@ -124,6 +125,9 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
       if (name === 'multiedit' && args.files) {
         const stateResult = readState();
         const result = evaluateMultiEdit(args.files, stateResult, worktreeRoot);
+        if (!result.allowed) {
+          throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
+        }
         if (result.warned) {
           console.warn(`[SDD-GATEKEEPER] ${result.message}`);
         }
