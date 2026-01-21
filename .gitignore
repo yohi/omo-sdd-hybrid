@@ -26,4 +26,8 @@ opencode/
 
 # State files (runtime generated)
 .opencode/state/*.json
+.opencode/state/*.json.*
 !.opencode/state/.gitkeep
+
+# Sisyphus notepads (local work context)
+.sisyphus/notepads/

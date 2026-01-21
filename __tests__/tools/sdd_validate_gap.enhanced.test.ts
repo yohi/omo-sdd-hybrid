@@ -2,17 +2,33 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 
 const STATE_PATH = '.opencode/state/current_context.json';
+const BACKUP_PATH = STATE_PATH + '.bak';
 
 describe('sdd_validate_gap enhanced', () => {
   const originalSkipEnv = process.env.SDD_SKIP_TEST_EXECUTION;
+  let hadExistingState = false;
   
   beforeEach(() => {
     fs.mkdirSync('.opencode/state', { recursive: true });
+    
+    if (fs.existsSync(STATE_PATH)) {
+      fs.copyFileSync(STATE_PATH, BACKUP_PATH);
+      hadExistingState = true;
+    } else {
+      hadExistingState = false;
+    }
+    
     process.env.SDD_SKIP_TEST_EXECUTION = 'true';
   });
 
   afterEach(() => {
     if (fs.existsSync(STATE_PATH)) fs.unlinkSync(STATE_PATH);
+    
+    if (hadExistingState && fs.existsSync(BACKUP_PATH)) {
+      fs.copyFileSync(BACKUP_PATH, STATE_PATH);
+      fs.unlinkSync(BACKUP_PATH);
+    }
+    
     if (originalSkipEnv === undefined) {
       delete process.env.SDD_SKIP_TEST_EXECUTION;
     } else {
