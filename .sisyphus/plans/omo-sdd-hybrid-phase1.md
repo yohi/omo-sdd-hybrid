@@ -99,7 +99,7 @@ Phase 1（block モード + 自律ループ）を TDD で実装し、「タス�
 
 ## Task Flow
 
-```
+```text
 Task 0 (Gatekeeper block mode) → Task 1 (Parser strict mode)
                                         ↓
                                Task 2 (sdd_start_task strict)

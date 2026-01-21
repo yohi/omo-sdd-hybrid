@@ -21,7 +21,8 @@ describe('sdd_end_task', () => {
       activeTaskTitle: 'Test',
       allowedScopes: ['src/**'],
       startedAt: new Date().toISOString(),
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     };
     fs.writeFileSync(STATE_PATH, JSON.stringify(state));
     
@@ -68,7 +69,8 @@ describe('sdd_show_context', () => {
       activeTaskTitle: 'Test Task',
       allowedScopes: ['src/auth/**', 'tests/**'],
       startedAt: '2026-01-20T00:00:00.000Z',
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     };
     fs.writeFileSync(STATE_PATH, JSON.stringify(state));
     

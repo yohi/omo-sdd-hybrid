@@ -22,7 +22,8 @@ export default tool({
       tasks = parseTasksFile(content);
     } catch (error) {
       if (error instanceof ScopeFormatError) {
-        throw new Error(`E_SCOPE_FORMAT: ${taskId} の Scope 形式が不正です。\nバッククォートで囲んでください: (Scope: \`path/**\`)\n現在の環境: SDD_SCOPE_FORMAT=${process.env.SDD_SCOPE_FORMAT || 'lenient'}`);
+        const failingTaskInfo = error.taskId ? `タスク ${error.taskId}` : 'いずれかのタスク';
+        throw new Error(`E_SCOPE_FORMAT: ${failingTaskInfo} の Scope 形式が不正です（リクエストされたタスク: ${taskId}）。\nバッククォートで囲んでください: (Scope: \`path/**\`)\n現在の環境: SDD_SCOPE_FORMAT=${process.env.SDD_SCOPE_FORMAT || 'lenient'}\n元のエラー: ${error.message}`);
       }
       throw error;
     }
@@ -47,7 +48,8 @@ export default tool({
       activeTaskTitle: task.title,
       allowedScopes: task.scopes,
       startedAt: new Date().toISOString(),
-      startedBy: 'sdd_start_task'
+      startedBy: 'sdd_start_task',
+      validationAttempts: 0
     });
     
     return `タスク開始: ${task.id}
