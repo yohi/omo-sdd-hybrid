@@ -39,22 +39,36 @@
 |------|-----|------|
 | `SDD_GUARD_MODE` | `warn` (default) | Phase 0 では warn のみ実装。Phase 1 で `block` を追加予定 |
 
+## ナレッジベース (AGENTS.md)
+
+本プロジェクトは階層的なナレッジベース（`AGENTS.md`）を採用しています。
+AIエージェントや開発者は、各ディレクトリの `AGENTS.md` を参照することで、そのコンテキストにおける規約やアンチパターンを確認できます。
+
+| パス | 内容 |
+|------|------|
+| **`./AGENTS.md`** | プロジェクト全体の概要、構造、共通規約 |
+| **`.opencode/AGENTS.md`** | プラグインのコアロジック、ツール実装の規約 |
+| **`specs/AGENTS.md`** | 仕様策定フロー、タスク定義（Globパターン等）のルール |
+| **`__tests__/AGENTS.md`** | テストハーネスの使用法、テスト記述の規約 |
+
 ## ファイル構成
 
 ```text
-.opencode/
-├── plugins/
-│   └── sdd-gatekeeper.ts    # ファイル編集の監視
-├── tools/
-│   ├── sdd_start_task.ts    # タスク開始
-│   ├── sdd_end_task.ts      # タスク終了
-│   ├── sdd_show_context.ts  # コンテキスト表示
-│   └── sdd_validate_gap.ts  # 差分検証
-├── skills/
-│   ├── sdd-architect/       # 設計者向けスキル
-│   └── sdd-implementer/     # 実装者向けスキル
-└── state/
-    └── current_context.json # 現在のタスク状態
+omo-sdd-hybrid/
+├── AGENTS.md            # [Root] プロジェクト知識ベース
+├── .opencode/
+│   ├── AGENTS.md        # [Src] 実装ルール
+│   ├── plugins/
+│   │   └── sdd-gatekeeper.ts
+│   ├── tools/
+│   │   ├── sdd_start_task.ts
+│   │   └── ...
+│   └── state/
+├── specs/
+│   ├── AGENTS.md        # [Spec] 仕様ルール
+│   └── tasks.md
+└── __tests__/
+    └── AGENTS.md        # [Test] テストルール
 ```
 
 ## 開発
