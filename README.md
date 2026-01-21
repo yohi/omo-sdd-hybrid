@@ -17,9 +17,14 @@
 
 3. **実装する**
    - `allowedScopes` 内のファイルのみ編集可能
-   - Scope 外の編集は警告される（Phase 0）
+   - Scope 外の編集は警告される（Phase 0）またはブロックされる（Phase 1, `block` モード）
 
-4. **タスクを終了する**
+4. **検証する**
+   ```bash
+   sdd_validate_gap
+   ```
+
+5. **タスクを終了する**
    ```bash
    sdd_end_task
    ```
@@ -31,13 +36,60 @@
 | `sdd_start_task <TaskID>` | タスクを開始し、編集スコープを設定 |
 | `sdd_end_task` | 現在のタスクを終了 |
 | `sdd_show_context` | 現在のタスク情報を表示 |
-| `sdd_validate_gap` | 仕様とコードの差分を検証 |
+| `sdd_validate_gap` | 仕様とコードの差分を検証（Kiro統合対応） |
+
+### sdd_validate_gap の詳細
+
+Phase 1 で強化された検証コマンド:
+
+```bash
+sdd_validate_gap                    # 現在のタスクを検証
+sdd_validate_gap --taskId Task-2    # 特定のタスクを検証
+sdd_validate_gap --kiroSpec my-feature  # 特定のKiro仕様と照合
+```
+
+**検証内容:**
+- **スコープ検証**: git diff でスコープ外の変更を検出
+- **Diagnostics**: TypeScriptファイルの診断対象をリストアップ
+- **テスト実行**: スコープ内のテストを自動実行
+- **Kiro統合**: `.kiro/specs/` の仕様ファイルとのギャップ分析
+
+## Kiro統合 (Phase 1)
+
+[cc-sdd](https://github.com/gotalab/cc-sdd) との統合をサポート。
+
+### セットアップ
+
+```bash
+npx cc-sdd@latest --claude
+```
+
+### 仕様駆動ワークフロー
+
+1. **仕様を作成**
+   ```bash
+   /kiro:spec-init ユーザー認証機能
+   /kiro:spec-requirements user-auth
+   /kiro:spec-design user-auth -y
+   /kiro:spec-tasks user-auth -y
+   ```
+
+2. **SDDタスクと連携**
+   - タスクIDをKiro仕様名と一致させると自動でギャップ分析
+   - または `--kiroSpec` オプションで明示的に指定
+
+3. **ギャップ分析**
+   `sdd_validate_gap` が以下を検出:
+   - requirements.md の有無
+   - design.md の有無
+   - tasks.md の進捗状況
 
 ## 環境変数
 
 | 変数 | 値 | 説明 |
 |------|-----|------|
-| `SDD_GUARD_MODE` | `warn` (default) | Phase 0 では warn のみ実装。Phase 1 で `block` を追加予定 |
+| `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外編集時の動作 |
+| `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | テスト実行のスキップ |
 
 ## ナレッジベース (AGENTS.md)
 
@@ -62,11 +114,21 @@ omo-sdd-hybrid/
 │   │   └── sdd-gatekeeper.ts
 │   ├── tools/
 │   │   ├── sdd_start_task.ts
+│   │   ├── sdd_validate_gap.ts  # Phase 1 強化版
+│   │   └── ...
+│   ├── lib/
+│   │   ├── kiro-utils.ts        # Kiro統合ユーティリティ
 │   │   └── ...
 │   └── state/
 ├── specs/
 │   ├── AGENTS.md        # [Spec] 仕様ルール
 │   └── tasks.md
+├── .kiro/               # [Optional] Kiro仕様ディレクトリ
+│   └── specs/
+│       └── <feature>/
+│           ├── requirements.md
+│           ├── design.md
+│           └── tasks.md
 └── __tests__/
     └── AGENTS.md        # [Test] テストルール
 ```
@@ -79,11 +141,27 @@ bun install
 
 # テスト実行
 bun test
+
+# 特定のテストのみ実行
+bun test __tests__/lib/kiro-utils.test.ts
 ```
 
-## Phase 0 の制限
+## Phase 1 の機能
 
-- **warn モードのみ**: Scope 外の編集は警告されるが、ブロックされない
-- **kiro 統合なし**: `sdd_validate_gap` は手動確認手順を返すスタブ実装
+- ✅ **検証ロジック強化**: Diagnostics対象ファイルの明示
+- ✅ **Kiro統合**: `.kiro/specs/` からの仕様読み込みとギャップ分析
+- ✅ **タスク進捗追跡**: tasks.md のチェックボックス状態を検出
 
-Phase 1 で `block` モードと kiro 統合を追加予定。
+### Phase 0 との違い
+
+| 機能 | Phase 0 | Phase 1 |
+|------|---------|---------|
+| スコープ検証 | ✅ | ✅ |
+| テスト実行 | ✅ | ✅ |
+| Diagnostics | スタブ | ✅ ファイルリスト表示 |
+| Kiro統合 | ❌ | ✅ |
+| エスカレーション | ✅ | ✅ |
+
+## ライセンス
+
+MIT
