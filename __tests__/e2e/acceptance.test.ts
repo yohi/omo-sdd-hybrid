@@ -110,3 +110,91 @@ describe('Acceptance Criteria A-I', () => {
     expect(result.rule).toBe('Rule0');
   });
 });
+
+describe('Phase 1 Block Mode Acceptance', () => {
+  beforeAll(() => {
+    if (!fs.existsSync('.opencode/state')) {
+      fs.mkdirSync('.opencode/state', { recursive: true });
+    }
+  });
+  
+  beforeEach(() => {
+    clearState();
+  });
+  
+  afterEach(() => {
+    clearState();
+  });
+
+  test("Scenario A': block + state なし + src/a.ts 編集 → BLOCK NO_ACTIVE_TASK", () => {
+    const result = simulateEdit('src/a.ts', undefined, 'block');
+    expect(result.allowed).toBe(false);
+    expect(result.warned).toBe(true);
+    expect(result.message).toContain('NO_ACTIVE_TASK');
+    expect(result.rule).toBe('Rule1');
+  });
+
+  test("Scenario C': block + Task-1 (src/auth/**) + src/pay/y.ts 編集 → BLOCK SCOPE_DENIED", async () => {
+    await writeState({
+      version: 1,
+      activeTaskId: 'Task-1',
+      activeTaskTitle: 'Test',
+      allowedScopes: ['src/auth/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'test'
+    });
+    
+    const result = simulateEdit('src/pay/y.ts', undefined, 'block');
+    expect(result.allowed).toBe(false);
+    expect(result.warned).toBe(true);
+    expect(result.message).toContain('SCOPE_DENIED');
+    expect(result.rule).toBe('Rule2');
+  });
+
+  test("Scenario E': block + ../secrets.txt 編集 → BLOCK OUTSIDE_WORKTREE", () => {
+    const result = simulateEdit('../secrets.txt', undefined, 'block');
+    expect(result.allowed).toBe(false);
+    expect(result.warned).toBe(true);
+    expect(result.message).toContain('OUTSIDE_WORKTREE');
+    expect(result.rule).toBe('Rule3');
+  });
+
+  test("Scenario F': block + bash rm -rf → BLOCK", () => {
+    const result = simulateBash('rm -rf /tmp/test', undefined, 'block');
+    expect(result.allowed).toBe(false);
+    expect(result.warned).toBe(true);
+    expect(result.rule).toBe('Rule4');
+  });
+
+  test("Scenario H': block + state corrupted + src/a.ts → BLOCK STATE_CORRUPTED", () => {
+    fs.writeFileSync('.opencode/state/current_context.json', '{ invalid json');
+    
+    const result = simulateEdit('src/a.ts', undefined, 'block');
+    expect(result.allowed).toBe(false);
+    expect(result.warned).toBe(true);
+    expect(result.message).toContain('STATE_CORRUPTED');
+    expect(result.rule).toBe('StateCorrupted');
+  });
+
+  test("Block mode still allows Rule 0 (specs/tasks.md)", () => {
+    const result = simulateEdit('specs/tasks.md', undefined, 'block');
+    expect(result.allowed).toBe(true);
+    expect(result.warned).toBe(false);
+    expect(result.rule).toBe('Rule0');
+  });
+
+  test("Block mode still allows valid scope access", async () => {
+    await writeState({
+      version: 1,
+      activeTaskId: 'Task-1',
+      activeTaskTitle: 'Test',
+      allowedScopes: ['src/auth/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'test'
+    });
+    
+    const result = simulateEdit('src/auth/login.ts', undefined, 'block');
+    expect(result.allowed).toBe(true);
+    expect(result.warned).toBe(false);
+  });
+});

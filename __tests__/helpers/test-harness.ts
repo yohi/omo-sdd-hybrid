@@ -1,20 +1,20 @@
-import { evaluateAccess, evaluateMultiEdit, AccessResult } from '../../.opencode/plugins/sdd-gatekeeper';
+import { evaluateAccess, evaluateMultiEdit, AccessResult, GuardMode } from '../../.opencode/plugins/sdd-gatekeeper';
 import { StateResult, readState } from '../../.opencode/lib/state-utils';
 
 export function getTestWorktreeRoot(): string {
   return process.cwd();
 }
 
-export function simulateEdit(relativePath: string, stateResult?: StateResult): AccessResult {
+export function simulateEdit(relativePath: string, stateResult?: StateResult, mode?: GuardMode): AccessResult {
   const resolvedStateResult = stateResult ?? readState();
   const worktreeRoot = getTestWorktreeRoot();
-  return evaluateAccess('edit', relativePath, undefined, resolvedStateResult, worktreeRoot);
+  return evaluateAccess('edit', relativePath, undefined, resolvedStateResult, worktreeRoot, mode);
 }
 
-export function simulateBash(command: string, stateResult?: StateResult): AccessResult {
+export function simulateBash(command: string, stateResult?: StateResult, mode?: GuardMode): AccessResult {
   const resolvedStateResult = stateResult ?? readState();
   const worktreeRoot = getTestWorktreeRoot();
-  return evaluateAccess('bash', undefined, command, resolvedStateResult, worktreeRoot);
+  return evaluateAccess('bash', undefined, command, resolvedStateResult, worktreeRoot, mode);
 }
 
 export function simulateMultiEdit(
