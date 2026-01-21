@@ -1,7 +1,7 @@
 import { tool } from '../lib/plugin-stub';
 import { readState } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 
 function getChangedFiles(): string[] {
   try {
@@ -48,15 +48,20 @@ function runScopedTests(allowedScopes: string[]): string {
     return 'SKIP: テストスコープが定義されていません';
   }
   
-  try {
-    const output = execSync('bun test 2>&1 | tail -5', { encoding: 'utf-8', timeout: 30000 });
-    if (output.includes('fail')) {
-      return `FAIL:\n${output}`;
-    }
+  const bunArgs = ['test', ...testPatterns.map(p => `./${p}`)];
+  const result = spawnSync('bun', bunArgs, {
+    encoding: 'utf-8',
+    timeout: 30000,
+    shell: true
+  });
+  
+  const output = (result.stdout || '') + (result.stderr || '');
+  
+  if (result.status === 0) {
     return `PASS:\n${output}`;
-  } catch (e) {
-    return `ERROR: テスト実行失敗\n${(e as Error).message}`;
   }
+  
+  return `FAIL:\n${output}`;
 }
 
 function checkDiagnostics(allowedScopes: string[]): string {
