@@ -44,13 +44,14 @@ describe('sdd_validate_gap enhanced', () => {
         activeTaskTitle: 'Test Task',
         allowedScopes: ['src/auth/**', '__tests__/auth/**'],
         startedAt: new Date().toISOString(),
-        startedBy: 'test'
+        startedBy: 'test',
+        validationAttempts: 0
       }));
     });
 
     test('returns validation report with scope section', async () => {
       const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-      const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
+      const result = await sddValidateGap.default.execute({}, {} as any);
       
       expect(result).toContain('Task-1');
       expect(result).toContain('スコープ検証');
@@ -58,21 +59,21 @@ describe('sdd_validate_gap enhanced', () => {
 
     test('includes allowed scopes in output', async () => {
       const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-      const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
+      const result = await sddValidateGap.default.execute({}, {} as any);
       
       expect(result).toContain('src/auth/**');
     });
 
     test('includes test section in output', async () => {
       const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-      const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
+      const result = await sddValidateGap.default.execute({}, {} as any);
       
       expect(result).toContain('テスト');
     });
 
     test('includes diagnostics section in output', async () => {
       const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-      const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
+      const result = await sddValidateGap.default.execute({}, {} as any);
       
       expect(result).toContain('Diagnostics');
     });

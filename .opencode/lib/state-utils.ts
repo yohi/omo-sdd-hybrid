@@ -12,6 +12,7 @@ export interface State {
   allowedScopes: string[];
   startedAt: string;
   startedBy: string;
+  validationAttempts: number;
 }
 
 export type StateResult = 
@@ -50,7 +51,8 @@ export function readState(): StateResult {
       typeof state.activeTaskTitle !== 'string' || state.activeTaskTitle.trim() === '' ||
       !Array.isArray(state.allowedScopes) ||
       typeof state.startedAt !== 'string' || state.startedAt.trim() === '' ||
-      typeof state.startedBy !== 'string' || state.startedBy.trim() === ''
+      typeof state.startedBy !== 'string' || state.startedBy.trim() === '' ||
+      typeof state.validationAttempts !== 'number' || !Number.isFinite(state.validationAttempts)
     ) {
       return { status: 'corrupted', error: 'Invalid state schema' };
     }

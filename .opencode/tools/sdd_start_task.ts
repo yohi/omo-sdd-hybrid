@@ -48,7 +48,8 @@ export default tool({
       activeTaskTitle: task.title,
       allowedScopes: task.scopes,
       startedAt: new Date().toISOString(),
-      startedBy: 'sdd_start_task'
+      startedBy: 'sdd_start_task',
+      validationAttempts: 0
     });
     
     return `タスク開始: ${task.id}
