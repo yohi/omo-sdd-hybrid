@@ -3,16 +3,24 @@ import { readState } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
 import { execSync, spawnSync } from 'child_process';
 
-function getChangedFiles(): string[] {
-  try {
-    const output = execSync('git diff --name-only HEAD 2>/dev/null || echo ""', { encoding: 'utf-8' });
-    return output.split('\n').filter(Boolean);
-  } catch {
-    return [];
+function getChangedFiles(): string[] | null {
+  const result = spawnSync('git', ['diff', '--name-only', 'HEAD'], {
+    encoding: 'utf-8',
+    timeout: 5000
+  });
+  
+  if (result.error || result.status !== 0) {
+    return null;
   }
+  
+  return result.stdout.split('\n').filter(Boolean);
 }
 
-function validateScopes(allowedScopes: string[], changedFiles: string[]): string {
+function validateScopes(allowedScopes: string[], changedFiles: string[] | null): string {
+  if (changedFiles === null) {
+    return 'ERROR: git コマンドの実行に失敗しました（git が利用できないか、git リポジトリ外です）';
+  }
+  
   if (changedFiles.length === 0) {
     return 'PASS: 変更ファイルなし';
   }
