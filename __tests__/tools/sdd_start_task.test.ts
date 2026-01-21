@@ -65,4 +65,54 @@ describe('sdd_start_task', () => {
     await expect(sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any))
       .rejects.toThrow('E_SCOPE_MISSING');
   });
+
+  describe('strict mode (SDD_SCOPE_FORMAT=strict)', () => {
+    const originalEnv = process.env.SDD_SCOPE_FORMAT;
+    
+    beforeEach(() => {
+      process.env.SDD_SCOPE_FORMAT = 'strict';
+    });
+    
+    afterEach(() => {
+      if (originalEnv === undefined) {
+        delete process.env.SDD_SCOPE_FORMAT;
+      } else {
+        process.env.SDD_SCOPE_FORMAT = originalEnv;
+      }
+    });
+
+    test('throws E_SCOPE_FORMAT for non-backtick scope in strict mode', async () => {
+      fs.writeFileSync(TASKS_PATH, '* [ ] Task-1: Test (Scope: src/**)');
+      
+      const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+      
+      await expect(sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any))
+        .rejects.toThrow('E_SCOPE_FORMAT');
+    });
+
+    test('includes helpful message with example in E_SCOPE_FORMAT error', async () => {
+      fs.writeFileSync(TASKS_PATH, '* [ ] Task-1: Test (Scope: src/pay/**)');
+      
+      const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+      
+      try {
+        await sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any);
+        expect(true).toBe(false);
+      } catch (e) {
+        expect((e as Error).message).toContain('E_SCOPE_FORMAT');
+        expect((e as Error).message).toContain('Task-1');
+        expect((e as Error).message).toContain('バッククォート');
+      }
+    });
+
+    test('works correctly with backtick scopes in strict mode', async () => {
+      fs.writeFileSync(TASKS_PATH, '* [ ] Task-1: Test (Scope: `src/**`)');
+      
+      const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+      const result = await sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any);
+      
+      expect(result).toContain('Task-1');
+      expect(fs.existsSync(STATE_PATH)).toBe(true);
+    });
+  });
 });

@@ -9,9 +9,14 @@ export function getScopeFormat(): ScopeFormat {
 }
 
 export class ScopeFormatError extends Error {
-  constructor(scopeStr: string) {
+  taskId?: string;
+  scopeStr: string;
+  
+  constructor(scopeStr: string, taskId?: string) {
     super(`E_SCOPE_FORMAT: Scope はバッククォートで囲む必要があります。例: \`${scopeStr.trim()}\``);
     this.name = 'ScopeFormatError';
+    this.scopeStr = scopeStr;
+    this.taskId = taskId;
   }
 }
 
@@ -44,9 +49,15 @@ export function parseTask(line: string, format: ScopeFormat = getScopeFormat()):
   if (!match) return null;
   
   const [, checkbox, id, title, scopeStr] = match;
-  const scopes = parseScopes(scopeStr, format);
-  
-  return { id, title, scopes, done: checkbox === 'x' };
+  try {
+    const scopes = parseScopes(scopeStr, format);
+    return { id, title, scopes, done: checkbox === 'x' };
+  } catch (error) {
+    if (error instanceof ScopeFormatError) {
+      throw new ScopeFormatError(error.scopeStr, id);
+    }
+    throw error;
+  }
 }
 
 export function parseTasksFile(content: string, format: ScopeFormat = getScopeFormat()): ParsedTask[] {

@@ -1,5 +1,5 @@
 import { tool } from '../lib/plugin-stub';
-import { parseTasksFile } from '../lib/tasks-parser';
+import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parser';
 import { writeState } from '../lib/state-utils';
 import fs from 'fs';
 
@@ -16,7 +16,18 @@ export default tool({
     }
     
     const content = fs.readFileSync(TASKS_PATH, 'utf-8');
-    const tasks = parseTasksFile(content);
+    
+    let tasks: ParsedTask[];
+    try {
+      tasks = parseTasksFile(content);
+    } catch (error) {
+      if (error instanceof ScopeFormatError) {
+        const failingTaskInfo = error.taskId ? `タスク ${error.taskId}` : 'いずれかのタスク';
+        throw new Error(`E_SCOPE_FORMAT: ${failingTaskInfo} の Scope 形式が不正です（リクエストされたタスク: ${taskId}）。\nバッククォートで囲んでください: (Scope: \`path/**\`)\n現在の環境: SDD_SCOPE_FORMAT=${process.env.SDD_SCOPE_FORMAT || 'lenient'}\n元のエラー: ${error.message}`);
+      }
+      throw error;
+    }
+    
     const task = tasks.find(t => t.id === taskId);
     
     if (!task) {
