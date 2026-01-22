@@ -71,7 +71,7 @@ export function evaluateAccess(
     return { allowed: allowedOnViolation, warned: true, message: 'NO_ACTIVE_TASK: 先に sdd_start_task を実行してください', rule: 'Rule1' };
   }
   
-  const state = stateResult.status === 'ok' ? stateResult.state : stateResult.state;
+  const state = stateResult.state;
   
   if (!state.activeTaskId || state.allowedScopes.length === 0) {
     return { allowed: allowedOnViolation, warned: true, message: 'NO_ACTIVE_TASK: 先に sdd_start_task を実行してください', rule: 'Rule1' };
