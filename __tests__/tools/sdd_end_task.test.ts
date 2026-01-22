@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { writeState, clearState } from '../../.opencode/lib/state-utils';
+import { ensureNoBackups, deleteAllBackups } from '../helpers/test-harness';
 import fs from 'fs';
 
 const STATE_DIR = '.opencode/state';
@@ -16,6 +17,7 @@ describe('sdd_end_task', () => {
   });
 
   test('clears state when state exists', async () => {
+    ensureNoBackups();
     const state = {
       version: 1,
       activeTaskId: 'Task-1',
@@ -36,6 +38,7 @@ describe('sdd_end_task', () => {
   });
 
   test('returns warning when no active task', async () => {
+    ensureNoBackups();
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
     const result = await sddEndTask.default.execute({}, {} as any);
     
@@ -43,7 +46,9 @@ describe('sdd_end_task', () => {
   });
 
   test('clears corrupted state with warning', async () => {
+    ensureNoBackups();
     fs.writeFileSync(STATE_PATH, '{ invalid json');
+    deleteAllBackups();
     
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
     const result = await sddEndTask.default.execute({}, {} as any);
@@ -64,6 +69,7 @@ describe('sdd_show_context', () => {
   });
 
   test('shows current task when state exists', async () => {
+    ensureNoBackups();
     const state = {
       version: 1,
       activeTaskId: 'Task-1',
@@ -84,6 +90,7 @@ describe('sdd_show_context', () => {
   });
 
   test('shows message when no active task', async () => {
+    ensureNoBackups();
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');
     const result = await sddShowContext.default.execute({}, {} as any);
     
@@ -91,7 +98,9 @@ describe('sdd_show_context', () => {
   });
 
   test('shows error for corrupted state', async () => {
+    ensureNoBackups();
     fs.writeFileSync(STATE_PATH, '{ invalid json');
+    deleteAllBackups();
     
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');
     const result = await sddShowContext.default.execute({}, {} as any);

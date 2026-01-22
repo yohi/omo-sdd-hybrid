@@ -71,6 +71,8 @@ export function evaluateAccess(
     return { allowed: allowedOnViolation, warned: true, message: 'NO_ACTIVE_TASK: 先に sdd_start_task を実行してください', rule: 'Rule1' };
   }
   
+  // 'recovered' ステータスは 'ok' と同様に処理 (stateResult.state が利用可能)
+  
   const state = stateResult.state;
   
   if (!state.activeTaskId || state.allowedScopes.length === 0) {

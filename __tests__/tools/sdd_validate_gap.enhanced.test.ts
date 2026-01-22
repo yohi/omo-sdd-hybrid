@@ -1,34 +1,20 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { ensureNoBackups } from '../helpers/test-harness';
 import fs from 'fs';
 
 const STATE_PATH = '.opencode/state/current_context.json';
-const BACKUP_PATH = STATE_PATH + '.bak';
 
 describe('sdd_validate_gap enhanced', () => {
   const originalSkipEnv = process.env.SDD_SKIP_TEST_EXECUTION;
-  let hadExistingState = false;
   
   beforeEach(() => {
     fs.mkdirSync('.opencode/state', { recursive: true });
-    
-    if (fs.existsSync(STATE_PATH)) {
-      fs.copyFileSync(STATE_PATH, BACKUP_PATH);
-      hadExistingState = true;
-    } else {
-      hadExistingState = false;
-    }
-    
+    ensureNoBackups();
     process.env.SDD_SKIP_TEST_EXECUTION = 'true';
   });
 
   afterEach(() => {
-    if (fs.existsSync(STATE_PATH)) fs.unlinkSync(STATE_PATH);
-    
-    if (hadExistingState && fs.existsSync(BACKUP_PATH)) {
-      fs.copyFileSync(BACKUP_PATH, STATE_PATH);
-      fs.unlinkSync(BACKUP_PATH);
-    }
-    
+    ensureNoBackups();
     if (originalSkipEnv === undefined) {
       delete process.env.SDD_SKIP_TEST_EXECUTION;
     } else {
@@ -38,6 +24,7 @@ describe('sdd_validate_gap enhanced', () => {
 
   describe('with active state', () => {
     beforeEach(() => {
+      ensureNoBackups();
       fs.writeFileSync(STATE_PATH, JSON.stringify({
         version: 1,
         activeTaskId: 'Task-1',
@@ -81,13 +68,14 @@ describe('sdd_validate_gap enhanced', () => {
 
   describe('without active state', () => {
     beforeEach(() => {
-      if (fs.existsSync(STATE_PATH)) fs.unlinkSync(STATE_PATH);
+      ensureNoBackups();
     });
 
     test('returns error message when no active task', async () => {
       const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-      const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
+      const result = await sddValidateGap.default.execute({}, {} as any);
       
+      expect(result).toContain('エラー');
       expect(result).toContain('sdd_start_task');
     });
   });

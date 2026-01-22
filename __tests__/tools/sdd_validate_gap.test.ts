@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { ensureNoBackups } from '../helpers/test-harness';
 import fs from 'fs';
 
 const STATE_PATH = '.opencode/state/current_context.json';
@@ -21,6 +22,7 @@ describe('sdd_validate_gap', () => {
   });
 
   test('returns error when no active task', async () => {
+    ensureNoBackups();
     const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
     const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
     
@@ -29,6 +31,7 @@ describe('sdd_validate_gap', () => {
   });
 
   test('returns validation report with active state', async () => {
+    ensureNoBackups();
     fs.writeFileSync(STATE_PATH, JSON.stringify({
       version: 1,
       activeTaskId: 'Task-1',

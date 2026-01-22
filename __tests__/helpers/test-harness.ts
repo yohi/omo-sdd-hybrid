@@ -1,5 +1,29 @@
 import { evaluateAccess, evaluateMultiEdit, AccessResult, GuardMode } from '../../.opencode/plugins/sdd-gatekeeper';
-import { StateResult, readState } from '../../.opencode/lib/state-utils';
+import { StateResult, readState, clearState } from '../../.opencode/lib/state-utils';
+import fs from 'fs';
+
+export function ensureNoBackups(): void {
+  clearState();
+  const statePath = '.opencode/state/current_context.json';
+  const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
+  backupPatterns.forEach(suffix => {
+    const backupPath = statePath + suffix;
+    if (fs.existsSync(backupPath)) {
+      fs.unlinkSync(backupPath);
+    }
+  });
+}
+
+export function deleteAllBackups(): void {
+  const statePath = '.opencode/state/current_context.json';
+  const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
+  backupPatterns.forEach(suffix => {
+    const backupPath = statePath + suffix;
+    if (fs.existsSync(backupPath)) {
+      fs.unlinkSync(backupPath);
+    }
+  });
+}
 
 export function getTestWorktreeRoot(): string {
   return process.cwd();

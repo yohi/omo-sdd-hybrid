@@ -17,6 +17,17 @@ const cleanupStateFiles = () => {
   });
 };
 
+const deleteAllBackups = () => {
+  const backups = [
+    `${STATE_PATH}.bak`,
+    `${STATE_PATH}.bak.1`,
+    `${STATE_PATH}.bak.2`,
+  ];
+  backups.forEach(f => {
+    if (fs.existsSync(f)) fs.unlinkSync(f);
+  });
+};
+
 describe('state-utils', () => {
   beforeEach(() => {
     cleanupStateFiles();
@@ -28,6 +39,7 @@ describe('state-utils', () => {
 
   describe('writeState and readState', () => {
     test('writes and reads state correctly', async () => {
+      cleanupStateFiles();
       const { writeState, readState } = await import('../../.opencode/lib/state-utils');
       
       const state = {
@@ -51,6 +63,7 @@ describe('state-utils', () => {
     });
 
     test('returns not_found when state file does not exist', async () => {
+      cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
       const result = await readState();
@@ -58,24 +71,28 @@ describe('state-utils', () => {
     });
 
     test('returns corrupted for invalid JSON', async () => {
+      cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
       if (!fs.existsSync(STATE_DIR)) {
         fs.mkdirSync(STATE_DIR, { recursive: true });
       }
       fs.writeFileSync(STATE_PATH, '{ invalid json');
+      deleteAllBackups();
       
       const result = await readState();
       expect(result.status).toBe('corrupted');
     });
 
     test('returns corrupted for missing required fields', async () => {
+      cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
       if (!fs.existsSync(STATE_DIR)) {
         fs.mkdirSync(STATE_DIR, { recursive: true });
       }
       fs.writeFileSync(STATE_PATH, JSON.stringify({ version: 1 }));
+      deleteAllBackups();
       
       const result = await readState();
       expect(result.status).toBe('corrupted');
@@ -84,6 +101,7 @@ describe('state-utils', () => {
 
   describe('clearState', () => {
     test('deletes state file', async () => {
+      cleanupStateFiles();
       const { writeState, clearState, readState } = await import('../../.opencode/lib/state-utils');
       
       const state = {
@@ -107,6 +125,7 @@ describe('state-utils', () => {
     });
 
     test('does not throw when file does not exist', async () => {
+      cleanupStateFiles();
       const { clearState } = await import('../../.opencode/lib/state-utils');
       
       expect(() => clearState()).not.toThrow();
@@ -115,6 +134,7 @@ describe('state-utils', () => {
 
   describe('backup integration', () => {
     test('creates backup file after writeState', async () => {
+      cleanupStateFiles();
       const { writeState } = await import('../../.opencode/lib/state-utils');
       
       const state1 = {
@@ -143,6 +163,7 @@ describe('state-utils', () => {
     });
 
     test('rotates backups on multiple writes', async () => {
+      cleanupStateFiles();
       const { writeState } = await import('../../.opencode/lib/state-utils');
       
       const createState = (id: string) => ({
@@ -186,6 +207,7 @@ describe('state-utils', () => {
     };
 
     test('recovers from backup when state is corrupted', async () => {
+      cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
       if (!fs.existsSync(STATE_DIR)) {
@@ -208,6 +230,7 @@ describe('state-utils', () => {
     });
 
     test('tries older backups if primary backup is also corrupted', async () => {
+      cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
       if (!fs.existsSync(STATE_DIR)) {
@@ -230,6 +253,7 @@ describe('state-utils', () => {
     });
 
     test('returns corrupted when all backups are invalid', async () => {
+      cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
       if (!fs.existsSync(STATE_DIR)) {
@@ -237,6 +261,8 @@ describe('state-utils', () => {
       }
       
       fs.writeFileSync(STATE_PATH, '{ invalid json');
+      fs.writeFileSync(`${STATE_PATH}.bak`, '{ also invalid');
+      deleteAllBackups();
       fs.writeFileSync(`${STATE_PATH}.bak`, '{ also invalid');
       
       const warnSpy = spyOn(console, 'warn');
@@ -248,6 +274,7 @@ describe('state-utils', () => {
     });
 
     test('returns corrupted when no backups exist', async () => {
+      cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
       if (!fs.existsSync(STATE_DIR)) {
@@ -255,6 +282,7 @@ describe('state-utils', () => {
       }
       
       fs.writeFileSync(STATE_PATH, '{ invalid json');
+      deleteAllBackups();
       
       const warnSpy = spyOn(console, 'warn');
       const result = await readState();

@@ -17,10 +17,14 @@ sdd_end_task でクリアするか、.opencode/state/current_context.json を削
     }
     
     const state = stateResult.state;
+    const recoveryNote = stateResult.status === 'recovered' 
+      ? `\n⚠️  注意: State はバックアップから復元されました (${stateResult.fromBackup})`
+      : '';
+    
     return `現在のタスク: ${state.activeTaskId}
 タイトル: ${state.activeTaskTitle}
 許可スコープ:
 ${state.allowedScopes.map(s => `  - ${s}`).join('\n')}
-開始時刻: ${state.startedAt}`;
+開始時刻: ${state.startedAt}${recoveryNote}`;
   }
 });
