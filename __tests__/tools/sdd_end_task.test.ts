@@ -1,19 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { writeState, clearState } from '../../.opencode/lib/state-utils';
-import { ensureNoBackups, deleteAllBackups } from '../helpers/test-harness';
+import { writeState, clearState, getStatePath } from '../../.opencode/lib/state-utils';
+import { ensureNoBackups, deleteAllBackups, setupTestState, cleanupTestState } from '../helpers/test-harness';
 import fs from 'fs';
-
-const STATE_DIR = '.opencode/state';
-const STATE_PATH = `${STATE_DIR}/current_context.json`;
 
 describe('sdd_end_task', () => {
   beforeEach(() => {
-    fs.mkdirSync(STATE_DIR, { recursive: true });
+    setupTestState();
     clearState();
   });
 
   afterEach(() => {
-    clearState();
+    cleanupTestState();
   });
 
   test('clears state when state exists', async () => {
@@ -34,7 +31,7 @@ describe('sdd_end_task', () => {
     
     expect(result).toContain('タスク終了');
     expect(result).toContain('Task-1');
-    expect(fs.existsSync(STATE_PATH)).toBe(false);
+    expect(fs.existsSync(getStatePath())).toBe(false);
   });
 
   test('returns warning when no active task', async () => {
@@ -47,25 +44,25 @@ describe('sdd_end_task', () => {
 
   test('clears corrupted state with warning', async () => {
     ensureNoBackups();
-    fs.writeFileSync(STATE_PATH, '{ invalid json');
+    fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
     const result = await sddEndTask.default.execute({}, {} as any);
     
     expect(result).toContain('破損');
-    expect(fs.existsSync(STATE_PATH)).toBe(false);
+    expect(fs.existsSync(getStatePath())).toBe(false);
   });
 });
 
 describe('sdd_show_context', () => {
   beforeEach(() => {
-    fs.mkdirSync(STATE_DIR, { recursive: true });
+    setupTestState();
     clearState();
   });
 
   afterEach(() => {
-    clearState();
+    cleanupTestState();
   });
 
   test('shows current task when state exists', async () => {
@@ -99,7 +96,7 @@ describe('sdd_show_context', () => {
 
   test('shows error for corrupted state', async () => {
     ensureNoBackups();
-    fs.writeFileSync(STATE_PATH, '{ invalid json');
+    fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');

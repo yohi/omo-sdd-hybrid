@@ -2,7 +2,8 @@
   "name": "omo-sdd-hybrid",
   "type": "module",
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "test:seq": "for f in $(find __tests__ -name \"*.test.ts\"); do bun test \"$f\"; done"
   },
   "devDependencies": {
     "@types/bun": "latest"

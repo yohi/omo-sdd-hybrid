@@ -1,16 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
-
-const STATE_DIR = '.opencode/state';
-const STATE_PATH = `${STATE_DIR}/current_context.json`;
+import { getStateDir, getStatePath } from '../../.opencode/lib/state-utils';
+import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 const cleanupStateFiles = () => {
+  const statePath = getStatePath();
   const filesToClean = [
-    STATE_PATH,
-    `${STATE_PATH}.bak`,
-    `${STATE_PATH}.bak.1`,
-    `${STATE_PATH}.bak.2`,
+    statePath,
+    `${statePath}.bak`,
+    `${statePath}.bak.1`,
+    `${statePath}.bak.2`,
   ];
   filesToClean.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
@@ -18,10 +18,11 @@ const cleanupStateFiles = () => {
 };
 
 const deleteAllBackups = () => {
+  const statePath = getStatePath();
   const backups = [
-    `${STATE_PATH}.bak`,
-    `${STATE_PATH}.bak.1`,
-    `${STATE_PATH}.bak.2`,
+    `${statePath}.bak`,
+    `${statePath}.bak.1`,
+    `${statePath}.bak.2`,
   ];
   backups.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
@@ -30,11 +31,13 @@ const deleteAllBackups = () => {
 
 describe('state-utils', () => {
   beforeEach(() => {
+    setupTestState();
     cleanupStateFiles();
   });
 
   afterEach(() => {
     cleanupStateFiles();
+    cleanupTestState();
   });
 
   describe('writeState and readState', () => {
@@ -74,10 +77,10 @@ describe('state-utils', () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
-      if (!fs.existsSync(STATE_DIR)) {
-        fs.mkdirSync(STATE_DIR, { recursive: true });
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
       }
-      fs.writeFileSync(STATE_PATH, '{ invalid json');
+      fs.writeFileSync(getStatePath(), '{ invalid json');
       deleteAllBackups();
       
       const result = await readState();
@@ -88,10 +91,10 @@ describe('state-utils', () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
-      if (!fs.existsSync(STATE_DIR)) {
-        fs.mkdirSync(STATE_DIR, { recursive: true });
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
       }
-      fs.writeFileSync(STATE_PATH, JSON.stringify({ version: 1 }));
+      fs.writeFileSync(getStatePath(), JSON.stringify({ version: 1 }));
       deleteAllBackups();
       
       const result = await readState();
@@ -115,10 +118,10 @@ describe('state-utils', () => {
       };
       
       await writeState(state);
-      expect(fs.existsSync(STATE_PATH)).toBe(true);
+      expect(fs.existsSync(getStatePath())).toBe(true);
       
       clearState();
-      expect(fs.existsSync(STATE_PATH)).toBe(false);
+      expect(fs.existsSync(getStatePath())).toBe(false);
       
       const result = await readState();
       expect(result.status).toBe('not_found');
@@ -157,8 +160,9 @@ describe('state-utils', () => {
       
       await writeState(state2);
       
-      expect(fs.existsSync(`${STATE_PATH}.bak`)).toBe(true);
-      const backup = JSON.parse(fs.readFileSync(`${STATE_PATH}.bak`, 'utf-8'));
+      const statePath = getStatePath();
+      expect(fs.existsSync(`${statePath}.bak`)).toBe(true);
+      const backup = JSON.parse(fs.readFileSync(`${statePath}.bak`, 'utf-8'));
       expect(backup.activeTaskId).toBe('Task-1');
     });
 
@@ -181,13 +185,14 @@ describe('state-utils', () => {
       await writeState(createState('v3'));
       await writeState(createState('v4'));
       
-      expect(fs.existsSync(`${STATE_PATH}.bak`)).toBe(true);
-      expect(fs.existsSync(`${STATE_PATH}.bak.1`)).toBe(true);
-      expect(fs.existsSync(`${STATE_PATH}.bak.2`)).toBe(true);
+      const statePath = getStatePath();
+      expect(fs.existsSync(`${statePath}.bak`)).toBe(true);
+      expect(fs.existsSync(`${statePath}.bak.1`)).toBe(true);
+      expect(fs.existsSync(`${statePath}.bak.2`)).toBe(true);
       
-      const bak = JSON.parse(fs.readFileSync(`${STATE_PATH}.bak`, 'utf-8'));
-      const bak1 = JSON.parse(fs.readFileSync(`${STATE_PATH}.bak.1`, 'utf-8'));
-      const bak2 = JSON.parse(fs.readFileSync(`${STATE_PATH}.bak.2`, 'utf-8'));
+      const bak = JSON.parse(fs.readFileSync(`${statePath}.bak`, 'utf-8'));
+      const bak1 = JSON.parse(fs.readFileSync(`${statePath}.bak.1`, 'utf-8'));
+      const bak2 = JSON.parse(fs.readFileSync(`${statePath}.bak.2`, 'utf-8'));
       
       expect(bak.activeTaskId).toBe('v3');
       expect(bak1.activeTaskId).toBe('v2');
@@ -210,12 +215,13 @@ describe('state-utils', () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
-      if (!fs.existsSync(STATE_DIR)) {
-        fs.mkdirSync(STATE_DIR, { recursive: true });
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
       }
       
-      fs.writeFileSync(`${STATE_PATH}.bak`, JSON.stringify(validState));
-      fs.writeFileSync(STATE_PATH, '{ invalid json');
+      const statePath = getStatePath();
+      fs.writeFileSync(`${statePath}.bak`, JSON.stringify(validState));
+      fs.writeFileSync(statePath, '{ invalid json');
       
       const warnSpy = spyOn(console, 'warn');
       const result = await readState();
@@ -233,13 +239,14 @@ describe('state-utils', () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
-      if (!fs.existsSync(STATE_DIR)) {
-        fs.mkdirSync(STATE_DIR, { recursive: true });
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
       }
       
-      fs.writeFileSync(STATE_PATH, '{ invalid json');
-      fs.writeFileSync(`${STATE_PATH}.bak`, '{ also invalid');
-      fs.writeFileSync(`${STATE_PATH}.bak.1`, JSON.stringify(validState));
+      const statePath = getStatePath();
+      fs.writeFileSync(statePath, '{ invalid json');
+      fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
+      fs.writeFileSync(`${statePath}.bak.1`, JSON.stringify(validState));
       
       const warnSpy = spyOn(console, 'warn');
       const result = await readState();
@@ -256,14 +263,15 @@ describe('state-utils', () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
-      if (!fs.existsSync(STATE_DIR)) {
-        fs.mkdirSync(STATE_DIR, { recursive: true });
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
       }
       
-      fs.writeFileSync(STATE_PATH, '{ invalid json');
-      fs.writeFileSync(`${STATE_PATH}.bak`, '{ also invalid');
+      const statePath = getStatePath();
+      fs.writeFileSync(statePath, '{ invalid json');
+      fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
       deleteAllBackups();
-      fs.writeFileSync(`${STATE_PATH}.bak`, '{ also invalid');
+      fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
       
       const warnSpy = spyOn(console, 'warn');
       const result = await readState();
@@ -277,11 +285,12 @@ describe('state-utils', () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
       
-      if (!fs.existsSync(STATE_DIR)) {
-        fs.mkdirSync(STATE_DIR, { recursive: true });
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
       }
       
-      fs.writeFileSync(STATE_PATH, '{ invalid json');
+      const statePath = getStatePath();
+      fs.writeFileSync(statePath, '{ invalid json');
       deleteAllBackups();
       
       const warnSpy = spyOn(console, 'warn');

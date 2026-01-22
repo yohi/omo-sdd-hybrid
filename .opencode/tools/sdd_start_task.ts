@@ -3,7 +3,9 @@ import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parse
 import { writeState } from '../lib/state-utils';
 import fs from 'fs';
 
-const TASKS_PATH = 'specs/tasks.md';
+function getTasksPath() {
+  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+}
 
 export default tool({
   description: 'タスクを開始し、編集可能なスコープを設定します',
@@ -11,11 +13,12 @@ export default tool({
     taskId: tool.schema.string().describe('開始するタスクID (例: Task-1)')
   },
   async execute({ taskId }) {
-    if (!fs.existsSync(TASKS_PATH)) {
-      throw new Error(`E_TASKS_NOT_FOUND: ${TASKS_PATH} が見つかりません`);
+    const tasksPath = getTasksPath();
+    if (!fs.existsSync(tasksPath)) {
+      throw new Error(`E_TASKS_NOT_FOUND: ${tasksPath} が見つかりません`);
     }
     
-    const content = fs.readFileSync(TASKS_PATH, 'utf-8');
+    const content = fs.readFileSync(tasksPath, 'utf-8');
     
     let tasks: ParsedTask[];
     try {

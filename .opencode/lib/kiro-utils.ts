@@ -16,16 +16,22 @@ export interface KiroGapResult {
   suggestions: string[];
 }
 
-const KIRO_DIR = '.kiro';
-const SPECS_DIR = `${KIRO_DIR}/specs`;
+function getKiroDir() {
+  return process.env.SDD_KIRO_DIR || '.kiro';
+}
+
+function getSpecsDir() {
+  return path.join(getKiroDir(), 'specs');
+}
 
 export function findKiroSpecs(): string[] {
-  if (!fs.existsSync(SPECS_DIR)) {
+  const specsDir = getSpecsDir();
+  if (!fs.existsSync(specsDir)) {
     return [];
   }
 
   try {
-    const entries = fs.readdirSync(SPECS_DIR, { withFileTypes: true });
+    const entries = fs.readdirSync(specsDir, { withFileTypes: true });
     return entries
       .filter(e => e.isDirectory())
       .map(e => e.name);
@@ -35,7 +41,7 @@ export function findKiroSpecs(): string[] {
 }
 
 export function loadKiroSpec(featureName: string): KiroSpec | null {
-  const specDir = path.join(SPECS_DIR, featureName);
+  const specDir = path.join(getSpecsDir(), featureName);
   
   if (!fs.existsSync(specDir)) {
     return null;

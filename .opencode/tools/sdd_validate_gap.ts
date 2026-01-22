@@ -6,7 +6,10 @@ import { analyzeKiroGap, formatKiroGapReport, findKiroSpecs } from '../lib/kiro-
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 
-const TASKS_PATH = 'specs/tasks.md';
+function getTasksPath() {
+  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+}
+
 const MAX_VALIDATION_ATTEMPTS = 5;
 
 function getChangedFiles(): string[] | null {
@@ -201,21 +204,22 @@ export default tool({
     
     let allowedScopes: string[];
     if (taskId) {
-      if (!fs.existsSync(TASKS_PATH)) {
-        return `エラー: ${TASKS_PATH} が見つかりません`;
+      const tasksPath = getTasksPath();
+      if (!fs.existsSync(tasksPath)) {
+        return `エラー: ${tasksPath} が見つかりません`;
       }
       
-      const content = fs.readFileSync(TASKS_PATH, 'utf-8');
+      const content = fs.readFileSync(tasksPath, 'utf-8');
       let tasks: ParsedTask[];
       try {
         tasks = parseTasksFile(content);
       } catch (error) {
         if (error instanceof ScopeFormatError) {
-          console.error(`エラー: ${TASKS_PATH} の形式が不正です: ${error.message}`);
+          console.error(`エラー: ${tasksPath} の形式が不正です: ${error.message}`);
           process.exit(1);
         }
         if (error instanceof Error) {
-          console.error(`エラー: ${TASKS_PATH} の解析に失敗しました: ${error.message}`);
+          console.error(`エラー: ${tasksPath} の解析に失敗しました: ${error.message}`);
           process.exit(1);
         }
         throw error;
