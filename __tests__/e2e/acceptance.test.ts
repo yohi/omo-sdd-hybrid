@@ -144,7 +144,8 @@ describe('Phase 1 Block Mode Acceptance', () => {
       activeTaskTitle: 'Test',
       allowedScopes: ['src/auth/**'],
       startedAt: new Date().toISOString(),
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     });
     
     const result = simulateEdit('src/pay/y.ts', undefined, 'block');
@@ -193,7 +194,8 @@ describe('Phase 1 Block Mode Acceptance', () => {
       activeTaskTitle: 'Test',
       allowedScopes: ['src/auth/**'],
       startedAt: new Date().toISOString(),
-      startedBy: 'test'
+      startedBy: 'test',
+      validationAttempts: 0
     });
     
     const result = simulateEdit('src/auth/login.ts', undefined, 'block');

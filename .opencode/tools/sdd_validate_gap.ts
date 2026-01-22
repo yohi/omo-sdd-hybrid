@@ -2,7 +2,8 @@ import { tool } from '../lib/plugin-stub';
 import { readState, writeState } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
 import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parser';
-import { execSync, spawnSync } from 'child_process';
+import { analyzeKiroGap, formatKiroGapReport, findKiroSpecs } from '../lib/kiro-utils';
+import { spawnSync } from 'child_process';
 import fs from 'fs';
 
 const TASKS_PATH = 'specs/tasks.md';
@@ -80,16 +81,92 @@ function runScopedTests(allowedScopes: string[]): string {
   return `FAIL:\n${output}`;
 }
 
-function checkDiagnostics(allowedScopes: string[]): string {
-  return 'lsp_diagnostics を実行してエラーがないか確認してください';
+function checkDiagnostics(allowedScopes: string[], changedFiles: string[] | null): string {
+  if (changedFiles === null) {
+    return 'SKIP: 変更ファイルの取得に失敗しました - git 差分の取得エラー';
+  }
+  
+  if (changedFiles.length === 0) {
+    return 'SKIP: 変更ファイルがないため、診断不要';
+  }
+
+  const scopedFiles = changedFiles.filter(file => matchesScope(file, allowedScopes));
+  
+  if (scopedFiles.length === 0) {
+    return 'SKIP: スコープ内の変更ファイルなし';
+  }
+
+  const tsFiles = scopedFiles.filter(f => f.endsWith('.ts') || f.endsWith('.tsx'));
+  
+  if (tsFiles.length === 0) {
+    return 'SKIP: TypeScriptファイルの変更なし';
+  }
+
+  const lines: string[] = [
+    '以下のファイルで lsp_diagnostics を実行してください:',
+    ''
+  ];
+  
+  tsFiles.forEach(file => {
+    lines.push(`  - ${file}`);
+  });
+  
+  lines.push('');
+  lines.push('コマンド例:');
+  lines.push(`  lsp_diagnostics("${tsFiles[0]}")`);
+  
+  return lines.join('\n');
+}
+
+function checkKiroIntegration(taskId: string, changedFiles: string[]): string {
+  const kiroSpecs = findKiroSpecs();
+  
+  if (kiroSpecs.length === 0) {
+    return 'INFO: Kiro仕様が見つかりません（オプション機能）\n' +
+           '> Kiro統合を有効にするには: npx cc-sdd@latest --claude';
+  }
+
+  // 1. 完全一致（大文字小文字区別あり）
+  let matchedSpec = kiroSpecs.find(s => s === taskId);
+  
+  // 2. 完全一致（大文字小文字区別なし）
+  if (!matchedSpec) {
+    matchedSpec = kiroSpecs.find(s => s.toLowerCase() === taskId.toLowerCase());
+  }
+  
+  // 3. 正規化版での部分一致（フォールバック）
+  if (!matchedSpec) {
+    const normalizedTaskId = taskId.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    matchedSpec = kiroSpecs.find(s => s === normalizedTaskId);
+    
+    if (!matchedSpec) {
+      matchedSpec = kiroSpecs.find(s => 
+        s.includes(normalizedTaskId) || normalizedTaskId.includes(s)
+      );
+    }
+  }
+
+  if (!matchedSpec && kiroSpecs.length > 0) {
+    return `INFO: タスク '${taskId}' に対応するKiro仕様が見つかりません\n` +
+           `利用可能な仕様: ${kiroSpecs.join(', ')}\n` +
+           '> 仕様を指定するには taskId を Kiro仕様名と一致させてください';
+  }
+
+  if (matchedSpec) {
+    const gapResult = analyzeKiroGap(matchedSpec, changedFiles);
+    return formatKiroGapReport(gapResult);
+  }
+
+  return 'INFO: Kiro統合はスキップされました';
 }
 
 export default tool({
-  description: '仕様とコードの差分を検証（lsp_diagnostics + テスト + スコープ）',
+  description: '仕様とコードの差分を検証（lsp_diagnostics + テスト + スコープ + Kiro統合）',
   args: {
-    taskId: tool.schema.string().optional().describe('検証するタスクID（省略時は現在アクティブなタスク）')
+    taskId: tool.schema.string().optional().describe('検証するタスクID（省略時は現在アクティブなタスク）'),
+    kiroSpec: tool.schema.string().optional().describe('Kiro仕様名（.kiro/specs/配下のディレクトリ名）')
   },
-  async execute({ taskId }) {
+  async execute({ taskId, kiroSpec }) {
     const stateResult = readState();
     
     if (stateResult.status !== 'ok') {
@@ -170,10 +247,14 @@ export default tool({
     sections.push(validateScopes(allowedScopes, changedFiles));
     
     sections.push('\n## Diagnostics');
-    sections.push(checkDiagnostics(allowedScopes));
+    sections.push(checkDiagnostics(allowedScopes, changedFiles));
     
     sections.push('\n## テスト');
     sections.push(runScopedTests(allowedScopes));
+    
+    sections.push('\n## Kiro統合');
+    const kiroTarget = kiroSpec || effectiveTaskId;
+    sections.push(checkKiroIntegration(kiroTarget, changedFiles || []));
     
     sections.push('\n---');
     sections.push('検証完了後、sdd_end_task を実行してタスクを終了してください。');
