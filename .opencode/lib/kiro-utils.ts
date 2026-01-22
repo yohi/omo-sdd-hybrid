@@ -108,11 +108,12 @@ export function analyzeKiroGap(featureName: string, changedFiles: string[]): Kir
   }
 
   if (spec.tasks && changedFiles.length > 0) {
+    // チェックボックス形式のタスクのみを抽出（番号付きリストを除外）
     const taskLines = spec.tasks.split('\n').filter(line => 
-      line.match(/^- \[([ x])\]/) || line.match(/^\d+\.\s/)
+      line.match(/^\s*-\s*\[[ x]\]/i)
     );
     
-    const completedTasks = taskLines.filter(line => line.includes('[x]')).length;
+    const completedTasks = taskLines.filter(line => line.match(/\[x\]/i)).length;
     const totalTasks = taskLines.length;
     
     if (totalTasks > 0) {

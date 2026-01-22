@@ -95,6 +95,15 @@ export function evaluateMultiEdit(
   stateResult: StateResult,
   worktreeRoot: string
 ): AccessResult {
+  if (!Array.isArray(files)) {
+    return {
+      allowed: false,
+      warned: true,
+      message: `INVALID_ARGUMENTS: multiedit 'files' argument must be an array. Received: ${typeof files}`,
+      rule: 'Rule1'
+    };
+  }
+
   const results: AccessResult[] = files.map(f => 
     evaluateAccess('edit', f.filePath, undefined, stateResult, worktreeRoot)
   );
@@ -122,7 +131,7 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
     'tool.execute.before': async (event) => {
       const { name, args } = event.tool;
       
-      if (name === 'multiedit' && args.files) {
+      if (name === 'multiedit' && args?.files) {
         const stateResult = readState();
         const result = evaluateMultiEdit(args.files, stateResult, worktreeRoot);
         if (!result.allowed) {
@@ -134,8 +143,8 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
         return;
       }
       
-      const filePath = args.filePath || args.path;
-      const command = args.command;
+      const filePath = args?.filePath || args?.path;
+      const command = args?.command;
       
       const stateResult = readState();
       const result = evaluateAccess(name, filePath, command, stateResult, worktreeRoot);

@@ -82,7 +82,11 @@ function runScopedTests(allowedScopes: string[]): string {
 }
 
 function checkDiagnostics(allowedScopes: string[], changedFiles: string[] | null): string {
-  if (changedFiles === null || changedFiles.length === 0) {
+  if (changedFiles === null) {
+    return 'SKIP: 変更ファイルの取得に失敗しました - git 差分の取得エラー';
+  }
+  
+  if (changedFiles.length === 0) {
     return 'SKIP: 変更ファイルがないため、診断不要';
   }
 
@@ -122,14 +126,24 @@ function checkKiroIntegration(taskId: string, changedFiles: string[]): string {
            '> Kiro統合を有効にするには: npx cc-sdd@latest --claude';
   }
 
-  const normalizedTaskId = taskId.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  // 1. 完全一致（大文字小文字区別あり）
+  let matchedSpec = kiroSpecs.find(s => s === taskId);
   
-  let matchedSpec = kiroSpecs.find(s => s === normalizedTaskId);
-  
+  // 2. 完全一致（大文字小文字区別なし）
   if (!matchedSpec) {
-    matchedSpec = kiroSpecs.find(s => 
-      s.includes(normalizedTaskId) || normalizedTaskId.includes(s)
-    );
+    matchedSpec = kiroSpecs.find(s => s.toLowerCase() === taskId.toLowerCase());
+  }
+  
+  // 3. 正規化版での部分一致（フォールバック）
+  if (!matchedSpec) {
+    const normalizedTaskId = taskId.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    matchedSpec = kiroSpecs.find(s => s === normalizedTaskId);
+    
+    if (!matchedSpec) {
+      matchedSpec = kiroSpecs.find(s => 
+        s.includes(normalizedTaskId) || normalizedTaskId.includes(s)
+      );
+    }
   }
 
   if (!matchedSpec && kiroSpecs.length > 0) {

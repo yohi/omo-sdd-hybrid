@@ -44,5 +44,7 @@ export function slugify(str: string): string {
  */
 export function truncate(str: string, maxLength: number, suffix: string = '...'): string {
   if (!str || str.length <= maxLength) return str;
+  if (maxLength <= 0) return '';
+  if (maxLength <= suffix.length) return suffix.slice(0, maxLength);
   return str.slice(0, maxLength - suffix.length) + suffix;
 }
