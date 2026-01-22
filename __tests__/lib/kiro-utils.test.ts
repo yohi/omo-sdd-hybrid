@@ -96,6 +96,16 @@ describe('kiro-utils', () => {
       expect(result.gaps).toContain('tasks.md が見つかりません');
     });
 
+    test('returns partial when only spec.json exists', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      fs.writeFileSync(`${TEST_SPEC_DIR}/spec.json`, JSON.stringify({ name: 'test' }));
+      
+      const { analyzeKiroGap } = await import('../../.opencode/lib/kiro-utils');
+      const result = analyzeKiroGap(TEST_FEATURE, []);
+      
+      expect(result.status).toBe('partial');
+    });
+
     test('returns found when all files are present', async () => {
       fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
       fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, '# Requirements');

@@ -126,7 +126,7 @@ export function analyzeKiroGap(featureName: string, changedFiles: string[]): Kir
   }
 
   const status = gaps.length === 0 ? 'found' : 
-                 (spec.requirements || spec.design || spec.tasks) ? 'partial' : 'not_found';
+                 (spec.requirements || spec.design || spec.tasks || spec.specJson) ? 'partial' : 'not_found';
 
   return {
     status,
