@@ -37,7 +37,6 @@ describe('access-policy', () => {
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
     });
-// ... (rest of file remains same but verify indentation/structure)
 
     test('allows ALWAYS_ALLOW paths', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
