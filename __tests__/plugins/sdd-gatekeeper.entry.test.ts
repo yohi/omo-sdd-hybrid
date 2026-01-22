@@ -1,6 +1,6 @@
 import { describe, test, expect, spyOn } from 'bun:test';
 import { SddGatekeeper } from '../../.opencode/plugins/sdd-gatekeeper';
-import { readState } from '../../.opencode/lib/state-utils';
+import * as StateUtils from '../../.opencode/lib/state-utils';
 
 // Mock state-utils to avoid file I/O dependence
 // Using a simple mock since we just want to verify argument handling
@@ -18,18 +18,14 @@ const mockStateResult = {
 
 describe('SddGatekeeper Entry Point', () => {
   test('handles tool event with undefined args gracefully', async () => {
+    spyOn(StateUtils, 'readState').mockReturnValue(mockStateResult as any);
+
     const plugin = await SddGatekeeper({ client: {} as any });
     const handler = plugin['tool.execute.before'];
 
     if (!handler) {
       throw new Error('Handler not found');
     }
-
-    // Mock readState to return valid state
-    // We rely on the implementation importing readState, so we might need to mock the module
-    // For this integration test, assuming readState works or mocking it would be better.
-    // However, since we are testing arg handling, even if readState fails, we want to ensure
-    // it doesn't crash on property access of 'args'.
     
     // Simulate event with undefined args
     const event = {
@@ -52,6 +48,7 @@ describe('SddGatekeeper Entry Point', () => {
   });
 
   test('handles multiedit with invalid files arg via entry point', async () => {
+    spyOn(StateUtils, 'readState').mockReturnValue(mockStateResult as any);
     const plugin = await SddGatekeeper({ client: {} as any });
     const handler = plugin['tool.execute.before'];
 
@@ -66,10 +63,6 @@ describe('SddGatekeeper Entry Point', () => {
       }
     };
 
-    try {
-      await handler(event);
-    } catch (e: any) {
-      expect(e.message).toContain('INVALID_ARGUMENTS');
-    }
+    await expect(handler(event)).rejects.toThrow('INVALID_ARGUMENTS');
   });
 });
