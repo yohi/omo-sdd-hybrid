@@ -66,7 +66,7 @@ function tryParseState(filePath: string): { ok: true; state: State } | { ok: fal
   }
 }
 
-export function readState(): StateResult {
+export async function readState(): Promise<StateResult> {
   if (!fs.existsSync(STATE_PATH)) {
     return { status: 'not_found' };
   }
@@ -84,9 +84,17 @@ export function readState(): StateResult {
     
     const backupResult = tryParseState(backupPath);
     if (backupResult.ok) {
-      fs.copyFileSync(backupPath, STATE_PATH);
-      console.warn(`[SDD] State recovered from ${backupPath}`);
-      return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
+      const release = await lockfile.lock(STATE_DIR, { 
+        retries: 5,
+        stale: 10000
+      });
+      try {
+        fs.copyFileSync(backupPath, STATE_PATH);
+        console.warn(`[SDD] State recovered from ${backupPath}`);
+        return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
+      } finally {
+        await release();
+      }
     }
   }
   
@@ -99,5 +107,10 @@ export function clearState(): void {
     if (fs.existsSync(STATE_PATH)) {
       fs.unlinkSync(STATE_PATH);
     }
+    getBackupPaths(STATE_PATH).forEach(backupPath => {
+      if (fs.existsSync(backupPath)) {
+        fs.unlinkSync(backupPath);
+      }
+    });
   } catch { /* noop */ }
 }

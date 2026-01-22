@@ -18,8 +18,8 @@ describe('Acceptance Criteria A-I', () => {
     clearState();
   });
   
-  test('Scenario A: state なし + src/a.ts 編集 → WARN NO_ACTIVE_TASK', () => {
-    const result = simulateEdit('src/a.ts');
+  test('Scenario A: state なし + src/a.ts 編集 → WARN NO_ACTIVE_TASK', async () => {
+    const result = await simulateEdit('src/a.ts');
     expect(result.warned).toBe(true);
     expect(result.message).toContain('NO_ACTIVE_TASK');
   });
@@ -35,7 +35,7 @@ describe('Acceptance Criteria A-I', () => {
       validationAttempts: 0
     });
     
-    const result = simulateEdit('src/auth/x.ts');
+    const result = await simulateEdit('src/auth/x.ts');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
   });
@@ -51,26 +51,26 @@ describe('Acceptance Criteria A-I', () => {
       validationAttempts: 0
     });
     
-    const result = simulateEdit('src/pay/y.ts');
+    const result = await simulateEdit('src/pay/y.ts');
     expect(result.warned).toBe(true);
     expect(result.message).toContain('SCOPE_DENIED');
   });
   
-  test('Scenario D: specs/tasks.md 編集 → allow (Rule 0)', () => {
-    const result = simulateEdit('specs/tasks.md');
+  test('Scenario D: specs/tasks.md 編集 → allow (Rule 0)', async () => {
+    const result = await simulateEdit('specs/tasks.md');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
     expect(result.rule).toBe('Rule0');
   });
   
-  test('Scenario E: ../secrets.txt 編集 → WARN OUTSIDE_WORKTREE', () => {
-    const result = simulateEdit('../secrets.txt');
+  test('Scenario E: ../secrets.txt 編集 → WARN OUTSIDE_WORKTREE', async () => {
+    const result = await simulateEdit('../secrets.txt');
     expect(result.warned).toBe(true);
     expect(result.message).toContain('OUTSIDE_WORKTREE');
   });
   
-  test('Scenario F: bash rm -rf → WARN', () => {
-    const result = simulateBash('rm -rf /tmp/test');
+  test('Scenario F: bash rm -rf → WARN', async () => {
+    const result = await simulateBash('rm -rf /tmp/test');
     expect(result.warned).toBe(true);
     expect(result.rule).toBe('Rule4');
   });
@@ -91,23 +91,23 @@ describe('Acceptance Criteria A-I', () => {
       { filePath: 'src/pay/checkout.ts' }
     ];
     
-    const result = simulateMultiEdit(files);
+    const result = await simulateMultiEdit(files);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('1/2');
   });
   
-  test('Scenario H: state corrupted + src/a.ts → WARN STATE_CORRUPTED', () => {
+  test('Scenario H: state corrupted + src/a.ts → WARN STATE_CORRUPTED', async () => {
     fs.writeFileSync('.opencode/state/current_context.json', '{ invalid json');
     
-    const result = simulateEdit('src/a.ts');
+    const result = await simulateEdit('src/a.ts');
     expect(result.warned).toBe(true);
     expect(result.message).toContain('STATE_CORRUPTED');
   });
   
-  test('Scenario I: state corrupted + specs/tasks.md → allow (Rule 0)', () => {
+  test('Scenario I: state corrupted + specs/tasks.md → allow (Rule 0)', async () => {
     fs.writeFileSync('.opencode/state/current_context.json', '{ invalid json');
     
-    const result = simulateEdit('specs/tasks.md');
+    const result = await simulateEdit('specs/tasks.md');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
     expect(result.rule).toBe('Rule0');
@@ -129,8 +129,8 @@ describe('Phase 1 Block Mode Acceptance', () => {
     clearState();
   });
 
-  test("Scenario A': block + state なし + src/a.ts 編集 → BLOCK NO_ACTIVE_TASK", () => {
-    const result = simulateEdit('src/a.ts', undefined, 'block');
+  test("Scenario A': block + state なし + src/a.ts 編集 → BLOCK NO_ACTIVE_TASK", async () => {
+    const result = await simulateEdit('src/a.ts', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('NO_ACTIVE_TASK');
@@ -148,40 +148,40 @@ describe('Phase 1 Block Mode Acceptance', () => {
       validationAttempts: 0
     });
     
-    const result = simulateEdit('src/pay/y.ts', undefined, 'block');
+    const result = await simulateEdit('src/pay/y.ts', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('SCOPE_DENIED');
     expect(result.rule).toBe('Rule2');
   });
 
-  test("Scenario E': block + ../secrets.txt 編集 → BLOCK OUTSIDE_WORKTREE", () => {
-    const result = simulateEdit('../secrets.txt', undefined, 'block');
+  test("Scenario E': block + ../secrets.txt 編集 → BLOCK OUTSIDE_WORKTREE", async () => {
+    const result = await simulateEdit('../secrets.txt', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('OUTSIDE_WORKTREE');
     expect(result.rule).toBe('Rule3');
   });
 
-  test("Scenario F': block + bash rm -rf → BLOCK", () => {
-    const result = simulateBash('rm -rf /tmp/test', undefined, 'block');
+  test("Scenario F': block + bash rm -rf → BLOCK", async () => {
+    const result = await simulateBash('rm -rf /tmp/test', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
     expect(result.rule).toBe('Rule4');
   });
 
-  test("Scenario H': block + state corrupted + src/a.ts → BLOCK STATE_CORRUPTED", () => {
+  test("Scenario H': block + state corrupted + src/a.ts → BLOCK STATE_CORRUPTED", async () => {
     fs.writeFileSync('.opencode/state/current_context.json', '{ invalid json');
     
-    const result = simulateEdit('src/a.ts', undefined, 'block');
+    const result = await simulateEdit('src/a.ts', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('STATE_CORRUPTED');
     expect(result.rule).toBe('StateCorrupted');
   });
 
-  test("Block mode still allows Rule 0 (specs/tasks.md)", () => {
-    const result = simulateEdit('specs/tasks.md', undefined, 'block');
+  test("Block mode still allows Rule 0 (specs/tasks.md)", async () => {
+    const result = await simulateEdit('specs/tasks.md', undefined, 'block');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
     expect(result.rule).toBe('Rule0');
@@ -198,7 +198,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
       validationAttempts: 0
     });
     
-    const result = simulateEdit('src/auth/login.ts', undefined, 'block');
+    const result = await simulateEdit('src/auth/login.ts', undefined, 'block');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
   });

@@ -5,7 +5,7 @@ export default tool({
   description: '現在のタスクコンテキストを表示します',
   args: {},
   async execute() {
-    const stateResult = readState();
+    const stateResult = await readState();
     
     if (stateResult.status === 'not_found') {
       return 'タスク未開始: sdd_start_task でタスクを開始してください';

@@ -5,23 +5,23 @@ export function getTestWorktreeRoot(): string {
   return process.cwd();
 }
 
-export function simulateEdit(relativePath: string, stateResult?: StateResult, mode?: GuardMode): AccessResult {
-  const resolvedStateResult = stateResult ?? readState();
+export async function simulateEdit(relativePath: string, stateResult?: StateResult, mode?: GuardMode): Promise<AccessResult> {
+  const resolvedStateResult = stateResult ?? await readState();
   const worktreeRoot = getTestWorktreeRoot();
   return evaluateAccess('edit', relativePath, undefined, resolvedStateResult, worktreeRoot, mode);
 }
 
-export function simulateBash(command: string, stateResult?: StateResult, mode?: GuardMode): AccessResult {
-  const resolvedStateResult = stateResult ?? readState();
+export async function simulateBash(command: string, stateResult?: StateResult, mode?: GuardMode): Promise<AccessResult> {
+  const resolvedStateResult = stateResult ?? await readState();
   const worktreeRoot = getTestWorktreeRoot();
   return evaluateAccess('bash', undefined, command, resolvedStateResult, worktreeRoot, mode);
 }
 
-export function simulateMultiEdit(
+export async function simulateMultiEdit(
   files: Array<{ filePath: string }>,
   stateResult?: StateResult
-): AccessResult {
-  const resolvedStateResult = stateResult ?? readState();
+): Promise<AccessResult> {
+  const resolvedStateResult = stateResult ?? await readState();
   const worktreeRoot = getTestWorktreeRoot();
   return evaluateMultiEdit(files, resolvedStateResult, worktreeRoot);
 }

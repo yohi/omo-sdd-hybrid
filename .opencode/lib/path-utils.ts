@@ -23,22 +23,42 @@ export function isSymlink(filePath: string): boolean {
   }
 }
 
+/**
+ * Resolve real path (follow symlinks), fallback to resolved path on error
+ */
+function resolveRealPath(targetPath: string): string {
+  try {
+    return fs.realpathSync(targetPath);
+  } catch {
+    return path.resolve(targetPath);
+  }
+}
+
 export function isOutsideWorktree(filePath: string, worktreeRoot: string): boolean {
   const absolutePath = path.resolve(filePath);
   const worktreeRootResolved = path.resolve(worktreeRoot);
   
-  const fileRoot = path.parse(absolutePath).root;
-  const worktreeRootParsed = path.parse(worktreeRootResolved).root;
+  // Resolve real paths to prevent symlink bypass
+  const realFilePath = resolveRealPath(absolutePath);
+  const realWorktreeRoot = resolveRealPath(worktreeRootResolved);
+  
+  const fileRoot = path.parse(realFilePath).root;
+  const worktreeRootParsed = path.parse(realWorktreeRoot).root;
   if (fileRoot !== worktreeRootParsed) {
     return true;
   }
   
-  const relative = path.relative(worktreeRootResolved, absolutePath);
+  const relative = path.relative(realWorktreeRoot, realFilePath);
   return relative === '..' || relative.startsWith('..' + path.sep);
 }
 
 export function normalizeToRepoRelative(filePath: string, worktreeRoot: string): string {
   const absolutePath = path.resolve(filePath);
-  const relativePath = path.relative(worktreeRoot, absolutePath);
+  
+  // Resolve real paths to prevent symlink bypass
+  const realFilePath = resolveRealPath(absolutePath);
+  const realWorktreeRoot = resolveRealPath(worktreeRoot);
+  
+  const relativePath = path.relative(realWorktreeRoot, realFilePath);
   return relativePath.split(path.sep).join('/');
 }

@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { writeState, clearState } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 
 const STATE_DIR = '.opencode/state';
@@ -7,11 +8,11 @@ const STATE_PATH = `${STATE_DIR}/current_context.json`;
 describe('sdd_end_task', () => {
   beforeEach(() => {
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    if (fs.existsSync(STATE_PATH)) fs.unlinkSync(STATE_PATH);
+    clearState();
   });
 
   afterEach(() => {
-    if (fs.existsSync(STATE_PATH)) fs.unlinkSync(STATE_PATH);
+    clearState();
   });
 
   test('clears state when state exists', async () => {
@@ -24,7 +25,7 @@ describe('sdd_end_task', () => {
       startedBy: 'test',
       validationAttempts: 0
     };
-    fs.writeFileSync(STATE_PATH, JSON.stringify(state));
+    await writeState(state);
     
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
     const result = await sddEndTask.default.execute({}, {} as any);
@@ -55,11 +56,11 @@ describe('sdd_end_task', () => {
 describe('sdd_show_context', () => {
   beforeEach(() => {
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    if (fs.existsSync(STATE_PATH)) fs.unlinkSync(STATE_PATH);
+    clearState();
   });
 
   afterEach(() => {
-    if (fs.existsSync(STATE_PATH)) fs.unlinkSync(STATE_PATH);
+    clearState();
   });
 
   test('shows current task when state exists', async () => {
@@ -72,7 +73,7 @@ describe('sdd_show_context', () => {
       startedBy: 'test',
       validationAttempts: 0
     };
-    fs.writeFileSync(STATE_PATH, JSON.stringify(state));
+    await writeState(state);
     
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');
     const result = await sddShowContext.default.execute({}, {} as any);

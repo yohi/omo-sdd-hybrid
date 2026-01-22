@@ -42,7 +42,7 @@ describe('state-utils', () => {
       
       await writeState(state);
       
-      const result = readState();
+      const result = await readState();
       expect(result.status).toBe('ok');
       if (result.status === 'ok') {
         expect(result.state.activeTaskId).toBe('Task-1');
@@ -53,7 +53,7 @@ describe('state-utils', () => {
     test('returns not_found when state file does not exist', async () => {
       const { readState } = await import('../../.opencode/lib/state-utils');
       
-      const result = readState();
+      const result = await readState();
       expect(result.status).toBe('not_found');
     });
 
@@ -65,7 +65,7 @@ describe('state-utils', () => {
       }
       fs.writeFileSync(STATE_PATH, '{ invalid json');
       
-      const result = readState();
+      const result = await readState();
       expect(result.status).toBe('corrupted');
     });
 
@@ -77,7 +77,7 @@ describe('state-utils', () => {
       }
       fs.writeFileSync(STATE_PATH, JSON.stringify({ version: 1 }));
       
-      const result = readState();
+      const result = await readState();
       expect(result.status).toBe('corrupted');
     });
   });
@@ -102,7 +102,7 @@ describe('state-utils', () => {
       clearState();
       expect(fs.existsSync(STATE_PATH)).toBe(false);
       
-      const result = readState();
+      const result = await readState();
       expect(result.status).toBe('not_found');
     });
 
@@ -196,7 +196,7 @@ describe('state-utils', () => {
       fs.writeFileSync(STATE_PATH, '{ invalid json');
       
       const warnSpy = spyOn(console, 'warn');
-      const result = readState();
+      const result = await readState();
       
       expect(result.status).toBe('recovered');
       if (result.status === 'recovered') {
@@ -219,7 +219,7 @@ describe('state-utils', () => {
       fs.writeFileSync(`${STATE_PATH}.bak.1`, JSON.stringify(validState));
       
       const warnSpy = spyOn(console, 'warn');
-      const result = readState();
+      const result = await readState();
       
       expect(result.status).toBe('recovered');
       if (result.status === 'recovered') {
@@ -240,7 +240,7 @@ describe('state-utils', () => {
       fs.writeFileSync(`${STATE_PATH}.bak`, '{ also invalid');
       
       const warnSpy = spyOn(console, 'warn');
-      const result = readState();
+      const result = await readState();
       
       expect(result.status).toBe('corrupted');
       expect(warnSpy).toHaveBeenCalled();
@@ -257,7 +257,7 @@ describe('state-utils', () => {
       fs.writeFileSync(STATE_PATH, '{ invalid json');
       
       const warnSpy = spyOn(console, 'warn');
-      const result = readState();
+      const result = await readState();
       
       expect(result.status).toBe('corrupted');
       expect(warnSpy).toHaveBeenCalled();

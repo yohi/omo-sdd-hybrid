@@ -5,7 +5,7 @@ export default tool({
   description: '現在のタスクを終了し、State をクリアします',
   args: {},
   async execute() {
-    const stateResult = readState();
+    const stateResult = await readState();
     
     if (stateResult.status === 'not_found') {
       return '警告: アクティブなタスクはありません';

@@ -19,7 +19,7 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
       const { name, args } = event.tool;
       
       if (name === 'multiedit' && args?.files) {
-        const stateResult = readState();
+        const stateResult = await readState();
         const result = evaluateMultiEdit(args.files, stateResult, worktreeRoot);
         if (!result.allowed) {
           throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
@@ -33,7 +33,7 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
       const filePath = args?.filePath || args?.path;
       const command = args?.command;
       
-      const stateResult = readState();
+      const stateResult = await readState();
       const result = evaluateAccess(name, filePath, command, stateResult, worktreeRoot);
       
       if (!result.allowed) {
