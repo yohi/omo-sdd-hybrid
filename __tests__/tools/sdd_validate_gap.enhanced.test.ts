@@ -1,20 +1,20 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { ensureNoBackups } from '../helpers/test-harness';
+import { ensureNoBackups, setupTestState, cleanupTestState } from '../helpers/test-harness';
+import { getStatePath } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
-
-const STATE_PATH = '.opencode/state/current_context.json';
 
 describe('sdd_validate_gap enhanced', () => {
   const originalSkipEnv = process.env.SDD_SKIP_TEST_EXECUTION;
   
   beforeEach(() => {
-    fs.mkdirSync('.opencode/state', { recursive: true });
+    setupTestState();
     ensureNoBackups();
     process.env.SDD_SKIP_TEST_EXECUTION = 'true';
   });
 
   afterEach(() => {
     ensureNoBackups();
+    cleanupTestState();
     if (originalSkipEnv === undefined) {
       delete process.env.SDD_SKIP_TEST_EXECUTION;
     } else {
@@ -25,7 +25,7 @@ describe('sdd_validate_gap enhanced', () => {
   describe('with active state', () => {
     beforeEach(() => {
       ensureNoBackups();
-      fs.writeFileSync(STATE_PATH, JSON.stringify({
+      fs.writeFileSync(getStatePath(), JSON.stringify({
         version: 1,
         activeTaskId: 'Task-1',
         activeTaskTitle: 'Test Task',

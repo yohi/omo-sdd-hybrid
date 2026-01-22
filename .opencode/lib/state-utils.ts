@@ -3,8 +3,15 @@ import writeFileAtomic from 'write-file-atomic';
 import fs from 'fs';
 import { rotateBackup, getBackupPaths } from './backup-utils';
 
-const STATE_DIR = '.opencode/state';
-const STATE_PATH = `${STATE_DIR}/current_context.json`;
+const DEFAULT_STATE_DIR = '.opencode/state';
+
+export function getStateDir(): string {
+  return process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
+}
+
+export function getStatePath(): string {
+  return `${getStateDir()}/current_context.json`;
+}
 
 export interface State {
   version: number;
@@ -23,17 +30,20 @@ export type StateResult =
   | { status: 'recovered'; state: State; fromBackup: string };
 
 export async function writeState(state: State): Promise<void> {
-  if (!fs.existsSync(STATE_DIR)) {
-    fs.mkdirSync(STATE_DIR, { recursive: true });
+  const stateDir = getStateDir();
+  const statePath = getStatePath();
+
+  if (!fs.existsSync(stateDir)) {
+    fs.mkdirSync(stateDir, { recursive: true });
   }
   
-  const release = await lockfile.lock(STATE_DIR, { 
+  const release = await lockfile.lock(stateDir, { 
     retries: 5,
     stale: 10000
   });
   try {
-    rotateBackup(STATE_PATH);
-    await writeFileAtomic(STATE_PATH, JSON.stringify(state, null, 2));
+    rotateBackup(statePath);
+    await writeFileAtomic(statePath, JSON.stringify(state, null, 2));
   } finally {
     await release();
   }
@@ -67,29 +77,32 @@ function tryParseState(filePath: string): { ok: true; state: State } | { ok: fal
 }
 
 export async function readState(): Promise<StateResult> {
-  if (!fs.existsSync(STATE_PATH)) {
+  const stateDir = getStateDir();
+  const statePath = getStatePath();
+
+  if (!fs.existsSync(statePath)) {
     return { status: 'not_found' };
   }
   
-  const result = tryParseState(STATE_PATH);
+  const result = tryParseState(statePath);
   if (result.ok) {
     return { status: 'ok', state: result.state };
   }
   
   console.warn(`[SDD] State corrupted: ${result.error}. Attempting recovery from backup...`);
   
-  const backupPaths = getBackupPaths(STATE_PATH);
+  const backupPaths = getBackupPaths(statePath);
   for (const backupPath of backupPaths) {
     if (!fs.existsSync(backupPath)) continue;
     
     const backupResult = tryParseState(backupPath);
     if (backupResult.ok) {
-      const release = await lockfile.lock(STATE_DIR, { 
+      const release = await lockfile.lock(stateDir, { 
         retries: 5,
         stale: 10000
       });
       try {
-        fs.copyFileSync(backupPath, STATE_PATH);
+        fs.copyFileSync(backupPath, statePath);
         console.warn(`[SDD] State recovered from ${backupPath}`);
         return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
       } finally {
@@ -103,11 +116,12 @@ export async function readState(): Promise<StateResult> {
 }
 
 export function clearState(): void {
+  const statePath = getStatePath();
   try {
-    if (fs.existsSync(STATE_PATH)) {
-      fs.unlinkSync(STATE_PATH);
+    if (fs.existsSync(statePath)) {
+      fs.unlinkSync(statePath);
     }
-    getBackupPaths(STATE_PATH).forEach(backupPath => {
+    getBackupPaths(statePath).forEach(backupPath => {
       if (fs.existsSync(backupPath)) {
         fs.unlinkSync(backupPath);
       }

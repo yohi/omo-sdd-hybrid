@@ -1,27 +1,21 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
-import path from 'path';
-
-const TASKS_PATH = 'specs/tasks.md';
-const ORIGINAL_CONTENT = fs.existsSync(TASKS_PATH) ? fs.readFileSync(TASKS_PATH, 'utf-8') : null;
+import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 describe('sdd_lint_tasks', () => {
+  let tasksPath: string;
+
   beforeEach(() => {
-    if (!fs.existsSync('specs')) {
-      fs.mkdirSync('specs', { recursive: true });
-    }
+    setupTestState();
+    tasksPath = process.env.SDD_TASKS_PATH!;
   });
 
   afterEach(() => {
-    if (ORIGINAL_CONTENT !== null) {
-      fs.writeFileSync(TASKS_PATH, ORIGINAL_CONTENT);
-    } else if (fs.existsSync(TASKS_PATH)) {
-      fs.unlinkSync(TASKS_PATH);
-    }
+    cleanupTestState();
   });
 
   test('reports issues for malformed tasks', async () => {
-    fs.writeFileSync(TASKS_PATH, `# Tasks
+    fs.writeFileSync(tasksPath, `# Tasks
 
 * [ ] Task-1: Valid task (Scope: \`src/**\`)
 * [ ] Task-2: Missing scope
@@ -39,7 +33,7 @@ describe('sdd_lint_tasks', () => {
   });
 
   test('reports success for valid tasks', async () => {
-    fs.writeFileSync(TASKS_PATH, `# Tasks
+    fs.writeFileSync(tasksPath, `# Tasks
 
 * [ ] Task-1: First (Scope: \`src/a/**\`)
 * [x] Task-2: Second (Scope: \`src/b/**\`)
@@ -52,10 +46,7 @@ describe('sdd_lint_tasks', () => {
   });
 
   test('returns error when tasks.md does not exist', async () => {
-    if (fs.existsSync(TASKS_PATH)) {
-      fs.unlinkSync(TASKS_PATH);
-    }
-
+    
     const sddLintTasks = await import('../../.opencode/tools/sdd_lint_tasks');
     const result = await sddLintTasks.default.execute({}, {} as any);
 
@@ -63,7 +54,7 @@ describe('sdd_lint_tasks', () => {
   });
 
   test('includes line numbers in report', async () => {
-    fs.writeFileSync(TASKS_PATH, `# Tasks
+    fs.writeFileSync(tasksPath, `# Tasks
 
 * [ ] Task-1: Missing scope
 `);

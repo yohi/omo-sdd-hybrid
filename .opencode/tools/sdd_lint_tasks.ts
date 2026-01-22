@@ -2,7 +2,9 @@ import { tool } from '../lib/plugin-stub';
 import { lintTaskLine, LintIssue } from '../lib/tasks-parser';
 import fs from 'fs';
 
-const TASKS_PATH = 'specs/tasks.md';
+function getTasksPath() {
+  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+}
 
 interface LintResult {
   line: number;
@@ -21,11 +23,12 @@ export default tool({
   description: 'specs/tasks.md のフォーマットを検証し、問題を報告します',
   args: {},
   async execute() {
-    if (!fs.existsSync(TASKS_PATH)) {
-      return `エラー: ${TASKS_PATH} が見つかりません`;
+    const tasksPath = getTasksPath();
+    if (!fs.existsSync(tasksPath)) {
+      return `エラー: ${tasksPath} が見つかりません`;
     }
 
-    const content = fs.readFileSync(TASKS_PATH, 'utf-8');
+    const content = fs.readFileSync(tasksPath, 'utf-8');
     const lines = content.split('\n');
     const issues: LintResult[] = [];
 

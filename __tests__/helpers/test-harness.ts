@@ -1,10 +1,30 @@
 import { evaluateAccess, evaluateMultiEdit, AccessResult, GuardMode } from '../../.opencode/plugins/sdd-gatekeeper';
-import { StateResult, readState, clearState } from '../../.opencode/lib/state-utils';
+import { StateResult, readState, clearState, getStatePath } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
+export function setupTestState(): string {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omo-sdd-state-'));
+  process.env.SDD_STATE_DIR = tmpDir;
+  process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
+  process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
+  return tmpDir;
+}
+
+export function cleanupTestState(): void {
+  const stateDir = process.env.SDD_STATE_DIR;
+  if (stateDir && fs.existsSync(stateDir)) {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+  delete process.env.SDD_STATE_DIR;
+  delete process.env.SDD_TASKS_PATH;
+  delete process.env.SDD_KIRO_DIR;
+}
 
 export function ensureNoBackups(): void {
   clearState();
-  const statePath = '.opencode/state/current_context.json';
+  const statePath = getStatePath();
   const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
   backupPatterns.forEach(suffix => {
     const backupPath = statePath + suffix;
@@ -15,7 +35,7 @@ export function ensureNoBackups(): void {
 }
 
 export function deleteAllBackups(): void {
-  const statePath = '.opencode/state/current_context.json';
+  const statePath = getStatePath();
   const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
   backupPatterns.forEach(suffix => {
     const backupPath = statePath + suffix;

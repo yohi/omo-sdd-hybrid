@@ -1,22 +1,22 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
+import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 describe('kiro-utils', () => {
-  const KIRO_DIR = '.kiro';
-  const SPECS_DIR = `${KIRO_DIR}/specs`;
+  let KIRO_DIR: string;
+  let SPECS_DIR: string;
   const TEST_FEATURE = 'test-feature';
-  const TEST_SPEC_DIR = `${SPECS_DIR}/${TEST_FEATURE}`;
+  let TEST_SPEC_DIR: string;
 
   beforeEach(() => {
-    if (fs.existsSync(KIRO_DIR)) {
-      fs.rmSync(KIRO_DIR, { recursive: true });
-    }
+    setupTestState();
+    KIRO_DIR = process.env.SDD_KIRO_DIR!;
+    SPECS_DIR = `${KIRO_DIR}/specs`;
+    TEST_SPEC_DIR = `${SPECS_DIR}/${TEST_FEATURE}`;
   });
 
   afterEach(() => {
-    if (fs.existsSync(KIRO_DIR)) {
-      fs.rmSync(KIRO_DIR, { recursive: true });
-    }
+    cleanupTestState();
   });
 
   describe('findKiroSpecs', () => {

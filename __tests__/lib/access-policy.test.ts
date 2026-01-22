@@ -1,16 +1,17 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { setupTestState, cleanupTestState } from '../helpers/test-harness';
+import { getStatePath } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 
-const STATE_DIR = '.opencode/state';
-const STATE_PATH = `${STATE_DIR}/current_context.json`;
 const WORKTREE_ROOT = process.cwd();
 
 const cleanupStateFiles = () => {
+  const statePath = getStatePath();
   const filesToClean = [
-    STATE_PATH,
-    `${STATE_PATH}.bak`,
-    `${STATE_PATH}.bak.1`,
-    `${STATE_PATH}.bak.2`,
+    statePath,
+    `${statePath}.bak`,
+    `${statePath}.bak.1`,
+    `${statePath}.bak.2`,
   ];
   filesToClean.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
@@ -19,11 +20,13 @@ const cleanupStateFiles = () => {
 
 describe('access-policy', () => {
   beforeEach(() => {
+    setupTestState();
     cleanupStateFiles();
   });
 
   afterEach(() => {
     cleanupStateFiles();
+    cleanupTestState();
   });
 
   describe('evaluateAccess', () => {

@@ -1,21 +1,17 @@
-import { describe, test, expect, beforeEach, afterEach, beforeAll } from 'bun:test';
-import { writeState, clearState } from '../../.opencode/lib/state-utils';
-import { simulateEdit, simulateBash, simulateMultiEdit, ensureNoBackups, deleteAllBackups } from '../helpers/test-harness';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { writeState, clearState, getStatePath } from '../../.opencode/lib/state-utils';
+import { simulateEdit, simulateBash, simulateMultiEdit, ensureNoBackups, deleteAllBackups, setupTestState, cleanupTestState } from '../helpers/test-harness';
 import fs from 'fs';
 
 describe('Acceptance Criteria A-I', () => {
-  beforeAll(() => {
-    if (!fs.existsSync('.opencode/state')) {
-      fs.mkdirSync('.opencode/state', { recursive: true });
-    }
-  });
-  
   beforeEach(() => {
+    setupTestState();
     clearState();
   });
   
   afterEach(() => {
     clearState();
+    cleanupTestState();
   });
   
   test('Scenario A: state なし + src/a.ts 編集 → WARN NO_ACTIVE_TASK', async () => {
@@ -105,7 +101,7 @@ describe('Acceptance Criteria A-I', () => {
   
   test('Scenario H: state corrupted (no backup) + src/a.ts → WARN STATE_CORRUPTED', async () => {
     ensureNoBackups();
-    fs.writeFileSync('.opencode/state/current_context.json', '{ invalid json');
+    fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
     const result = await simulateEdit('src/a.ts');
@@ -115,7 +111,7 @@ describe('Acceptance Criteria A-I', () => {
   
   test('Scenario I: state corrupted (no backup) + specs/tasks.md → allow (Rule 0)', async () => {
     ensureNoBackups();
-    fs.writeFileSync('.opencode/state/current_context.json', '{ invalid json');
+    fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
     const result = await simulateEdit('specs/tasks.md');
@@ -126,18 +122,14 @@ describe('Acceptance Criteria A-I', () => {
 });
 
 describe('Phase 1 Block Mode Acceptance', () => {
-  beforeAll(() => {
-    if (!fs.existsSync('.opencode/state')) {
-      fs.mkdirSync('.opencode/state', { recursive: true });
-    }
-  });
-  
   beforeEach(() => {
+    setupTestState();
     clearState();
   });
   
   afterEach(() => {
     clearState();
+    cleanupTestState();
   });
 
   test("Scenario A': block + state なし + src/a.ts 編集 → BLOCK NO_ACTIVE_TASK", async () => {
@@ -187,7 +179,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
 
   test("Scenario H': block + state corrupted (no backup) + src/a.ts → BLOCK STATE_CORRUPTED", async () => {
     ensureNoBackups();
-    fs.writeFileSync('.opencode/state/current_context.json', '{ invalid json');
+    fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
     const result = await simulateEdit('src/a.ts', undefined, 'block');
