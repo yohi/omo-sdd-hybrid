@@ -55,6 +55,51 @@ describe('tasks-parser', () => {
     });
   });
 
+  describe('lintTaskLine', () => {
+    test('returns null for valid task line', async () => {
+      const { lintTaskLine } = await import('../../.opencode/lib/tasks-parser');
+      
+      expect(lintTaskLine('* [ ] Task-1: Title (Scope: `src/**`)')).toBeNull();
+      expect(lintTaskLine('* [x] Task-2: Done (Scope: `a/**`, `b/**`)')).toBeNull();
+    });
+
+    test('detects missing-scope', async () => {
+      const { lintTaskLine } = await import('../../.opencode/lib/tasks-parser');
+      
+      const result = lintTaskLine('* [ ] Task-1: Title');
+      expect(result).toBe('missing-scope');
+    });
+
+    test('detects invalid-id', async () => {
+      const { lintTaskLine } = await import('../../.opencode/lib/tasks-parser');
+      
+      const result = lintTaskLine('* [ ] invalid: Title (Scope: `src/**`)');
+      expect(result).toBe('invalid-id');
+    });
+
+    test('detects missing-backticks', async () => {
+      const { lintTaskLine } = await import('../../.opencode/lib/tasks-parser');
+      
+      const result = lintTaskLine('* [ ] Task-1: Title (Scope: src/**)');
+      expect(result).toBe('missing-backticks');
+    });
+
+    test('detects invalid-format for malformed lines', async () => {
+      const { lintTaskLine } = await import('../../.opencode/lib/tasks-parser');
+      
+      expect(lintTaskLine('* [ ]Task-1')).toBe('invalid-format');
+      expect(lintTaskLine('*[ ] Task-1: Title (Scope: `src/**`)')).toBe('invalid-format');
+    });
+
+    test('returns null for non-task lines', async () => {
+      const { lintTaskLine } = await import('../../.opencode/lib/tasks-parser');
+      
+      expect(lintTaskLine('# Header')).toBeNull();
+      expect(lintTaskLine('')).toBeNull();
+      expect(lintTaskLine('Some regular text')).toBeNull();
+    });
+  });
+
   describe('parseTasksFile', () => {
     test('parses multiple tasks from content', async () => {
       const { parseTasksFile } = await import('../../.opencode/lib/tasks-parser');
