@@ -5,7 +5,7 @@ export default tool({
   description: '現在のタスクを終了し、State をクリアします',
   args: {},
   async execute() {
-    const stateResult = readState();
+    const stateResult = await readState();
     
     if (stateResult.status === 'not_found') {
       return '警告: アクティブなタスクはありません';
@@ -17,8 +17,12 @@ export default tool({
     }
     
     const state = stateResult.state;
+    const recoveryNote = stateResult.status === 'recovered'
+      ? `\n(注: State はバックアップ ${stateResult.fromBackup} から復元されていました)`
+      : '';
+    
     clearState();
-    return `タスク終了: ${state.activeTaskId}
+    return `タスク終了: ${state.activeTaskId}${recoveryNote}
 State をクリアしました。次のタスクを開始するには sdd_start_task を実行してください。`;
   }
 });

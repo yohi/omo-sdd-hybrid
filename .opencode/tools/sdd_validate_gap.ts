@@ -167,9 +167,9 @@ export default tool({
     kiroSpec: tool.schema.string().optional().describe('Kiro仕様名（.kiro/specs/配下のディレクトリ名）')
   },
   async execute({ taskId, kiroSpec }) {
-    const stateResult = readState();
+    const stateResult = await readState();
     
-    if (stateResult.status !== 'ok') {
+    if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
       return `エラー: アクティブなタスクがありません。sdd_start_task を実行してください。
 
 状態: ${stateResult.status}`;
