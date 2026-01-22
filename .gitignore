@@ -31,3 +31,6 @@ opencode/
 
 # Sisyphus notepads (local work context)
 .sisyphus/notepads/
+
+# Serena agent state
+.serena/
