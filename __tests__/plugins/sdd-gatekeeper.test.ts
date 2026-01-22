@@ -202,4 +202,23 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
   });
+
+  test('handles invalid files argument gracefully', () => {
+    const stateResult: StateResult = { 
+      status: 'ok', 
+      state: { 
+        version: 1, 
+        activeTaskId: 'Task-1', 
+        activeTaskTitle: 'Test',
+        allowedScopes: ['**'], 
+        startedAt: new Date().toISOString(),
+        startedBy: 'test'
+      } 
+    };
+    // @ts-ignore - Testing runtime validation
+    const result = evaluateMultiEdit("not-an-array", stateResult, worktreeRoot);
+    expect(result.allowed).toBe(false);
+    expect(result.warned).toBe(true);
+    expect(result.message).toContain('INVALID_ARGUMENTS');
+  });
 });
