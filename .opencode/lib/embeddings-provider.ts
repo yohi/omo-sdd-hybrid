@@ -22,6 +22,9 @@ export async function getEmbeddings(texts: string[]): Promise<number[][] | null>
   const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
   const url = `${baseUrl}/embeddings`;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -32,8 +35,10 @@ export async function getEmbeddings(texts: string[]): Promise<number[][] | null>
       body: JSON.stringify({
         model: MODEL,
         input: texts
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -58,7 +63,12 @@ export async function getEmbeddings(texts: string[]): Promise<number[][] | null>
       .sort((a: any, b: any) => a.index - b.index)
       .map((item: any) => item.embedding);
       
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      console.error('[SDD-EMBEDDINGS] Request timed out after 10s');
+      return null;
+    }
     console.error('[SDD-EMBEDDINGS] Network error:', error);
     return null;
   }

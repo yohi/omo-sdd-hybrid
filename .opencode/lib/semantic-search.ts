@@ -20,7 +20,9 @@ function getThreshold(): number {
   const env = process.env.SDD_EMBEDDINGS_THRESHOLD;
   if (env) {
     const val = parseFloat(env);
-    if (!isNaN(val)) return val;
+    if (!isNaN(val)) {
+      return Math.min(1, Math.max(0, val));
+    }
   }
   return DEFAULT_THRESHOLD;
 }
