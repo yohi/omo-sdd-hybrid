@@ -175,6 +175,22 @@ sdd_validate_gap --kiroSpec <feature-name> --deep
 - **構造的分析**: 要件（REQ-XXX）の網羅状況、設計で定義されたコンポーネントの実装状況をチェックします。
 - **意味的分析**: LLM用のプロンプトを生成し、「実装が本当に要件を満たしているか」を意味的に検証する準備をします。
 
+### 意味的検証 (Semantic Verification)
+
+`sdd_validate_gap --deep` コマンド実行時、環境変数が設定されていれば Embeddings（ベクトル検索）を用いた意味的ギャップ検出が自動的に行われます。
+
+#### 必要な設定
+以下の環境変数を設定してください（`.env` ファイル対応）。
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|------------|------|
+| `SDD_EMBEDDINGS_API_KEY` | (必須) | OpenAI互換APIのキー |
+| `SDD_EMBEDDINGS_API_BASE` | `https://api.openai.com/v1` | APIエンドポイント |
+| `SDD_EMBEDDINGS_MODEL` | `text-embedding-3-small` | 使用するモデル |
+| `SDD_EMBEDDINGS_THRESHOLD` | `0.75` | 類似度閾値 (0.0 - 1.0) |
+
+設定がない場合、意味的分析は安全にスキップされます。
+
 ### Kiro統合のベストプラクティス
 
 1. **仕様の一元管理**:

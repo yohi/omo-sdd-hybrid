@@ -121,7 +121,7 @@ function checkDiagnostics(allowedScopes: string[], changedFiles: string[] | null
   return lines.join('\n');
 }
 
-function checkKiroIntegration(taskId: string, changedFiles: string[], useDeepAnalysis: boolean = false): string {
+async function checkKiroIntegration(taskId: string, changedFiles: string[], useDeepAnalysis: boolean = false): Promise<string> {
   const kiroSpecs = findKiroSpecs();
   
   if (kiroSpecs.length === 0) {
@@ -154,7 +154,7 @@ function checkKiroIntegration(taskId: string, changedFiles: string[], useDeepAna
 
   if (matchedSpec) {
     if (useDeepAnalysis) {
-      const deepResult = analyzeKiroGapDeep(matchedSpec, changedFiles);
+      const deepResult = await analyzeKiroGapDeep(matchedSpec, changedFiles);
       return formatEnhancedKiroGapReport(deepResult);
     } else {
       const gapResult = analyzeKiroGap(matchedSpec, changedFiles);
@@ -262,7 +262,7 @@ export default tool({
     sections.push('\n## Kiro統合');
     const kiroTarget = kiroSpec || effectiveTaskId;
     const useDeepAnalysis = deep === true;
-    sections.push(checkKiroIntegration(kiroTarget, changedFiles || [], useDeepAnalysis));
+    sections.push(await checkKiroIntegration(kiroTarget, changedFiles || [], useDeepAnalysis));
     
     sections.push('\n---');
     sections.push('検証完了後、sdd_end_task を実行してタスクを終了してください。');

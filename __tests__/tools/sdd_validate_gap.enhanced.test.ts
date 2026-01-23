@@ -64,6 +64,11 @@ describe('sdd_validate_gap enhanced', () => {
       
       expect(result).toContain('Diagnostics');
     });
+    test('runs deep analysis without error', async () => {
+      const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
+      const result = await sddValidateGap.default.execute({ deep: true }, {} as any);
+      expect(result).not.toContain('エラー');
+    });
   });
 
   describe('without active state', () => {

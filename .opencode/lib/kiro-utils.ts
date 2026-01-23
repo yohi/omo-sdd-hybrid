@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { extractRequirements, extractDesign, type ExtractedRequirement } from './spec-parser';
 import { analyzeCoverage, formatCoverageReport, type CoverageResult } from './coverage-analyzer';
+import { findSemanticGaps, type SemanticAnalysisResult } from './semantic-search';
 
 export interface KiroSpec {
   featureName: string;
@@ -150,9 +151,9 @@ export function formatKiroGapReport(result: KiroGapResult): string {
   if (result.status === 'not_found') {
     lines.push('### Kiro統合: 仕様が見つかりません');
     lines.push('');
-    result.gaps.forEach(gap => lines.push(`- ${gap}`));
+    result.gaps.forEach(gap => { lines.push(`- ${gap}`); });
     lines.push('');
-    result.suggestions.forEach(suggestion => lines.push(`> ${suggestion}`));
+    result.suggestions.forEach(suggestion => { lines.push(`> ${suggestion}`); });
     return lines.join('\n');
   }
 
@@ -160,10 +161,10 @@ export function formatKiroGapReport(result: KiroGapResult): string {
     lines.push('### Kiro統合: 仕様が不完全です');
     lines.push('');
     lines.push('**不足しているファイル:**');
-    result.gaps.forEach(gap => lines.push(`- ⚠️ ${gap}`));
+    result.gaps.forEach(gap => { lines.push(`- ⚠️ ${gap}`); });
     lines.push('');
     lines.push('**推奨アクション:**');
-    result.suggestions.forEach(suggestion => lines.push(`- ${suggestion}`));
+    result.suggestions.forEach(suggestion => { lines.push(`- ${suggestion}`); });
     return lines.join('\n');
   }
 
@@ -176,7 +177,7 @@ export function formatKiroGapReport(result: KiroGapResult): string {
   
   if (result.suggestions.length > 0) {
     lines.push('');
-    result.suggestions.forEach(suggestion => lines.push(`> ${suggestion}`));
+    result.suggestions.forEach(suggestion => { lines.push(`> ${suggestion}`); });
   }
 
   return lines.join('\n');
@@ -186,9 +187,10 @@ export interface EnhancedKiroGapResult extends KiroGapResult {
   coverage: CoverageResult | null;
   extractedRequirements: ExtractedRequirement[];
   semanticAnalysisPrompt: string | null;
+  semanticAnalysis: SemanticAnalysisResult | null;
 }
 
-export function analyzeKiroGapDeep(featureName: string, changedFiles: string[]): EnhancedKiroGapResult {
+export async function analyzeKiroGapDeep(featureName: string, changedFiles: string[]): Promise<EnhancedKiroGapResult> {
   const baseResult = analyzeKiroGap(featureName, changedFiles);
   
   const enhanced: EnhancedKiroGapResult = {
@@ -197,7 +199,8 @@ export function analyzeKiroGapDeep(featureName: string, changedFiles: string[]):
     suggestions: [...baseResult.suggestions],
     coverage: null,
     extractedRequirements: [],
-    semanticAnalysisPrompt: null
+    semanticAnalysisPrompt: null,
+    semanticAnalysis: null
   };
 
   if (!baseResult.spec) {
@@ -230,6 +233,23 @@ export function analyzeKiroGapDeep(featureName: string, changedFiles: string[]):
       enhanced.extractedRequirements,
       changedFiles
     );
+
+    // 意味的分析の実行
+    try {
+      enhanced.semanticAnalysis = await findSemanticGaps(
+        enhanced.extractedRequirements,
+        changedFiles
+      );
+    } catch (error) {
+      enhanced.semanticAnalysis = null;
+      enhanced.gaps.push('意味的分析の実行に失敗しました（Embeddingsの設定や接続を確認してください）');
+    }
+
+    if (enhanced.semanticAnalysis && enhanced.semanticAnalysis.gaps.length > 0) {
+      enhanced.gaps.push(
+        `意味的ギャップが ${enhanced.semanticAnalysis.gaps.length} 件検出されました`
+      );
+    }
   }
 
   return enhanced;
@@ -296,15 +316,37 @@ export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): stri
       lines.push(`- ...他 ${result.extractedRequirements.length - 5} 件`);
     }
   }
+
+  if (result.semanticAnalysis) {
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    
+    if (result.semanticAnalysis.gaps.length > 0) {
+      lines.push(`### ⚠️ 意味的ギャップ検出: ${result.semanticAnalysis.gaps.length} 件`);
+      lines.push('');
+      for (const gap of result.semanticAnalysis.gaps) {
+        lines.push(`- ${gap}`);
+      }
+      lines.push('');
+      lines.push('> ※Embeddingsによる自動判定です。必ずしも正確ではありません。');
+    } else if (result.semanticAnalysis.details.length > 0) {
+      lines.push('### ✅ 意味的整合性: OK');
+      lines.push(`> 検証対象: ${result.semanticAnalysis.details.length} 要件`);
+    } else {
+      lines.push('### 意味的分析: スキップ（詳細なし）');
+      lines.push('> Embeddingsが無効化されている、ファイルが分析スコープ外、または要件が抽出されなかった可能性があります');
+    }
+  }
   
   if (result.semanticAnalysisPrompt) {
     lines.push('');
     lines.push('---');
     lines.push('');
-    lines.push('> 💡 **意味的分析**: 以下のプロンプトをLLMに渡すことで、要件充足の詳細分析が可能です。');
+    lines.push('> 💡 **意味的分析プロンプト**: 以下のプロンプトをLLMに渡すことで、より詳細な分析が可能です。');
     lines.push('');
     lines.push('<details>');
-    lines.push('<summary>意味的分析プロンプト（クリックで展開）</summary>');
+    lines.push('<summary>プロンプト（クリックで展開）</summary>');
     lines.push('');
     lines.push('```markdown');
     lines.push(result.semanticAnalysisPrompt);
