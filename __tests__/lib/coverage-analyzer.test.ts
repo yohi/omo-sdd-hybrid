@@ -168,4 +168,36 @@ describe('coverage-analyzer', () => {
       expect(report).toContain('Impacted Files が定義されていません');
     });
   });
+
+  describe('analyzeCoverage (glob fix)', () => {
+    test('Should handle {} glob patterns correctly', () => {
+        const design: ExtractedDesign = {
+            impactedFiles: ['src/auth/*.{ts,tsx}'],
+            components: [],
+            dependencies: []
+        };
+        const changedFiles = ['src/auth/login.ts', 'src/auth/Button.tsx'];
+
+        const result = analyzeCoverage(design, changedFiles);
+
+        expect(result.coveragePercent).toBe(100);
+        expect(result.missing).toHaveLength(0);
+        expect(result.unexpected).toHaveLength(0);
+    });
+
+    test('Should handle [] glob patterns correctly', () => {
+        const design: ExtractedDesign = {
+            impactedFiles: ['src/utils/test[12].ts'],
+            components: [],
+            dependencies: []
+        };
+        const changedFiles = ['src/utils/test1.ts'];
+
+        const result = analyzeCoverage(design, changedFiles);
+
+        expect(result.coveragePercent).toBe(100);
+        expect(result.missing).toHaveLength(0);
+        expect(result.unexpected).toHaveLength(0);
+    });
+  });
 });
