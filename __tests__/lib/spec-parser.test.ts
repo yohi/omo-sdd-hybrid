@@ -224,4 +224,48 @@ User authentication
       expect(result.components).toHaveLength(1);
     });
   });
+
+  describe('extractRequirements (description fix)', () => {
+    test('Should initialize description from header when body is empty', () => {
+      const content = `
+## REQ-001: Initial Title
+
+### Acceptance Criteria
+- Criteria 1
+`;
+      const result = extractRequirements(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('REQ-001');
+      expect(result[0].description).toBe('Initial Title');
+    });
+
+    test('Should append body to header title when body exists', () => {
+        const content = `
+## REQ-002: Header Title
+
+Body Description
+
+### Acceptance Criteria
+- Criteria 1
+`;
+        const result = extractRequirements(content);
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('REQ-002');
+        expect(result[0].description).toContain('Header Title');
+        expect(result[0].description).toContain('Body Description');
+    });
+    
+    test('Should handle numbered header with empty body', () => {
+        const content = `
+## 1. Numbered Title
+
+### Acceptance Criteria
+- Criteria 1
+`;
+        const result = extractRequirements(content);
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('1');
+        expect(result[0].description).toBe('Numbered Title');
+    });
+  });
 });
