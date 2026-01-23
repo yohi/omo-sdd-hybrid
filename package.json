@@ -6,6 +6,9 @@
     "type": "git",
     "url": "git+https://github.com/yohi/omo-sdd-hybrid.git"
   },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
