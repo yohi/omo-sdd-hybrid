@@ -155,4 +155,107 @@ describe('kiro-utils', () => {
       expect(report).toContain('✅');
     });
   });
+
+  describe('analyzeKiroGapDeep', () => {
+    test('基本的なギャップ分析に加えて拡張情報を返す', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, `
+## REQ-001: ユーザー認証
+
+ユーザーがログインできる
+
+### 受入条件
+- JWT返却
+`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, `
+## Impacted Files
+
+- \`src/auth/login.ts\`
+`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
+      
+      const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
+      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts']);
+      
+      expect(result.status).toBe('found');
+      expect(result.extractedRequirements).toHaveLength(1);
+      expect(result.extractedRequirements[0].id).toBe('REQ-001');
+      expect(result.coverage).not.toBeNull();
+      expect(result.coverage?.coveragePercent).toBe(100);
+      expect(result.semanticAnalysisPrompt).not.toBeNull();
+    });
+
+    test('カバレッジ不足を検出', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, '# Req');
+      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, `
+## Impacted Files
+
+- \`src/auth/login.ts\`
+- \`src/auth/logout.ts\`
+`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
+      
+      const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
+      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts']);
+      
+      expect(result.coverage?.coveragePercent).toBe(50);
+      expect(result.coverage?.missing).toContain('src/auth/logout.ts');
+      expect(result.gaps.some(g => g.includes('未実装'))).toBe(true);
+    });
+
+    test('設計外の変更を検出', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, '# Req');
+      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, `
+## Impacted Files
+
+- \`src/auth/login.ts\`
+`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
+      
+      const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
+      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts', 'src/unrelated.ts']);
+      
+      expect(result.coverage?.unexpected).toContain('src/unrelated.ts');
+      expect(result.suggestions.some(s => s.includes('設計外'))).toBe(true);
+    });
+
+    test('仕様が存在しない場合は空の拡張情報を返す', async () => {
+      const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
+      const result = analyzeKiroGapDeep('nonexistent', ['src/file.ts']);
+      
+      expect(result.status).toBe('not_found');
+      expect(result.coverage).toBeNull();
+      expect(result.extractedRequirements).toEqual([]);
+      expect(result.semanticAnalysisPrompt).toBeNull();
+    });
+  });
+
+  describe('formatEnhancedKiroGapReport', () => {
+    test('拡張レポートにカバレッジ情報を含む', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, `
+## REQ-001: テスト
+
+テスト説明
+`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, `
+## Impacted Files
+
+- \`src/test.ts\`
+`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
+      
+      const { analyzeKiroGapDeep, formatEnhancedKiroGapReport } = await import('../../.opencode/lib/kiro-utils');
+      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/test.ts']);
+      const report = formatEnhancedKiroGapReport(result);
+      
+      expect(report).toContain('カバレッジ分析');
+      expect(report).toContain('100%');
+      expect(report).toContain('抽出された要件');
+      expect(report).toContain('REQ-001');
+    });
+  });
 });
+
