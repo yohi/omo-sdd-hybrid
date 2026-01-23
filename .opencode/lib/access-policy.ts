@@ -1,10 +1,9 @@
 import type { StateResult, State } from './state-utils';
 import { normalizeToRepoRelative, isOutsideWorktree } from './path-utils';
 import { matchesScope } from './glob-utils';
+import { loadPolicyConfig } from './policy-loader';
 
 export const WRITE_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
-export const ALWAYS_ALLOW = ['specs/', '.opencode/'];
-export const DESTRUCTIVE_BASH = ['rm ', 'rm -', 'git push', 'reset --hard', 'git apply'];
 
 export type GuardMode = 'warn' | 'block';
 
@@ -29,10 +28,11 @@ export function evaluateAccess(
   mode: GuardMode = getGuardMode()
 ): AccessResult {
   const allowedOnViolation = mode === 'warn';
+  const policy = loadPolicyConfig();
   
   if (!WRITE_TOOLS.includes(toolName)) {
     if (toolName === 'bash' && command) {
-      if (DESTRUCTIVE_BASH.some(d => command.includes(d))) {
+      if (policy.destructiveBash.some(d => command.includes(d))) {
         return { allowed: allowedOnViolation, warned: true, message: `破壊的コマンド検出: ${command}`, rule: 'Rule4' };
       }
     }
@@ -50,7 +50,7 @@ export function evaluateAccess(
   
   const normalizedPath = normalizeToRepoRelative(filePath, worktreeRoot);
   
-  if (ALWAYS_ALLOW.some(prefix => normalizedPath.startsWith(prefix))) {
+  if (policy.alwaysAllow.some(prefix => normalizedPath.startsWith(prefix))) {
     return { allowed: true, warned: false, rule: 'Rule0' };
   }
   
