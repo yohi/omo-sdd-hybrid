@@ -231,7 +231,7 @@ export async function validateGapInternal(state: State, options: ValidateGapOpti
   const useDeepAnalysis = options.deep === true;
   
   if (changedFiles === null) {
-    sections.push('Kiro integration skipped due to diff retrieval error');
+    sections.push('SKIP: 変更ファイルの取得に失敗したため、Kiro統合はスキップされました');
   } else {
     sections.push(await checkKiroIntegration(kiroTarget, changedFiles, useDeepAnalysis));
   }
