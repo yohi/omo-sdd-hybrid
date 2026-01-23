@@ -334,8 +334,8 @@ export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): stri
       lines.push('### ✅ 意味的整合性: OK');
       lines.push(`> 検証対象: ${result.semanticAnalysis.details.length} 要件`);
     } else {
-      lines.push('### 意味的分析: スキップ');
-      lines.push('> 変更ファイルが分析対象外か、要件が抽出できませんでした');
+      lines.push('### 意味的分析: スキップ（詳細なし）');
+      lines.push('> Embeddingsが無効化されている、ファイルが分析スコープ外、または要件が抽出されなかった可能性があります');
     }
   }
   
