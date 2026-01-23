@@ -136,7 +136,7 @@ npx cc-sdd@latest --claude
 #### Step 1: 仕様の作成
 `cc-sdd` のAIコマンドを使用して、`.kiro/specs/<feature-name>/` 配下に仕様を生成します。
 
-```bash
+```text
 /kiro:spec-init <feature-name>       # 仕様ディレクトリの初期化
 /kiro:spec-requirements <feature-name> # 要件定義 (requirements.md)
 /kiro:spec-design <feature-name> -y    # 設計 (design.md)
