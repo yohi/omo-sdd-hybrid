@@ -3,6 +3,12 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 
 export function getWorktreeRoot(): string {
+  if (process.env.SDD_WORKTREE_ROOT) {
+    const root = process.env.SDD_WORKTREE_ROOT.trim();
+    if (root) {
+      return root;
+    }
+  }
   try {
     const result = execSync('git rev-parse --show-toplevel', {
       encoding: 'utf-8',

@@ -52,6 +52,41 @@ describe('path-utils', () => {
       const result = getWorktreeRoot();
       expect(result).toBe(WORKTREE_ROOT);
     });
+
+    test('respects SDD_WORKTREE_ROOT environment variable', async () => {
+      const { getWorktreeRoot } = await import('../../.opencode/lib/path-utils');
+      const originalEnv = process.env.SDD_WORKTREE_ROOT;
+      const mockRoot = '/tmp/mock-root';
+      process.env.SDD_WORKTREE_ROOT = mockRoot;
+      
+      try {
+        const result = getWorktreeRoot();
+        expect(result).toBe(mockRoot);
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.SDD_WORKTREE_ROOT;
+        } else {
+          process.env.SDD_WORKTREE_ROOT = originalEnv;
+        }
+      }
+    });
+
+    test('falls back to git logic if SDD_WORKTREE_ROOT is whitespace', async () => {
+      const { getWorktreeRoot } = await import('../../.opencode/lib/path-utils');
+      const originalEnv = process.env.SDD_WORKTREE_ROOT;
+      process.env.SDD_WORKTREE_ROOT = '   ';
+      
+      try {
+        const result = getWorktreeRoot();
+        expect(result).toBe(WORKTREE_ROOT);
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.SDD_WORKTREE_ROOT;
+        } else {
+          process.env.SDD_WORKTREE_ROOT = originalEnv;
+        }
+      }
+    });
   });
 
   describe('isSymlink', () => {
