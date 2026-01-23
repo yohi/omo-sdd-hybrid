@@ -77,4 +77,12 @@ export interface Hooks {
     input: { tool: string; sessionID: string; callID: string },
     output: { title: string; output: string; metadata: any },
   ) => Promise<void>;
+  'experimental.chat.system.transform'?: (
+    input: { sessionID: string },
+    output: { system: string[] },
+  ) => Promise<void>;
+  'chat.params'?: (
+    input: { sessionID: string; agent: string; [key: string]: any },
+    output: { temperature?: number; [key: string]: any },
+  ) => Promise<void>;
 }
