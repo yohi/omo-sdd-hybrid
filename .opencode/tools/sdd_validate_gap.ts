@@ -229,7 +229,12 @@ export async function validateGapInternal(state: State, options: ValidateGapOpti
   sections.push('\n## Kiro統合');
   const kiroTarget = options.kiroSpec || effectiveTaskId;
   const useDeepAnalysis = options.deep === true;
-  sections.push(await checkKiroIntegration(kiroTarget, changedFiles || [], useDeepAnalysis));
+  
+  if (changedFiles === null) {
+    sections.push('Kiro integration skipped due to diff retrieval error');
+  } else {
+    sections.push(await checkKiroIntegration(kiroTarget, changedFiles, useDeepAnalysis));
+  }
   
   sections.push('\n---');
   sections.push('検証完了後、sdd_end_task を実行してタスクを終了してください。');
