@@ -29,6 +29,23 @@ GitHub Packages からパッケージをダウンロードするために、認�
 
 この設定により、`@yohi` スコープのパッケージは GitHub Packages から取得され、認証には環境変数が使用されます。
 
+#### 3. 環境変数 NODE_AUTH_TOKEN の設定
+`.npmrc` で参照されている `NODE_AUTH_TOKEN` を有効にする手順です。
+
+**シェルでの設定 (Mac/Linux):**
+```bash
+export NODE_AUTH_TOKEN=your_token_here
+```
+
+**.env ファイルでの設定:**
+プロジェクトルートの `.env` ファイルに記述します（`.gitignore` への追加を忘れずに）。
+```env
+NODE_AUTH_TOKEN=your_token_here
+```
+
+**CI/CD (GitHub Actions):**
+リポジトリの Secrets に `NODE_AUTH_TOKEN` として登録してください。
+
 ### 2. configへの追加
 
 `opencode.jsonc` の `plugin` 配列にパッケージ名を追加します。
