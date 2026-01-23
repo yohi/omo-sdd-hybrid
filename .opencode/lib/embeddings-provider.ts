@@ -5,15 +5,15 @@
  */
 
 const API_BASE = process.env.SDD_EMBEDDINGS_API_BASE || 'https://api.openai.com/v1';
-const API_KEY = process.env.SDD_EMBEDDINGS_API_KEY;
 const MODEL = process.env.SDD_EMBEDDINGS_MODEL || 'text-embedding-3-small';
 
 export function isEmbeddingsEnabled(): boolean {
-  return !!API_KEY;
+  return !!process.env.SDD_EMBEDDINGS_API_KEY;
 }
 
 export async function getEmbeddings(texts: string[]): Promise<number[][] | null> {
-  if (!API_KEY) {
+  const apiKey = process.env.SDD_EMBEDDINGS_API_KEY;
+  if (!apiKey) {
     console.warn('[SDD-EMBEDDINGS] Skipped: SDD_EMBEDDINGS_API_KEY is not set');
     return null;
   }
@@ -27,7 +27,7 @@ export async function getEmbeddings(texts: string[]): Promise<number[][] | null>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: MODEL,
@@ -45,6 +45,11 @@ export async function getEmbeddings(texts: string[]): Promise<number[][] | null>
     
     if (!json.data || !Array.isArray(json.data)) {
       console.error('[SDD-EMBEDDINGS] Invalid response format', json);
+      return null;
+    }
+
+    if (json.data.length !== texts.length) {
+      console.error('[SDD-EMBEDDINGS] Mismatched embeddings count', { expected: texts.length, received: json.data.length, json });
       return null;
     }
 
