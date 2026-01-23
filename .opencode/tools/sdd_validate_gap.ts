@@ -2,7 +2,7 @@ import { tool } from '../lib/plugin-stub';
 import { readState, writeState } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
 import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parser';
-import { analyzeKiroGap, formatKiroGapReport, findKiroSpecs } from '../lib/kiro-utils';
+import { analyzeKiroGap, formatKiroGapReport, findKiroSpecs, analyzeKiroGapDeep, formatEnhancedKiroGapReport } from '../lib/kiro-utils';
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 
@@ -121,7 +121,7 @@ function checkDiagnostics(allowedScopes: string[], changedFiles: string[] | null
   return lines.join('\n');
 }
 
-function checkKiroIntegration(taskId: string, changedFiles: string[]): string {
+function checkKiroIntegration(taskId: string, changedFiles: string[], useDeepAnalysis: boolean = false): string {
   const kiroSpecs = findKiroSpecs();
   
   if (kiroSpecs.length === 0) {
@@ -129,15 +129,12 @@ function checkKiroIntegration(taskId: string, changedFiles: string[]): string {
            '> Kiro統合を有効にするには: npx cc-sdd@latest --claude';
   }
 
-  // 1. 完全一致（大文字小文字区別あり）
   let matchedSpec = kiroSpecs.find(s => s === taskId);
   
-  // 2. 完全一致（大文字小文字区別なし）
   if (!matchedSpec) {
     matchedSpec = kiroSpecs.find(s => s.toLowerCase() === taskId.toLowerCase());
   }
   
-  // 3. 正規化版での部分一致（フォールバック）
   if (!matchedSpec) {
     const normalizedTaskId = taskId.toLowerCase().replace(/[^a-z0-9]/g, '-');
     matchedSpec = kiroSpecs.find(s => s === normalizedTaskId);
@@ -156,20 +153,26 @@ function checkKiroIntegration(taskId: string, changedFiles: string[]): string {
   }
 
   if (matchedSpec) {
-    const gapResult = analyzeKiroGap(matchedSpec, changedFiles);
-    return formatKiroGapReport(gapResult);
+    if (useDeepAnalysis) {
+      const deepResult = analyzeKiroGapDeep(matchedSpec, changedFiles);
+      return formatEnhancedKiroGapReport(deepResult);
+    } else {
+      const gapResult = analyzeKiroGap(matchedSpec, changedFiles);
+      return formatKiroGapReport(gapResult);
+    }
   }
 
   return 'INFO: Kiro統合はスキップされました';
 }
 
 export default tool({
-  description: '仕様とコードの差分を検証（lsp_diagnostics + テスト + スコープ + Kiro統合）',
+  description: '仕様とコードの差分を検証（lsp_diagnostics + テスト + スコープ + Kiro統合 + 意味的分析）',
   args: {
     taskId: tool.schema.string().optional().describe('検証するタスクID（省略時は現在アクティブなタスク）'),
-    kiroSpec: tool.schema.string().optional().describe('Kiro仕様名（.kiro/specs/配下のディレクトリ名）')
+    kiroSpec: tool.schema.string().optional().describe('Kiro仕様名（.kiro/specs/配下のディレクトリ名）'),
+    deep: tool.schema.boolean().optional().describe('深度分析を有効にする（カバレッジ分析・意味的検証プロンプト生成）')
   },
-  async execute({ taskId, kiroSpec }) {
+  async execute({ taskId, kiroSpec, deep }) {
     const stateResult = await readState();
     
     if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
@@ -258,7 +261,8 @@ export default tool({
     
     sections.push('\n## Kiro統合');
     const kiroTarget = kiroSpec || effectiveTaskId;
-    sections.push(checkKiroIntegration(kiroTarget, changedFiles || []));
+    const useDeepAnalysis = deep === true;
+    sections.push(checkKiroIntegration(kiroTarget, changedFiles || [], useDeepAnalysis));
     
     sections.push('\n---');
     sections.push('検証完了後、sdd_end_task を実行してタスクを終了してください。');

@@ -22,9 +22,29 @@ State破損時の挙動は `sdd_end_task` でクリアするようになって�
 
 #### 4. Kiro統合の深化 (機能性)
 
-現在はスタブ実装ですが、ここを強化することで「仕様と実装の乖離」をより強力に検出できます。
+**状態**: 🟢 実装完了
 
-* **提案**: 単にファイルの有無だけでなく、`requirements.md` の内容と実装コードのベクトル検索による類似度チェックなど、AIを活用した「意味的な検証」への拡張を視野に入れると、このツールの価値が飛躍的に高まります。
+以下の機能を追加しました：
+
+* **構造的ギャップ分析**:
+  - `requirements.md` から要件（REQ-XXX形式）と受入条件を自動抽出
+  - `design.md` から Impacted Files, Components, Dependencies を抽出
+  - 実装カバレッジの計算（設計ファイルと実際の変更の比較）
+
+* **意味的分析プロンプト生成**:
+  - 抽出した要件と変更ファイルを基に、LLMへの分析依頼プロンプトを自動生成
+  - OpenCodeエージェントに委譲する形で、依存関係を最小限に維持
+
+* **使用方法**:
+  ```bash
+  sdd_validate_gap --deep              # 深度分析を有効化
+  sdd_validate_gap --kiroSpec my-feat  # 特定の仕様を指定
+  ```
+
+* **追加ファイル**:
+  - `.opencode/lib/spec-parser.ts` - 仕様ファイルからの構造化データ抽出
+  - `.opencode/lib/coverage-analyzer.ts` - 設計カバレッジ分析
+  - `kiro-utils.ts` 拡張 - `analyzeKiroGapDeep()`, `formatEnhancedKiroGapReport()`
 
 ---
 
