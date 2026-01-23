@@ -98,21 +98,58 @@ sdd_end_task
 | `sdd_show_context` | 現在アクティブなタスク、許可されたスコープ、開始時間を表示します。 |
 | `sdd_validate_gap` | 仕様とコードのギャップ分析、テスト実行、Diagnostics検証を行います。 |
 
-## 高度な機能
+## 高度な機能: Kiro 統合 (cc-sdd)
 
-### Kiro 統合 (cc-sdd)
+[cc-sdd](https://github.com/gotalab/cc-sdd) と連携し、仕様書（Requirements, Design, Tasks）との完全なトレーサビリティを実現します。
 
-[cc-sdd](https://github.com/gotalab/cc-sdd) で生成された仕様書（Requirements, Design, Tasks）との整合性をチェックできます。
+### セットアップ
 
-1. **仕様の生成**:
-   `.kiro/specs/<feature-name>/` 配下に `requirements.md`, `design.md`, `tasks.md` を配置します。
+Kiro（cc-sdd）をプロジェクトにセットアップします。
 
-2. **検証**:
-   タスクIDと仕様名が一致する場合、自動的に連携されます。異なる場合はオプションで指定します。
-   ```bash
-   sdd_validate_gap --kiroSpec <feature-name> --deep
-   ```
-   - **--deep**: LLM用プロンプトを生成し、より深い意味的な分析（要件カバレッジなど）を行います。
+```bash
+npx cc-sdd@latest --claude
+```
+
+### 仕様駆動ワークフロー
+
+#### Step 1: 仕様の作成
+`cc-sdd` のAIコマンドを使用して、`.kiro/specs/<feature-name>/` 配下に仕様を生成します。
+
+```bash
+/kiro:spec-init <feature-name>       # 仕様ディレクトリの初期化
+/kiro:spec-requirements <feature-name> # 要件定義 (requirements.md)
+/kiro:spec-design <feature-name> -y    # 設計 (design.md)
+/kiro:spec-tasks <feature-name> -y     # タスク分解 (tasks.md)
+```
+
+#### Step 2: SDDタスクとの同期
+`sdd_start_task` で使用するタスクIDを、Kiroの仕様名（`<feature-name>`）と一致させると便利です。
+あるいは、Kiroが生成した `tasks.md` の内容をプロジェクトルートの `specs/tasks.md` に転記し、Scopeを追記します。
+
+#### Step 3: ギャップ分析（Deep Analysis）
+実装中、仕様との乖離がないかを深く分析します。
+
+```bash
+sdd_validate_gap --kiroSpec <feature-name> --deep
+```
+
+**`--deep` オプションの効果:**
+- **構造的分析**: 要件（REQ-XXX）の網羅状況、設計で定義されたコンポーネントの実装状況をチェックします。
+- **意味的分析**: LLM用のプロンプトを生成し、「実装が本当に要件を満たしているか」を意味的に検証する準備をします。
+
+### Kiro統合のベストプラクティス
+
+1. **仕様の一元管理**:
+   - 原則として、仕様変更は必ず `.kiro/specs/` 内のMarkdownファイルを更新してからコードに反映させてください。
+   - コード先行で仕様が変わると、`validate_gap` で常に警告が出ることになり、形骸化の原因になります。
+
+2. **Tasks の連携**:
+   - Kiro で生成された `tasks.md` は詳細な実装ステップを含んでいます。
+   - SDD の `specs/tasks.md` は Gatekeeper 用のアクセスコントロール定義として機能します。
+   - 両者を運用し分けるのが基本ですが、混同しないよう「Scope定義は `specs/tasks.md` だけに書く」というルールを徹底してください。
+
+3. **Deep Analysis の活用**:
+   - PR提出前や、主要な機能実装のマイルストーンで必ず `--deep` オプション付きの検証を実行し、AIによる客観的なレビューを受けてください。
 
 ## 環境変数
 
