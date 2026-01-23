@@ -58,3 +58,8 @@ return { allowed: allowedOnViolation, warned: true, message: '...', rule: '...' 
 - 111 tests passing
 - 238 expect() calls
 - 13 test files
+
+## [SDD-CONTEXT-INJECTOR]
+- `experimental.chat.system.transform` hook allows dynamic injection of system prompt context.
+- Useful for providing "always-on" context like active task ID and guard mode to the AI agent.
+- Must handle state read errors gracefully to avoid crashing the chat interface.
