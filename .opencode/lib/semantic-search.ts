@@ -55,11 +55,18 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 function chunkText(text: string): string[] {
-  if (text.length <= CHUNK_SIZE) return [text];
+  const cleanText = text.trim();
+  if (cleanText.length === 0) return [];
+
+  if (cleanText.length <= CHUNK_SIZE) return [cleanText];
+
   const chunks: string[] = [];
   let i = 0;
-  while (i < text.length) {
-    chunks.push(text.slice(i, i + CHUNK_SIZE));
+  while (i < cleanText.length) {
+    const chunk = cleanText.slice(i, i + CHUNK_SIZE);
+    if (chunk.trim().length > 0) {
+      chunks.push(chunk);
+    }
     i += CHUNK_SIZE - CHUNK_OVERLAP;
   }
   return chunks;
