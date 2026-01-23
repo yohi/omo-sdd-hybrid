@@ -281,4 +281,33 @@ describe('kiro-utils', () => {
       expect(report).toContain('⚠️');
     });
   });
+
+  describe('updateKiroSpecTasks', () => {
+    test('updates tasks.md for existing feature', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '- [ ] Old content');
+      
+      const { updateKiroSpecTasks } = await import('../../.opencode/lib/kiro-utils');
+      const result = updateKiroSpecTasks(TEST_FEATURE, '- [x] New content');
+      
+      expect(result).toBe(true);
+      expect(fs.readFileSync(`${TEST_SPEC_DIR}/tasks.md`, 'utf-8')).toBe('- [x] New content');
+    });
+
+    test('returns false for non-existent feature', async () => {
+      const { updateKiroSpecTasks } = await import('../../.opencode/lib/kiro-utils');
+      const result = updateKiroSpecTasks('non-existent-feature', 'content');
+      
+      expect(result).toBe(false);
+    });
+
+    test('returns false when tasks.md does not exist', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      
+      const { updateKiroSpecTasks } = await import('../../.opencode/lib/kiro-utils');
+      const result = updateKiroSpecTasks(TEST_FEATURE, 'content');
+      
+      expect(result).toBe(false);
+    });
+  });
 });

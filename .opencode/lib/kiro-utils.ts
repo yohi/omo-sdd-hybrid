@@ -357,3 +357,21 @@ export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): stri
   
   return lines.join('\n');
 }
+
+export function updateKiroSpecTasks(featureName: string, newContent: string): boolean {
+  const specsDir = getSpecsDir();
+  const specDir = path.join(specsDir, featureName);
+  const tasksPath = path.join(specDir, 'tasks.md');
+  
+  if (!fs.existsSync(tasksPath)) {
+    return false;
+  }
+
+  try {
+    fs.writeFileSync(tasksPath, newContent, 'utf-8');
+    return true;
+  } catch (e) {
+    console.error(`Failed to update tasks for ${featureName}:`, e);
+    return false;
+  }
+}

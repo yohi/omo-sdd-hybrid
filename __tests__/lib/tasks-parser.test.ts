@@ -143,4 +143,70 @@ describe('tasks-parser', () => {
       expect(tasks[1].id).toBe('A-2');
     });
   });
+
+  describe('updateTaskStatusInContent', () => {
+    test('updates [ ] to [x] for matching task ID', async () => {
+      const { updateTaskStatusInContent } = await import('../../.opencode/lib/tasks-parser');
+      const content = '* [ ] Task-1: Test (Scope: `src/*`)';
+      const result = updateTaskStatusInContent(content, 'Task-1', true);
+      expect(result).toBe('* [x] Task-1: Test (Scope: `src/*`)');
+    });
+
+    test('updates [x] to [ ] for matching task ID', async () => {
+      const { updateTaskStatusInContent } = await import('../../.opencode/lib/tasks-parser');
+      const content = '* [x] Task-1: Done (Scope: `src/*`)';
+      const result = updateTaskStatusInContent(content, 'Task-1', false);
+      expect(result).toBe('* [ ] Task-1: Done (Scope: `src/*`)');
+    });
+
+    test('returns original content when task ID not found', async () => {
+      const { updateTaskStatusInContent } = await import('../../.opencode/lib/tasks-parser');
+      const content = '* [ ] Task-1: Test (Scope: `src/*`)';
+      const result = updateTaskStatusInContent(content, 'Task-999', true);
+      expect(result).toBe(content);
+    });
+
+    test('updates only matching line in multi-line content', async () => {
+      const { updateTaskStatusInContent } = await import('../../.opencode/lib/tasks-parser');
+      const content = `# Tasks
+* [ ] Task-1: First (Scope: \`a/*\`)
+* [ ] Task-2: Second (Scope: \`b/*\`)`;
+      const result = updateTaskStatusInContent(content, 'Task-1', true);
+      expect(result).toContain('* [x] Task-1: First');
+      expect(result).toContain('* [ ] Task-2: Second');
+    });
+  });
+
+  describe('extractTaskIdFromLine', () => {
+    test('extracts ID from SDD format (* [ ] Task-1: ...)', async () => {
+      const { extractTaskIdFromLine } = await import('../../.opencode/lib/tasks-parser');
+      expect(extractTaskIdFromLine('* [ ] Task-1: Test (Scope: `src/*`)')).toBe('Task-1');
+      expect(extractTaskIdFromLine('* [x] PAY-123: Payment (Scope: `src/*`)')).toBe('PAY-123');
+    });
+
+    test('extracts ID from Kiro format (- [ ] Task-1: ...)', async () => {
+      const { extractTaskIdFromLine } = await import('../../.opencode/lib/tasks-parser');
+      expect(extractTaskIdFromLine('- [ ] Feature-42: タスク名')).toBe('Feature-42');
+      expect(extractTaskIdFromLine('- [x] Auth-1: 認証機能')).toBe('Auth-1');
+    });
+
+    test('returns null for lines without ID', async () => {
+      const { extractTaskIdFromLine } = await import('../../.opencode/lib/tasks-parser');
+      expect(extractTaskIdFromLine('- [ ] IDなしタスク')).toBeNull();
+      expect(extractTaskIdFromLine('- [ ] 単なるチェックボックス')).toBeNull();
+    });
+
+    test('returns null for non-task lines', async () => {
+      const { extractTaskIdFromLine } = await import('../../.opencode/lib/tasks-parser');
+      expect(extractTaskIdFromLine('')).toBeNull();
+      expect(extractTaskIdFromLine('# Header')).toBeNull();
+      expect(extractTaskIdFromLine('Regular text')).toBeNull();
+    });
+
+    test('handles various ID formats', async () => {
+      const { extractTaskIdFromLine } = await import('../../.opencode/lib/tasks-parser');
+      expect(extractTaskIdFromLine('- [ ] T_ask-99: Test')).toBe('T_ask-99');
+      expect(extractTaskIdFromLine('- [ ] ABC-1: Test')).toBe('ABC-1');
+    });
+  });
 });
