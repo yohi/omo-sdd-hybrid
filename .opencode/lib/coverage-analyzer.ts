@@ -37,21 +37,11 @@ export function analyzeCoverage(design: ExtractedDesign, changedFiles: string[])
   const covered: string[] = [];
 
   for (const expected of expectedFiles) {
-    const isGlobPattern = expected.includes('*') || expected.includes('?');
-    
-    if (isGlobPattern) {
-      const matchedFiles = changedFiles.filter(file => matchesScope(file, [expected]));
-      if (matchedFiles.length > 0) {
-        covered.push(expected);
-      } else {
-        missing.push(expected);
-      }
+    const matchedFiles = changedFiles.filter(file => matchesScope(file, [expected]));
+    if (matchedFiles.length > 0) {
+      covered.push(expected);
     } else {
-      if (changedFiles.includes(expected)) {
-        covered.push(expected);
-      } else {
-        missing.push(expected);
-      }
+      missing.push(expected);
     }
   }
 
@@ -59,17 +49,9 @@ export function analyzeCoverage(design: ExtractedDesign, changedFiles: string[])
   for (const file of changedFiles) {
     let isExpected = false;
     for (const expected of expectedFiles) {
-      const isGlobPattern = expected.includes('*') || expected.includes('?');
-      if (isGlobPattern) {
-        if (matchesScope(file, [expected])) {
-          isExpected = true;
-          break;
-        }
-      } else {
-        if (file === expected) {
-          isExpected = true;
-          break;
-        }
+      if (matchesScope(file, [expected])) {
+        isExpected = true;
+        break;
       }
     }
     if (!isExpected) {

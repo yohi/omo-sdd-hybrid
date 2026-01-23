@@ -54,7 +54,14 @@ export function extractRequirements(content: string): ExtractedRequirement[] {
     if (headerMatch) {
       // 前の要件を保存
       if (currentReq) {
-        currentReq.description = descriptionLines.join('\n').trim();
+        if (descriptionLines.length > 0) {
+          const body = descriptionLines.join('\n').trim();
+          if (body) {
+            currentReq.description = currentReq.description
+              ? currentReq.description + '\n' + body
+              : body;
+          }
+        }
         requirements.push(currentReq);
       }
       
@@ -63,14 +70,14 @@ export function extractRequirements(content: string): ExtractedRequirement[] {
         // REQ-XXX 形式
         currentReq = {
           id: headerMatch[1],
-          description: '',
+          description: headerMatch[2] ? headerMatch[2].trim() : '',
           acceptanceCriteria: []
         };
       } else if (headerMatch[4]) {
         // 番号形式
         currentReq = {
           id: headerMatch[4],
-          description: '',
+          description: headerMatch[5] ? headerMatch[5].trim() : '',
           acceptanceCriteria: []
         };
       }
@@ -84,7 +91,14 @@ export function extractRequirements(content: string): ExtractedRequirement[] {
     const acceptanceMatch = line.match(/^###\s*(?:受入条件|Acceptance\s*Criteria)/i);
     if (acceptanceMatch && currentReq) {
       // 受入条件セクションに入る前にdescriptionを確定
-      currentReq.description = descriptionLines.join('\n').trim();
+      if (descriptionLines.length > 0) {
+        const body = descriptionLines.join('\n').trim();
+        if (body) {
+          currentReq.description = currentReq.description
+            ? currentReq.description + '\n' + body
+            : body;
+        }
+      }
       descriptionLines = [];
       inAcceptanceCriteria = true;
       continue;
@@ -112,8 +126,13 @@ export function extractRequirements(content: string): ExtractedRequirement[] {
   
   // 最後の要件を保存
   if (currentReq) {
-    if (descriptionLines.length > 0 && !currentReq.description) {
-      currentReq.description = descriptionLines.join('\n').trim();
+    if (descriptionLines.length > 0) {
+      const body = descriptionLines.join('\n').trim();
+      if (body) {
+        currentReq.description = currentReq.description
+          ? currentReq.description + '\n' + body
+          : body;
+      }
     }
     requirements.push(currentReq);
   }
