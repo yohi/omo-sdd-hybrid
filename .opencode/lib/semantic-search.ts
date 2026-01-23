@@ -27,6 +27,19 @@ function getThreshold(): number {
   return DEFAULT_THRESHOLD;
 }
 
+const DEFAULT_BATCH_SIZE = 10;
+
+function getBatchSize(): number {
+  const env = process.env.SDD_EMBEDDINGS_BATCH_SIZE;
+  if (env) {
+    const val = parseInt(env, 10);
+    if (!isNaN(val) && val > 0) {
+      return val;
+    }
+  }
+  return DEFAULT_BATCH_SIZE;
+}
+
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
   let dot = 0;
@@ -92,15 +105,35 @@ export async function findSemanticGaps(
     return result;
   }
 
-  // Embeddingsを一括取得 (バッチ処理はembeddings-provider側かここでやるべきだが、簡易的に一括)
   const allTexts = [...reqTexts, ...fileChunks.map(c => c.text)];
-  
-  // 大量にある場合は分割リクエストが必要だが、一旦そのまま渡す（必要なら後でBatch化）
-  const allEmbeddings = await getEmbeddings(allTexts);
+  const batchSize = getBatchSize();
+  const allEmbeddings: number[][] = [];
 
-  if (!allEmbeddings || allEmbeddings.length !== allTexts.length) {
-    console.warn('[SDD-SEMANTIC] Failed to get embeddings or count mismatch');
-    return result; // エラー時は分析スキップ
+  for (let i = 0; i < allTexts.length; i += batchSize) {
+    const batch = allTexts.slice(i, i + batchSize);
+    try {
+      const batchEmbeddings = await getEmbeddings(batch);
+      
+      if (!batchEmbeddings) {
+        console.warn(`[SDD-SEMANTIC] Failed to get embeddings for batch (index ${i} to ${i + batch.length - 1})`);
+        return result; // エラー時は分析スキップ
+      }
+
+      if (batchEmbeddings.length !== batch.length) {
+        console.warn(`[SDD-SEMANTIC] Embeddings count mismatch in batch (expected ${batch.length}, got ${batchEmbeddings.length})`);
+        return result;
+      }
+
+      allEmbeddings.push(...batchEmbeddings);
+    } catch (e) {
+      console.warn(`[SDD-SEMANTIC] Error processing batch (index ${i}):`, e);
+      return result;
+    }
+  }
+
+  if (allEmbeddings.length !== allTexts.length) {
+    console.warn(`[SDD-SEMANTIC] Total embeddings count mismatch (expected ${allTexts.length}, got ${allEmbeddings.length})`);
+    return result; 
   }
 
   const reqEmbeddings = allEmbeddings.slice(0, reqTexts.length);
