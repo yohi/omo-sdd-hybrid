@@ -38,7 +38,7 @@ export NODE_AUTH_TOKEN=your_token_here
 ```
 
 **.env ファイルでの設定:**
-プロジェクトルートの `.env` ファイルに記述します（`.gitignore` への追加を忘れずに）。
+まず `.gitignore` に `.env` を追加してから、プロジェクトルートに `.env` を作成してください。
 ```env
 NODE_AUTH_TOKEN=your_token_here
 ```
