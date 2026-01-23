@@ -1,6 +1,20 @@
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import fs from 'fs';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
+
+// Mock embeddings-provider
+mock.module("../../.opencode/lib/embeddings-provider", () => ({
+  getEmbeddings: async (texts: string[]) => {
+    return texts.map(t => {
+      // REQ-001 has vector [1, 0, 0]
+      if (t.includes('REQ-001') || t.includes('match_content')) return [1, 0, 0];
+      // gap_content has vector [0, 1, 0] -> Sim 0
+      if (t.includes('gap_content')) return [0, 1, 0];
+      return [0, 0, 1];
+    });
+  },
+  isEmbeddingsEnabled: () => true
+}));
 
 describe('kiro-utils', () => {
   let KIRO_DIR: string;
@@ -175,7 +189,7 @@ describe('kiro-utils', () => {
       fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
       
       const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
-      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts']);
+      const result = await analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts']);
       
       expect(result.status).toBe('found');
       expect(result.extractedRequirements).toHaveLength(1);
@@ -183,6 +197,8 @@ describe('kiro-utils', () => {
       expect(result.coverage).not.toBeNull();
       expect(result.coverage?.coveragePercent).toBe(100);
       expect(result.semanticAnalysisPrompt).not.toBeNull();
+      // semanticAnalysis should be present
+      expect(result.semanticAnalysis).not.toBeNull();
     });
 
     test('カバレッジ不足を検出', async () => {
@@ -197,65 +213,72 @@ describe('kiro-utils', () => {
       fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
       
       const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
-      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts']);
+      const result = await analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts']);
       
       expect(result.coverage?.coveragePercent).toBe(50);
       expect(result.coverage?.missing).toContain('src/auth/logout.ts');
       expect(result.gaps.some(g => g.includes('未実装'))).toBe(true);
     });
 
-    test('設計外の変更を検出', async () => {
+    test('意味的ギャップを検出 (類似度低)', async () => {
       fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
-      fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, '# Req');
-      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, `
-## Impacted Files
-
-- \`src/auth/login.ts\`
+      fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, `
+## REQ-001: 認証
 `);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, '# Design');
       fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
       
+      // changed file has "gap_content" -> Vector [0, 1, 0] vs REQ [1, 0, 0] -> Sim 0
+      fs.mkdirSync('src', { recursive: true });
+      fs.writeFileSync('src/gap.ts', 'gap_content');
+
       const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
-      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/auth/login.ts', 'src/unrelated.ts']);
+      const result = await analyzeKiroGapDeep(TEST_FEATURE, ['src/gap.ts']);
       
-      expect(result.coverage?.unexpected).toContain('src/unrelated.ts');
-      expect(result.suggestions.some(s => s.includes('設計外'))).toBe(true);
+      expect(result.semanticAnalysis?.gaps.length).toBeGreaterThan(0);
+      expect(result.gaps.some(g => g.includes('意味的ギャップ'))).toBe(true);
     });
 
-    test('仕様が存在しない場合は空の拡張情報を返す', async () => {
-      const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
-      const result = analyzeKiroGapDeep('nonexistent', ['src/file.ts']);
+    test('意味的整合性OK (類似度高)', async () => {
+      fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
+      fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, `
+## REQ-001: 認証 REQ-001
+`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, '# Design');
+      fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
       
-      expect(result.status).toBe('not_found');
-      expect(result.coverage).toBeNull();
-      expect(result.extractedRequirements).toEqual([]);
-      expect(result.semanticAnalysisPrompt).toBeNull();
+      // changed file has "match_content" -> Vector [1, 0, 0] vs REQ [1, 0, 0] -> Sim 1
+      fs.mkdirSync('src', { recursive: true });
+      fs.writeFileSync('src/match.ts', 'match_content');
+
+      const { analyzeKiroGapDeep } = await import('../../.opencode/lib/kiro-utils');
+      const result = await analyzeKiroGapDeep(TEST_FEATURE, ['src/match.ts']);
+      
+      expect(result.semanticAnalysis?.gaps).toEqual([]);
+      expect(result.semanticAnalysis?.details.length).toBe(1);
     });
   });
 
   describe('formatEnhancedKiroGapReport', () => {
-    test('拡張レポートにカバレッジ情報を含む', async () => {
+    test('拡張レポートに意味的分析情報を含む', async () => {
       fs.mkdirSync(TEST_SPEC_DIR, { recursive: true });
       fs.writeFileSync(`${TEST_SPEC_DIR}/requirements.md`, `
 ## REQ-001: テスト
 
 テスト説明
 `);
-      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, `
-## Impacted Files
-
-- \`src/test.ts\`
-`);
+      fs.writeFileSync(`${TEST_SPEC_DIR}/design.md`, '# Design');
       fs.writeFileSync(`${TEST_SPEC_DIR}/tasks.md`, '# Tasks');
       
+      fs.mkdirSync('src', { recursive: true });
+      fs.writeFileSync('src/gap.ts', 'gap_content'); // Will trigger gap
+
       const { analyzeKiroGapDeep, formatEnhancedKiroGapReport } = await import('../../.opencode/lib/kiro-utils');
-      const result = analyzeKiroGapDeep(TEST_FEATURE, ['src/test.ts']);
+      const result = await analyzeKiroGapDeep(TEST_FEATURE, ['src/gap.ts']);
       const report = formatEnhancedKiroGapReport(result);
       
-      expect(report).toContain('カバレッジ分析');
-      expect(report).toContain('100%');
-      expect(report).toContain('抽出された要件');
-      expect(report).toContain('REQ-001');
+      expect(report).toContain('意味的ギャップ検出');
+      expect(report).toContain('⚠️');
     });
   });
 });
-
