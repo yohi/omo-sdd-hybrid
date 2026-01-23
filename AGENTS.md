@@ -1,13 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-21
+**Generated:** 2026-01-23
 **Context:** OmO-SDD-Hybrid (OpenCode Plugin)
 **Stack:** TypeScript, Bun, OpenCode API
 
 ## OVERVIEW
 OpenCode環境における「仕様逸脱（Vibe Coding）」を物理的に抑止するためのプラグインプロジェクト。
 仕様駆動開発（SDD）を強制するため、タスクベースのファイルアクセス制御（Gatekeeper）を提供する。
-**注意:** 一般的なアプリ開発ではなく、OpenCode拡張機能（Plugin + Tools）の開発リポジトリである。
 
 ## STRUCTURE
 ソースコードが `src/` ではなく `.opencode/` に隠蔽されているのが最大の特徴。
@@ -21,7 +20,7 @@ omo-sdd-hybrid/
 │   └── state/           # 実行時状態と履歴
 ├── specs/               # [USER] 仕様・タスク定義 (SDDの起点)
 ├── __tests__/           # [DEV] テスト (.opencodeと鏡像構成)
-└── package.json         # 開発用設定 (bun test等)
+└── package.json         # 開発用設定
 ```
 
 ## WHERE TO LOOK
@@ -29,10 +28,9 @@ omo-sdd-hybrid/
 | Task | Location | Notes |
 |------|----------|-------|
 | **タスク定義の確認** | `specs/tasks.md` | ユーザーが編集する唯一のエントリーポイント |
-| **ファイル監視ロジック** | `.opencode/plugins/sdd-gatekeeper.ts` | `write`, `edit` をフックして検証 |
+| **ファイル監視ロジック** | `.opencode/plugins/sdd-gatekeeper.ts` | `tool.execute.before` をフックして検証 |
 | **CLIコマンド実装** | `.opencode/tools/` | `sdd_start_task.ts` 等の実装 |
-| **状態管理ロジック** | `.opencode/lib/state-utils.ts` | JSON読み書き、ロック制御 |
-| **テストハーネス** | `__tests__/helpers/test-harness.ts` | 編集シミュレーション用ユーティリティ |
+| **状態管理ロジック** | `.opencode/lib/state-utils.ts` | JSON読み書き、アトミック操作 |
 
 ## CONVENTIONS
 
@@ -46,22 +44,21 @@ omo-sdd-hybrid/
 ### 実装ルール
 - **言語**: TypeScript (Bunランタイム)。
 - **依存管理**: ルート（開発用）と `.opencode/`（プラグイン用）で `package.json` が分離されている。
-- **状態更新**: `current_context.json` の更新は必ず `proper-lockfile` と `write-file-atomic` を使用する（`state-utils.ts` 経由）。
+- **状態更新**: 必ず `lib/state-utils.ts` を経由する（`proper-lockfile` 対応）。
 
 ## ANTI-PATTERNS (THIS PROJECT)
-- **[FORBIDDEN] Vibe Coding**: `sdd_start_task` なしでのコード編集（Gatekeeperにより警告/ブロック）。
-- **[FORBIDDEN] Destructive Bash**: `rm`, `git push`, `reset --hard` はプラグインにより物理的に禁止。
-- **[Avoid] Manual State Edit**: `.opencode/state/` 内の JSON を手動で書き換えないこと（不整合の原因）。
-- **[Avoid] Logic in Root**: ロジックファイルをルートに置かない。必ず `.opencode/` 内に配置する。
+- **[FORBIDDEN] Vibe Coding**: `sdd_start_task` なしでのコード編集（Gatekeeperによりブロック）。
+- **[FORBIDDEN] Destructive Bash**: `rm`, `git push` 等はプラグインにより物理的に禁止。
+- **[Avoid] Manual State Edit**: `.opencode/state/` 内の JSON を手動で書き換えない。
 
 ## UNIQUE STYLES
-- **Hidden Source**: メインロジックは全て隠しディレクトリ `.opencode/` 内にある。
-- **Mirror Testing**: テストディレクトリ構造はソースディレクトリ構造を厳密に反映する（`__tests__/lib` ↔ `.opencode/lib`）。
-- **Japanese Only**: コミットメッセージ、コメント、ドキュメントは全て日本語。
+- **Hidden Source**: メインロジックは `.opencode/` 内に隠蔽。
+- **Mirror Testing**: `__tests__` は `.opencode` の構造を厳密に反映。
+- **Japanese Only**: コミットメッセージ、ドキュメントは全て日本語。
 
 ## COMMANDS
 ```bash
 bun install      # 依存関係インストール
 bun test         # 全テスト実行
-bun test:watch   # ウォッチモード
+bun test:seq     # 直列実行（ステート依存テスト用）
 ```

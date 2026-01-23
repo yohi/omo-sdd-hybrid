@@ -1,5 +1,8 @@
 # OmO-SDD-Hybrid
 
+> **For AI Agents & Developers:**
+> プロジェクトの規約、構造、開発ルールについては、ルートおよび各ディレクトリの [AGENTS.md](./AGENTS.md) を **必ず** 参照してください。
+
 タスク単位のファイルアクセス制御で「Vibe Coding（仕様逸脱）」を物理的に抑止する OpenCode プラグイン。
 
 ## クイックスタート
@@ -98,10 +101,10 @@ AIエージェントや開発者は、各ディレクトリの `AGENTS.md` を�
 
 | パス | 内容 |
 |------|------|
-| **`./AGENTS.md`** | プロジェクト全体の概要、構造、共通規約 |
-| **`.opencode/AGENTS.md`** | プラグインのコアロジック、ツール実装の規約 |
-| **`specs/AGENTS.md`** | 仕様策定フロー、タスク定義（Globパターン等）のルール |
-| **`__tests__/AGENTS.md`** | テストハーネスの使用法、テスト記述の規約 |
+| **[`./AGENTS.md`](./AGENTS.md)** | プロジェクト全体の概要、構造、共通規約、Vibe Coding禁止ルール |
+| **[`.opencode/AGENTS.md`](./.opencode/AGENTS.md)** | ソースコード本体の実装ルール、Gatekeeperロジック、状態管理の規約 |
+| **[`specs/AGENTS.md`](./specs/AGENTS.md)** | 仕様策定フロー、タスク定義（Globパターン、Scope指定）のルール |
+| **[`__tests__/AGENTS.md`](./__tests__/AGENTS.md)** | テストハーネス（`test-harness.ts`）の使用法、テスト記述の規約 |
 
 ## ファイル構成
 
