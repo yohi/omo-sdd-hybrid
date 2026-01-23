@@ -128,3 +128,49 @@ export function clearState(): void {
     });
   } catch { /* noop */ }
 }
+
+export type GuardMode = 'warn' | 'block';
+
+export interface GuardModeState {
+  mode: GuardMode;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export function getGuardModePath(): string {
+  return `${getStateDir()}/guard-mode.json`;
+}
+
+export async function readGuardModeState(): Promise<GuardModeState | null> {
+  const path = getGuardModePath();
+  if (!fs.existsSync(path)) return null;
+  try {
+    const content = fs.readFileSync(path, 'utf-8');
+    const parsed = JSON.parse(content);
+    if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block')) {
+      return parsed as GuardModeState;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeGuardModeState(state: GuardModeState): Promise<void> {
+  const stateDir = getStateDir();
+  const statePath = getGuardModePath();
+
+  if (!fs.existsSync(stateDir)) {
+    fs.mkdirSync(stateDir, { recursive: true });
+  }
+
+  const release = await lockfile.lock(stateDir, { 
+    retries: 5,
+    stale: 10000
+  });
+  try {
+    await writeFileAtomic(statePath, JSON.stringify(state, null, 2));
+  } finally {
+    await release();
+  }
+}

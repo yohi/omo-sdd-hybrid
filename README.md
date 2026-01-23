@@ -209,8 +209,21 @@ sdd_validate_gap --kiroSpec <feature-name> --deep
 
 | 変数 | 値 | 説明 |
 |------|-----|------|
-| `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外ファイル編集時の動作。`block` 推奨。 |
+| `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外ファイル編集時の動作。`block` 推奨。環境変数より設定ファイル (`.opencode/state/guard-mode.json`) が優先されます（弱体化不可）。 |
 | `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | `validate_gap` 実行時のテスト自動実行をスキップします。 |
+
+### ガードモードの設定 (Security)
+
+セキュリティ強化のため、ガードモード（`warn` vs `block`）の設定は環境変数よりも専用の設定ファイルが優先されます。
+
+```bash
+# ガードモードを 'block' に設定（推奨）
+bun .opencode/tools/sdd_set_guard_mode.ts block
+```
+
+- 設定は `.opencode/state/guard-mode.json` に保存されます。
+- 保存された設定が `block` の場合、環境変数で `SDD_GUARD_MODE=warn` と指定しても **強制的に block されます**（弱体化の防止）。
+- 弱体化の試行は `.opencode/state/guard-mode.log` に監査ログとして記録されます。
 
 ## ファイル構成
 

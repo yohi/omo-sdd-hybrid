@@ -1,12 +1,56 @@
-import type { StateResult, State } from './state-utils';
+import fs from 'fs';
+import { type StateResult, type State, type GuardMode, type GuardModeState, getStateDir } from './state-utils';
 import { normalizeToRepoRelative, isOutsideWorktree } from './path-utils';
 import { matchesScope } from './glob-utils';
 import { loadPolicyConfig } from './policy-loader';
 
 export const WRITE_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
 
-export type GuardMode = 'warn' | 'block';
+export { type GuardMode };
 
+function appendAuditLog(message: string) {
+  const stateDir = getStateDir();
+  const logPath = `${stateDir}/guard-mode.log`;
+  
+  if (!fs.existsSync(stateDir)) {
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+    } catch { /* ignore */ }
+  }
+
+  const timestamp = new Date().toISOString();
+  const entry = `[${timestamp}] ${message}\n`;
+  try {
+    fs.appendFileSync(logPath, entry);
+  } catch (e) {
+    console.error('Failed to write audit log:', e);
+  }
+}
+
+export function determineEffectiveGuardMode(
+  envMode: string | undefined,
+  fileState: GuardModeState | null
+): GuardMode {
+  const envBlock = envMode === 'block';
+  const fileBlock = fileState?.mode === 'block';
+
+  if (fileBlock) {
+    if (!envBlock && envMode === 'warn') {
+       appendAuditLog(`DENIED_WEAKENING: Guard mode file is 'block', but env SDD_GUARD_MODE is '${envMode}'. Enforcing 'block'.`);
+    }
+    return 'block';
+  }
+
+  if (envBlock) {
+    return 'block';
+  }
+
+  return 'warn';
+}
+
+/**
+ * @deprecated Use determineEffectiveGuardMode instead
+ */
 export function getGuardMode(): GuardMode {
   const mode = process.env.SDD_GUARD_MODE;
   return mode === 'block' ? 'block' : 'warn';
@@ -94,7 +138,8 @@ export function evaluateAccess(
 export function evaluateMultiEdit(
   files: Array<{ filePath: string }>,
   stateResult: StateResult,
-  worktreeRoot: string
+  worktreeRoot: string,
+  mode: GuardMode = getGuardMode()
 ): AccessResult {
   if (!Array.isArray(files)) {
     return {
@@ -106,7 +151,7 @@ export function evaluateMultiEdit(
   }
 
   const results: AccessResult[] = files.map(f => 
-    evaluateAccess('edit', f.filePath, undefined, stateResult, worktreeRoot)
+    evaluateAccess('edit', f.filePath, undefined, stateResult, worktreeRoot, mode)
   );
   
   const warnings = results.filter(r => r.warned);
