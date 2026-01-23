@@ -184,4 +184,26 @@ describe('access-policy', () => {
       delete process.env.SDD_GUARD_MODE;
     });
   });
+
+  describe('determineEffectiveGuardMode', () => {
+    test('defaults to warn', async () => {
+      const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+      expect(determineEffectiveGuardMode(undefined, null)).toBe('warn');
+      expect(determineEffectiveGuardMode('warn', null)).toBe('warn');
+    });
+
+    test('returns block if env is block', async () => {
+      const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+      expect(determineEffectiveGuardMode('block', null)).toBe('block');
+      // Env block wins over file warn (strengthening)
+      expect(determineEffectiveGuardMode('block', { mode: 'warn', updatedAt: '', updatedBy: '' })).toBe('block');
+    });
+
+    test('returns block if file is block (weakening denied)', async () => {
+      const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+      // Env warn is ignored if file is block
+      expect(determineEffectiveGuardMode('warn', { mode: 'block', updatedAt: '', updatedBy: '' })).toBe('block');
+      expect(determineEffectiveGuardMode(undefined, { mode: 'block', updatedAt: '', updatedBy: '' })).toBe('block');
+    });
+  });
 });

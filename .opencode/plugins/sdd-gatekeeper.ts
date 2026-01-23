@@ -1,9 +1,10 @@
 import type { Plugin } from '../lib/plugin-stub';
-import { readState } from '../lib/state-utils';
+import { readState, readGuardModeState } from '../lib/state-utils';
 import { getWorktreeRoot } from '../lib/path-utils';
 import {
   evaluateAccess,
   evaluateMultiEdit,
+  determineEffectiveGuardMode,
   type AccessResult,
   type GuardMode,
 } from '../lib/access-policy';
@@ -17,10 +18,13 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
   return {
     'tool.execute.before': async (event) => {
       const { name, args } = event.tool;
+
+      const guardModeState = await readGuardModeState();
+      const effectiveMode = determineEffectiveGuardMode(process.env.SDD_GUARD_MODE, guardModeState);
       
       if (name === 'multiedit' && args?.files) {
         const stateResult = await readState();
-        const result = evaluateMultiEdit(args.files, stateResult, worktreeRoot);
+        const result = evaluateMultiEdit(args.files, stateResult, worktreeRoot, effectiveMode);
         if (!result.allowed) {
           throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
         }
@@ -34,7 +38,7 @@ export const SddGatekeeper: Plugin = async ({ client }) => {
       const command = args?.command;
       
       const stateResult = await readState();
-      const result = evaluateAccess(name, filePath, command, stateResult, worktreeRoot);
+      const result = evaluateAccess(name, filePath, command, stateResult, worktreeRoot, effectiveMode);
       
       if (!result.allowed) {
         throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
