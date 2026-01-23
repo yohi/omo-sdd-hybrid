@@ -5,63 +5,144 @@
 
 タスク単位のファイルアクセス制御で「Vibe Coding（仕様逸脱）」を物理的に抑止する OpenCode プラグイン。
 
-## クイックスタート
+## インストール
 
-1. **タスクを定義する**
-   `specs/tasks.md` にタスクを追加:
-   ```markdown
-   * [ ] Task-1: ユーザー認証の実装 (Scope: `src/auth/**`, `tests/auth/**`)
-   ```
+プロジェクトの `opencode.json` (または `opencode.jsonc`) にプラグイン定義を追加することでインストールできます。
 
-2. **タスクを開始する**
-   ```bash
-   sdd_start_task Task-1
-   ```
+### 1. レジストリの設定
 
-3. **実装する**
-   - `allowedScopes` 内のファイルのみ編集可能
-   - Scope 外の編集は警告される（Phase 0）またはブロックされる（Phase 1, `block` モード）
+GitHub Packages からパッケージをダウンロードするために、認証設定が必要です。
 
-4. **検証する**
-   ```bash
-   sdd_validate_gap
-   ```
+#### 1. GitHub Personal Access Token (PAT) の作成
+1. GitHub の [Settings > Developer settings > Personal access tokens > Tokens (classic)](https://github.com/settings/tokens) にアクセスします。
+2. "Generate new token (classic)" をクリックします。
+3. **read:packages** スコープにチェックを入れてトークンを生成します。
 
-5. **タスクを終了する**
-   ```bash
-   sdd_end_task
-   ```
+#### 2. .npmrc の設定
+プロジェクトのルートに `.npmrc` ファイルを作成（または追記）し、以下の設定を追加します。
+セキュリティのため、トークンを直接ファイルに記述せず、環境変数 `NODE_AUTH_TOKEN` を使用することを強く推奨します。
+
+```ini
+@yohi:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
+この設定により、`@yohi` スコープのパッケージは GitHub Packages から取得され、認証には環境変数が使用されます。
+
+#### 3. 環境変数 NODE_AUTH_TOKEN の設定
+`.npmrc` で参照されている `NODE_AUTH_TOKEN` を有効にする手順です。
+
+**シェルでの設定 (Mac/Linux):**
+```bash
+export NODE_AUTH_TOKEN=your_token_here
+```
+
+**.env ファイルでの設定:**
+まず `.gitignore` に `.env` を追加してから、プロジェクトルートに `.env` を作成してください。
+```env
+NODE_AUTH_TOKEN=your_token_here
+```
+
+**CI/CD (GitHub Actions):**
+リポジトリの Secrets に `NODE_AUTH_TOKEN` として登録してください。
+
+### 2. configへの追加
+
+`opencode.jsonc` の `plugin` 配列にパッケージ名を追加します。
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    // ... other plugins
+    "@yohi/omo-sdd-hybrid" 
+  ]
+}
+```
+
+OpenCode 起動時に自動的にインストールされ、Gatekeeper 機能（ファイル監視）が有効になります。
+
+## ベストプラクティス
+
+SDD（仕様駆動開発）の効果を最大化するための推奨運用ルールです。
+
+### 1. タスク設計の粒度
+- **1タスク = 1コミット/PR** を目指します。
+- レビューが困難になる巨大なタスクは避け、実装可能な単位（例: APIエンドポイント1つ、コンポーネント1つ）に分割してください。
+
+### 2. スコープ（Scope）の絞り込み
+- **最小権限の原則**: `src/**` のような広すぎる指定は避け、影響範囲を特定できる粒度（例: `src/auth/**`）で指定します。
+- これにより、意図しない依存関係の発生や、無関係なファイルへの変更（Vibe Coding）を物理的に防げます。
+
+### 3. こまめな検証
+- 実装の区切りで頻繁に `sdd_validate_gap` を実行してください。
+- 早い段階で「スコープ外への変更」や「テスト不整合」を検知することで、手戻りを最小化できます。
+
+## 使い方 (Basic Usage)
+
+インストール後、OpenCode 環境は `.opencode/plugins` 内の Gatekeeper を自動的に認識することを想定しています。
+
+### 1. タスク定義ファイルの作成
+
+プロジェクトルートに `specs/tasks.md` を作成し、タスクと編集スコープ（Scope）を定義します。
+
+**`specs/tasks.md` の例:**
+```markdown
+# Tasks
+
+* [ ] Task-1: ユーザー認証機能の実装 (Scope: `src/auth/**`, `tests/auth/**`)
+* [ ] Task-2: データベーススキーマの更新 (Scope: `prisma/schema.prisma`)
+```
+
+- **Scope**: Globパターンで指定します。複数指定が可能で、定義されたファイル以外への書き込みはブロック（または警告）されます。
+
+### 2. 開発フロー（SDDサイクル）
+
+#### Step 1: タスクを開始する
+作業するタスクのIDを指定して開始します。これにより、編集可能なスコープが制限されます。
+
+```bash
+sdd_start_task Task-1
+```
+
+#### Step 2: 実装する
+`allowedScopes` に含まれるファイルのみを編集してください。
+- **Scope外の編集**: `SDD_GUARD_MODE` が `block` の場合、保存時にエラーとなり拒否されます。`warn` の場合は警告が表示されます。
+
+#### Step 3: 検証する
+実装が仕様と整合しているかを確認します。
+
+```bash
+sdd_validate_gap
+```
+- スコープ外の変更がないかチェック
+- TypeScript のエラー診断（Diagnostics）
+- スコープ内のテスト実行
+- Kiro 仕様書との整合性チェック（後述）
+
+#### Step 4: タスクを終了する
+作業が完了したらタスクを終了し、スコープ制限を解除します。
+
+```bash
+sdd_end_task
+```
 
 ## コマンド一覧
 
 | コマンド | 説明 |
 |---------|------|
-| `sdd_start_task <TaskID>` | タスクを開始し、編集スコープを設定 |
-| `sdd_end_task` | 現在のタスクを終了 |
-| `sdd_show_context` | 現在のタスク情報を表示 |
-| `sdd_validate_gap` | 仕様とコードの差分を検証（Kiro統合対応） |
+| `sdd_start_task <TaskID>` | 指定したタスクを開始し、編集スコープを有効化します。 |
+| `sdd_end_task` | 現在のタスクを終了し、状態をクリアします。 |
+| `sdd_show_context` | 現在アクティブなタスク、許可されたスコープ、開始時間を表示します。 |
+| `sdd_validate_gap` | 仕様とコードのギャップ分析、テスト実行、Diagnostics検証を行います。 |
 
-### sdd_validate_gap の詳細
+## 高度な機能: Kiro 統合 (cc-sdd)
 
-Phase 1 で強化された検証コマンド:
-
-```bash
-sdd_validate_gap                    # 現在のタスクを検証
-sdd_validate_gap --taskId Task-2    # 特定のタスクを検証
-sdd_validate_gap --kiroSpec my-feature  # 特定のKiro仕様と照合
-```
-
-**検証内容:**
-- **スコープ検証**: git diff でスコープ外の変更を検出
-- **Diagnostics**: TypeScriptファイルの診断対象をリストアップ
-- **テスト実行**: スコープ内のテストを自動実行
-- **Kiro統合**: `.kiro/specs/` の仕様ファイルとのギャップ分析
-
-## Kiro統合 (Phase 1)
-
-[cc-sdd](https://github.com/gotalab/cc-sdd) との統合をサポート。
+[cc-sdd](https://github.com/gotalab/cc-sdd) と連携し、仕様書（Requirements, Design, Tasks）との完全なトレーサビリティを実現します。
 
 ### セットアップ
+
+Kiro（cc-sdd）をプロジェクトにセットアップします。
 
 ```bash
 npx cc-sdd@latest --claude
@@ -69,131 +150,64 @@ npx cc-sdd@latest --claude
 
 ### 仕様駆動ワークフロー
 
-1. **仕様を作成**
-   ```bash
-   /kiro:spec-init ユーザー認証機能
-   /kiro:spec-requirements user-auth
-   /kiro:spec-design user-auth -y
-   /kiro:spec-tasks user-auth -y
-   ```
+#### Step 1: 仕様の作成
+`cc-sdd` のAIコマンドを使用して、`.kiro/specs/<feature-name>/` 配下に仕様を生成します。
 
-2. **SDDタスクと連携**
-   - タスクIDをKiro仕様名と一致させると自動でギャップ分析
-   - または `--kiroSpec` オプションで明示的に指定
+```text
+/kiro:spec-init <feature-name>       # 仕様ディレクトリの初期化
+/kiro:spec-requirements <feature-name> # 要件定義 (requirements.md)
+/kiro:spec-design <feature-name> -y    # 設計 (design.md)
+/kiro:spec-tasks <feature-name> -y     # タスク分解 (tasks.md)
+```
 
-3. **ギャップ分析**
-   `sdd_validate_gap` が以下を検出:
-   - requirements.md の有無
-   - design.md の有無
-   - tasks.md の進捗状況
+#### Step 2: SDDタスクとの同期
+`sdd_start_task` で使用するタスクIDを、Kiroの仕様名（`<feature-name>`）と一致させると便利です。
+あるいは、Kiroが生成した `tasks.md` の内容をプロジェクトルートの `specs/tasks.md` に転記し、Scopeを追記します。
+
+#### Step 3: ギャップ分析（Deep Analysis）
+実装中、仕様との乖離がないかを深く分析します。
+
+```bash
+sdd_validate_gap --kiroSpec <feature-name> --deep
+```
+
+**`--deep` オプションの効果:**
+- **構造的分析**: 要件（REQ-XXX）の網羅状況、設計で定義されたコンポーネントの実装状況をチェックします。
+- **意味的分析**: LLM用のプロンプトを生成し、「実装が本当に要件を満たしているか」を意味的に検証する準備をします。
+
+### Kiro統合のベストプラクティス
+
+1. **仕様の一元管理**:
+   - 原則として、仕様変更は必ず `.kiro/specs/` 内のMarkdownファイルを更新してからコードに反映させてください。
+   - コード先行で仕様が変わると、`validate_gap` で常に警告が出ることになり、形骸化の原因になります。
+
+2. **Tasks の連携**:
+   - Kiro で生成された `tasks.md` は詳細な実装ステップを含んでいます。
+   - SDD の `specs/tasks.md` は Gatekeeper 用のアクセスコントロール定義として機能します。
+   - 両者を運用し分けるのが基本ですが、混同しないよう「Scope定義は `specs/tasks.md` だけに書く」というルールを徹底してください。
+
+3. **Deep Analysis の活用**:
+   - PR提出前や、主要な機能実装のマイルストーンで必ず `--deep` オプション付きの検証を実行し、AIによる客観的なレビューを受けてください。
 
 ## 環境変数
 
 | 変数 | 値 | 説明 |
 |------|-----|------|
-| `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外編集時の動作 |
-| `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | テスト実行のスキップ |
-
-## ナレッジベース (AGENTS.md)
-
-本プロジェクトは階層的なナレッジベース（`AGENTS.md`）を採用しています。
-AIエージェントや開発者は、各ディレクトリの `AGENTS.md` を参照することで、そのコンテキストにおける規約やアンチパターンを確認できます。
-
-| パス | 内容 |
-|------|------|
-| **[`./AGENTS.md`](./AGENTS.md)** | プロジェクト全体の概要、構造、共通規約、Vibe Coding禁止ルール |
-| **[`.opencode/AGENTS.md`](./.opencode/AGENTS.md)** | ソースコード本体の実装ルール、Gatekeeperロジック、状態管理の規約 |
-| **[`specs/AGENTS.md`](./specs/AGENTS.md)** | 仕様策定フロー、タスク定義（Globパターン、Scope指定）のルール |
-| **[`__tests__/AGENTS.md`](./__tests__/AGENTS.md)** | テストハーネス（`test-harness.ts`）の使用法、テスト記述の規約 |
+| `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外ファイル編集時の動作。`block` 推奨。 |
+| `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | `validate_gap` 実行時のテスト自動実行をスキップします。 |
 
 ## ファイル構成
 
+このプラグイン自体も SDD 構成に従っています。
+
 ```text
 omo-sdd-hybrid/
-├── AGENTS.md            # [Root] プロジェクト知識ベース
-├── .opencode/
-│   ├── AGENTS.md        # [Src] 実装ルール
-│   ├── plugins/
-│   │   └── sdd-gatekeeper.ts
-│   ├── tools/
-│   │   ├── sdd_start_task.ts
-│   │   ├── sdd_validate_gap.ts  # Phase 1 強化版
-│   │   └── ...
-│   ├── lib/
-│   │   ├── kiro-utils.ts        # Kiro統合ユーティリティ
-│   │   └── ...
-│   └── state/
-├── specs/
-│   ├── AGENTS.md        # [Spec] 仕様ルール
-│   └── tasks.md
-├── .kiro/               # [Optional] Kiro仕様ディレクトリ
-│   └── specs/
-│       └── <feature>/
-│           ├── requirements.md
-│           ├── design.md
-│           └── tasks.md
-└── __tests__/
-    └── AGENTS.md        # [Test] テストルール
+├── specs/               # 仕様定義
+├── .opencode/           # プラグイン実装（ユーザーからは隠蔽）
+│   ├── plugins/         # Gatekeeper ロジック
+│   └── tools/           # CLI ツール実装
+└── __tests__/           # テストコード
 ```
-
-## 開発
-
-```bash
-# 依存インストール
-bun install
-
-# テスト実行
-bun test
-
-# 特定のテストのみ実行
-bun test __tests__/lib/kiro-utils.test.ts
-```
-
-## Phase 1 の機能
-
-- ✅ **検証ロジック強化**: Diagnostics対象ファイルの明示
-- ✅ **Kiro統合**: `.kiro/specs/` からの仕様読み込みとギャップ分析
-- ✅ **タスク進捗追跡**: tasks.md のチェックボックス状態を検出
-
-## Phase 2 の機能（Kiro統合深化）
-
-- ✅ **構造的ギャップ分析**:
-  - `requirements.md` から要件（REQ-XXX形式）と受入条件を自動抽出
-  - `design.md` から Impacted Files, Components, Dependencies を抽出
-- ✅ **実装カバレッジ分析**:
-  - 設計で宣言されたファイルと実際の変更を比較
-  - 未実装ファイル・設計外変更を検出
-- ✅ **意味的分析プロンプト生成**:
-  - 要件と変更ファイルを基にLLM分析依頼を自動生成
-  - `--deep` オプションで有効化
-
-### Phase 1 との違い
-
-| 機能 | Phase 1 | Phase 2 |
-|------|---------|---------|
-| ファイル存在チェック | ✅ | ✅ |
-| タスク進捗追跡 | ✅ | ✅ |
-| 要件抽出 | ❌ | ✅ REQ-XXX形式対応 |
-| カバレッジ分析 | ❌ | ✅ Impacted Files比較 |
-| 意味的分析 | ❌ | ✅ プロンプト生成 |
-
-### 使用方法
-
-```bash
-sdd_validate_gap                    # 基本検証
-sdd_validate_gap --deep             # 深度分析を有効化
-sdd_validate_gap --kiroSpec my-feat --deep  # 特定の仕様で深度分析
-```
-
-### Phase 0 との違い
-
-| 機能 | Phase 0 | Phase 1 |
-|------|---------|---------|
-| スコープ検証 | ✅ | ✅ |
-| テスト実行 | ✅ | ✅ |
-| Diagnostics | スタブ | ✅ ファイルリスト表示 |
-| Kiro統合 | ❌ | ✅ |
-| エスカレーション | ✅ | ✅ |
 
 ## ライセンス
 
