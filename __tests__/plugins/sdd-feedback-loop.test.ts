@@ -1,4 +1,4 @@
-import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
+import { describe, it, expect, mock, beforeAll, afterAll, beforeEach } from 'bun:test';
 import { SddFeedbackLoop } from '../../.opencode/plugins/sdd-feedback-loop';
 
 // Mock dependencies
@@ -22,6 +22,11 @@ mock.module('../../.opencode/tools/sdd_validate_gap', () => ({
 }));
 
 describe('SddFeedbackLoop', () => {
+  beforeEach(() => {
+    mockReadState.mockClear();
+    mockValidateGapInternal.mockClear();
+  });
+
   it('should ignore non-trigger tools', async () => {
     const plugin = await SddFeedbackLoop({} as any);
     const hook = plugin['tool.execute.after'];

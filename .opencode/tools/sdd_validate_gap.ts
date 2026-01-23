@@ -175,7 +175,7 @@ export interface ValidateGapOptions {
 
 export async function validateGapInternal(state: State, options: ValidateGapOptions): Promise<string> {
   const effectiveTaskId = options.taskId || state.activeTaskId;
-  const currentAttempts = options.currentAttempts || state.validationAttempts;
+  const currentAttempts = options.currentAttempts ?? state.validationAttempts;
   const allowedScopes = state.allowedScopes;
 
   // If taskId is provided specifically (overriding state), we might need to look up scopes from file

@@ -19,7 +19,7 @@ export const SddFeedbackLoop: Plugin = async ({ client }) => {
       }
 
       const stateResult = await readState();
-      if (stateResult.status !== 'ok') {
+      if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
         return;
       }
 
