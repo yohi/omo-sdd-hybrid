@@ -125,3 +125,33 @@ export function parseTasksFile(content: string, format: ScopeFormat = getScopeFo
   
   return tasks;
 }
+
+/**
+ * 指定されたコンテンツ内のタスクステータスを更新した新しいコンテンツを返します
+ */
+export function updateTaskStatusInContent(
+  content: string,
+  taskId: string,
+  isDone: boolean
+): string {
+  const lines = content.split('\n');
+  const newLines = lines.map(line => {
+    const task = parseTask(line, 'lenient');
+    if (task && task.id === taskId) {
+      // チェックボックス部分のみ置換
+      return line.replace(/\* \[[ x]\]/, `* [${isDone ? 'x' : ' '}]`);
+    }
+    return line;
+  });
+  return newLines.join('\n');
+}
+
+/**
+ * タスク行からIDを抽出するための簡易ヘルパー（Kiroなどの非厳密な行向け）
+ * SDD形式: * [ ] ID: ... または Kiro形式: - [ ] ID: ...
+ */
+export function extractTaskIdFromLine(line: string): string | null {
+  const match = line.match(/^[\*\-]\s*\[[ x]\]\s*([A-Za-z][A-Za-z0-9_-]*-\d+):/);
+  if (match) return match[1];
+  return null;
+}
