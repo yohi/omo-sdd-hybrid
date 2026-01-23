@@ -10,11 +10,24 @@
 プロジェクトの `opencode.json` (または `opencode.jsonc`) にプラグイン定義を追加することでインストールできます。
 
 ### 1. レジストリの設定
-プロジェクトのルートに `.npmrc` ファイルを作成（または追記）し、`@yohi` スコープを GitHub Packages に紐付けます。
+
+GitHub Packages からパッケージをダウンロードするために、認証設定が必要です。
+
+#### 1. GitHub Personal Access Token (PAT) の作成
+1. GitHub の [Settings > Developer settings > Personal access tokens > Tokens (classic)](https://github.com/settings/tokens) にアクセスします。
+2. "Generate new token (classic)" をクリックします。
+3. **read:packages** スコープにチェックを入れてトークンを生成します。
+
+#### 2. .npmrc の設定
+プロジェクトのルートに `.npmrc` ファイルを作成（または追記）し、以下の設定を追加します。
+セキュリティのため、トークンを直接ファイルに記述せず、環境変数 `NODE_AUTH_TOKEN` を使用することを強く推奨します。
 
 ```ini
 @yohi:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
 ```
+
+この設定により、`@yohi` スコープのパッケージは GitHub Packages から取得され、認証には環境変数が使用されます。
 
 ### 2. configへの追加
 
