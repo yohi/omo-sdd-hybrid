@@ -1,6 +1,14 @@
 {
-  "name": "omo-sdd-hybrid",
+  "name": "@yohi/omo-sdd-hybrid",
+  "version": "0.0.1",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yohi/omo-sdd-hybrid.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "test": "bun test",
     "test:seq": "for f in $(find __tests__ -name \"*.test.ts\"); do bun test \"$f\"; done"

@@ -1,0 +1,54 @@
+name: Publish Package
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js (for publishing)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@yohi'
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Bump Version
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGE_NAME="@yohi/omo-sdd-hybrid"
+          
+          # Get latest version from registry (default to 0.0.0 if not found)
+          LATEST_VERSION=$(npm view $PACKAGE_NAME version 2>/dev/null || echo "0.0.0")
+          echo "Latest registry version: $LATEST_VERSION"
+          
+          # Sync local version with registry to ensure increment is based on latest
+          npm version $LATEST_VERSION --allow-same-version --no-git-tag-version
+          
+          # Increment patch version (e.g., 0.0.1 -> 0.0.2)
+          NEW_VERSION=$(npm version patch --no-git-tag-version)
+          echo "New version for release: $NEW_VERSION"
+
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
