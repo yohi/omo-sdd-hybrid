@@ -235,10 +235,15 @@ export async function analyzeKiroGapDeep(featureName: string, changedFiles: stri
     );
 
     // 意味的分析の実行
-    enhanced.semanticAnalysis = await findSemanticGaps(
-      enhanced.extractedRequirements,
-      changedFiles
-    );
+    try {
+      enhanced.semanticAnalysis = await findSemanticGaps(
+        enhanced.extractedRequirements,
+        changedFiles
+      );
+    } catch (error) {
+      enhanced.semanticAnalysis = null;
+      enhanced.gaps.push('意味的分析の実行に失敗しました（Embeddingsの設定や接続を確認してください）');
+    }
 
     if (enhanced.semanticAnalysis && enhanced.semanticAnalysis.gaps.length > 0) {
       enhanced.gaps.push(
