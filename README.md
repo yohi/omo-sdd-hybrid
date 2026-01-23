@@ -7,7 +7,7 @@
 
 ## インストール
 
-GitHub Packages からインストールします。OpenCode 環境で利用する場合、開発依存（`devDependencies`）として追加してください。
+プロジェクトの `opencode.json` (または `opencode.jsonc`) にプラグイン定義を追加することでインストールできます。
 
 ### 1. レジストリの設定
 プロジェクトのルートに `.npmrc` ファイルを作成（または追記）し、`@yohi` スコープを GitHub Packages に紐付けます。
@@ -16,13 +16,21 @@ GitHub Packages からインストールします。OpenCode 環境で利用す�
 @yohi:registry=https://npm.pkg.github.com
 ```
 
-### 2. パッケージのインストール
+### 2. configへの追加
 
-```bash
-npm install -D @yohi/omo-sdd-hybrid
-# または
-bun add -d @yohi/omo-sdd-hybrid
+`opencode.jsonc` の `plugin` 配列にパッケージ名を追加します。
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    // ... other plugins
+    "@yohi/omo-sdd-hybrid" 
+  ]
+}
 ```
+
+OpenCode 起動時に自動的にインストールされ、Gatekeeper 機能（ファイル監視）が有効になります。
 
 ## ベストプラクティス
 
