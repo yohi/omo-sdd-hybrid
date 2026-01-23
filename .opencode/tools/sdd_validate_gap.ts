@@ -1,7 +1,7 @@
 import { tool } from '../lib/plugin-stub';
 import { readState, writeState, State } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
-import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parser';
+import { parseTasksFile, ParsedTask } from '../lib/tasks-parser';
 import { analyzeKiroGap, formatKiroGapReport, findKiroSpecs, analyzeKiroGapDeep, formatEnhancedKiroGapReport } from '../lib/kiro-utils';
 import { spawnSync } from 'child_process';
 import fs from 'fs';
