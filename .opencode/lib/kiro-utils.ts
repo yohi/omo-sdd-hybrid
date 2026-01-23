@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { extractRequirements, extractDesign, type ExtractedRequirement } from './spec-parser';
+import { analyzeCoverage, formatCoverageReport, type CoverageResult } from './coverage-analyzer';
 
 export interface KiroSpec {
   featureName: string;
@@ -177,5 +179,139 @@ export function formatKiroGapReport(result: KiroGapResult): string {
     result.suggestions.forEach(suggestion => lines.push(`> ${suggestion}`));
   }
 
+  return lines.join('\n');
+}
+
+export interface EnhancedKiroGapResult extends KiroGapResult {
+  coverage: CoverageResult | null;
+  extractedRequirements: ExtractedRequirement[];
+  semanticAnalysisPrompt: string | null;
+}
+
+export function analyzeKiroGapDeep(featureName: string, changedFiles: string[]): EnhancedKiroGapResult {
+  const baseResult = analyzeKiroGap(featureName, changedFiles);
+  
+  const enhanced: EnhancedKiroGapResult = {
+    ...baseResult,
+    gaps: [...baseResult.gaps],
+    suggestions: [...baseResult.suggestions],
+    coverage: null,
+    extractedRequirements: [],
+    semanticAnalysisPrompt: null
+  };
+
+  if (!baseResult.spec) {
+    return enhanced;
+  }
+
+  if (baseResult.spec.requirements) {
+    enhanced.extractedRequirements = extractRequirements(baseResult.spec.requirements);
+  }
+
+  if (baseResult.spec.design) {
+    const design = extractDesign(baseResult.spec.design);
+    enhanced.coverage = analyzeCoverage(design, changedFiles);
+    
+    if (enhanced.coverage.missing.length > 0) {
+      enhanced.gaps.push(
+        `設計で宣言されたファイルのうち ${enhanced.coverage.missing.length} 件が未実装`
+      );
+    }
+    
+    if (enhanced.coverage.unexpected.length > 0) {
+      enhanced.suggestions.push(
+        `設計外の変更が ${enhanced.coverage.unexpected.length} 件あります（design.md の更新を検討してください）`
+      );
+    }
+  }
+
+  if (enhanced.extractedRequirements.length > 0 && changedFiles.length > 0) {
+    enhanced.semanticAnalysisPrompt = generateSemanticPrompt(
+      enhanced.extractedRequirements,
+      changedFiles
+    );
+  }
+
+  return enhanced;
+}
+
+function generateSemanticPrompt(requirements: ExtractedRequirement[], changedFiles: string[]): string {
+  const lines: string[] = [];
+  
+  lines.push('## 要件充足分析依頼');
+  lines.push('');
+  lines.push('以下の要件と変更ファイルを照合し、実装が要件を満たしているか分析してください。');
+  lines.push('');
+  lines.push('### 検証対象の要件');
+  lines.push('');
+  
+  for (const req of requirements) {
+    lines.push(`#### ${req.id}: ${req.description.split('\n')[0].substring(0, 100)}`);
+    if (req.acceptanceCriteria.length > 0) {
+      lines.push('');
+      lines.push('**受入条件:**');
+      for (const criteria of req.acceptanceCriteria) {
+        lines.push(`- ${criteria}`);
+      }
+    }
+    lines.push('');
+  }
+  
+  lines.push('### 変更されたファイル');
+  lines.push('');
+  for (const file of changedFiles.slice(0, 20)) {
+    lines.push(`- \`${file}\``);
+  }
+  if (changedFiles.length > 20) {
+    lines.push(`- ...他 ${changedFiles.length - 20} ファイル`);
+  }
+  lines.push('');
+  lines.push('### 質問');
+  lines.push('');
+  lines.push('1. 上記のファイル変更は、列挙された要件を充足していますか？');
+  lines.push('2. 不足している実装があれば、具体的に指摘してください。');
+  lines.push('3. 受入条件のうち、検証が困難なものがあれば指摘してください。');
+  
+  return lines.join('\n');
+}
+
+export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): string {
+  const lines: string[] = [];
+  
+  lines.push(formatKiroGapReport(result));
+  
+  if (result.coverage) {
+    lines.push('');
+    lines.push(formatCoverageReport(result.coverage));
+  }
+  
+  if (result.extractedRequirements.length > 0) {
+    lines.push('');
+    lines.push(`### 抽出された要件: ${result.extractedRequirements.length} 件`);
+    for (const req of result.extractedRequirements.slice(0, 5)) {
+      const shortDesc = req.description.split('\n')[0].substring(0, 60);
+      lines.push(`- **${req.id}**: ${shortDesc}${req.description.length > 60 ? '...' : ''}`);
+    }
+    if (result.extractedRequirements.length > 5) {
+      lines.push(`- ...他 ${result.extractedRequirements.length - 5} 件`);
+    }
+  }
+  
+  if (result.semanticAnalysisPrompt) {
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('> 💡 **意味的分析**: 以下のプロンプトをLLMに渡すことで、要件充足の詳細分析が可能です。');
+    lines.push('');
+    lines.push('<details>');
+    lines.push('<summary>意味的分析プロンプト（クリックで展開）</summary>');
+    lines.push('');
+    lines.push('```markdown');
+    lines.push(result.semanticAnalysisPrompt);
+    lines.push('```');
+    lines.push('');
+    lines.push('</details>');
+  }
+  
   return lines.join('\n');
 }

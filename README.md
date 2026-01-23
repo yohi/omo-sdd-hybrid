@@ -152,6 +152,36 @@ bun test __tests__/lib/kiro-utils.test.ts
 - ✅ **Kiro統合**: `.kiro/specs/` からの仕様読み込みとギャップ分析
 - ✅ **タスク進捗追跡**: tasks.md のチェックボックス状態を検出
 
+## Phase 2 の機能（Kiro統合深化）
+
+- ✅ **構造的ギャップ分析**:
+  - `requirements.md` から要件（REQ-XXX形式）と受入条件を自動抽出
+  - `design.md` から Impacted Files, Components, Dependencies を抽出
+- ✅ **実装カバレッジ分析**:
+  - 設計で宣言されたファイルと実際の変更を比較
+  - 未実装ファイル・設計外変更を検出
+- ✅ **意味的分析プロンプト生成**:
+  - 要件と変更ファイルを基にLLM分析依頼を自動生成
+  - `--deep` オプションで有効化
+
+### Phase 1 との違い
+
+| 機能 | Phase 1 | Phase 2 |
+|------|---------|---------|
+| ファイル存在チェック | ✅ | ✅ |
+| タスク進捗追跡 | ✅ | ✅ |
+| 要件抽出 | ❌ | ✅ REQ-XXX形式対応 |
+| カバレッジ分析 | ❌ | ✅ Impacted Files比較 |
+| 意味的分析 | ❌ | ✅ プロンプト生成 |
+
+### 使用方法
+
+```bash
+sdd_validate_gap                    # 基本検証
+sdd_validate_gap --deep             # 深度分析を有効化
+sdd_validate_gap --kiroSpec my-feat --deep  # 特定の仕様で深度分析
+```
+
 ### Phase 0 との違い
 
 | 機能 | Phase 0 | Phase 1 |
