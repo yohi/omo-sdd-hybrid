@@ -102,7 +102,7 @@ describe('Acceptance Criteria A-I', () => {
   test('Scenario H: state corrupted (no backup) + src/a.ts → WARN STATE_CORRUPTED', async () => {
     await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
-    deleteAllBackups();
+    await deleteAllBackups();
     
     const result = await simulateEdit('src/a.ts');
     expect(result.warned).toBe(true);
@@ -112,7 +112,7 @@ describe('Acceptance Criteria A-I', () => {
   test('Scenario I: state corrupted (no backup) + specs/tasks.md → allow (Rule 0)', async () => {
     await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
-    deleteAllBackups();
+    await deleteAllBackups();
     
     const result = await simulateEdit('specs/tasks.md');
     expect(result.allowed).toBe(true);
@@ -180,7 +180,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
   test("Scenario H': block + state corrupted (no backup) + src/a.ts → BLOCK STATE_CORRUPTED", async () => {
     await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
-    deleteAllBackups();
+    await deleteAllBackups();
     
     const result = await simulateEdit('src/a.ts', undefined, 'block');
     expect(result.allowed).toBe(false);
