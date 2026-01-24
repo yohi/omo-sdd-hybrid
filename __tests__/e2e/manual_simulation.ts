@@ -24,7 +24,7 @@ mock.module("../../.opencode/tools/sdd_validate_gap", () => ({
 
 // Import Plugins (after mocks)
 import { SddContextInjector } from "../../.opencode/plugins/sdd-context-injector";
-import { SddFeedbackLoop } from "../../.opencode/plugins/sdd-feedback-loop";
+import { SddFeedbackLoop, resetThrottleForTesting } from "../../.opencode/plugins/sdd-feedback-loop";
 
 // 2. Initialize State Mocks for all tests
 mockReadState.mockResolvedValue({
@@ -68,23 +68,27 @@ test("Simulation: Feedback Loop (Violation)", async () => {
   
   // Reset throttle logic by mocking Date.now
   const originalNow = Date.now;
-  // Use a fixed timestamp
-  Date.now = () => 1000000000000; 
-  
-  await hook(input, output);
-  
-  console.log("Feedback Output (Violation):");
-  console.log(output.output);
-  
-  expect(output.output).toContain("[SDD-FEEDBACK]");
-  expect(output.output).toContain("⚠️ 整合性チェック警告");
-  
-  Date.now = originalNow;
+  try {
+    // Use a fixed timestamp
+    Date.now = () => 1000000000000; 
+    
+    await hook(input, output);
+    
+    console.log("Feedback Output (Violation):");
+    console.log(output.output);
+    
+    expect(output.output).toContain("[SDD-FEEDBACK]");
+    expect(output.output).toContain("⚠️ 整合性チェック警告");
+  } finally {
+    Date.now = originalNow;
+  }
 });
 
 test("Simulation: Feedback Loop (Valid)", async () => {
   console.log("\n[3/3] Simulating Feedback Loop (Valid)...");
   
+  resetThrottleForTesting();
+
   // Mock validation success
   mockValidateGapInternal.mockResolvedValue("PASS: All clean");
   
@@ -96,15 +100,17 @@ test("Simulation: Feedback Loop (Valid)", async () => {
   
   // Advance time to bypass throttle (previous was 1000000000000)
   const originalNow = Date.now;
-  Date.now = () => 1000000005000; // +5 seconds
-  
-  await hook(input, output);
-  
-  console.log("Feedback Output (Valid):");
-  console.log(output.output);
-  
-  expect(output.output).not.toContain("[SDD-FEEDBACK]");
-  expect(output.output).toBe("Original Output");
-  
-  Date.now = originalNow;
+  try {
+    Date.now = () => 1000000005000; // +5 seconds
+    
+    await hook(input, output);
+    
+    console.log("Feedback Output (Valid):");
+    console.log(output.output);
+    
+    expect(output.output).not.toContain("[SDD-FEEDBACK]");
+    expect(output.output).toBe("Original Output");
+  } finally {
+    Date.now = originalNow;
+  }
 });
