@@ -21,7 +21,7 @@ describe('sdd_validate_gap', () => {
   });
 
   test('returns error when no active task', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
     const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
     
@@ -30,7 +30,7 @@ describe('sdd_validate_gap', () => {
   });
 
   test('returns validation report with active state', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     fs.writeFileSync(getStatePath(), JSON.stringify({
       version: 1,
       activeTaskId: 'Task-1',

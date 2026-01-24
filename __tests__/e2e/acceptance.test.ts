@@ -4,25 +4,25 @@ import { simulateEdit, simulateBash, simulateMultiEdit, ensureNoBackups, deleteA
 import fs from 'fs';
 
 describe('Acceptance Criteria A-I', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setupTestState();
-    clearState();
+    await clearState();
   });
   
-  afterEach(() => {
-    clearState();
+  afterEach(async () => {
+    await clearState();
     cleanupTestState();
   });
   
   test('Scenario A: state なし + src/a.ts 編集 → WARN NO_ACTIVE_TASK', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateEdit('src/a.ts');
     expect(result.warned).toBe(true);
     expect(result.message).toContain('NO_ACTIVE_TASK');
   });
   
   test('Scenario B: Task-1 (src/auth/**) + src/auth/x.ts 編集 → allow', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     await writeState({
       version: 1,
       activeTaskId: 'Task-1',
@@ -39,7 +39,7 @@ describe('Acceptance Criteria A-I', () => {
   });
   
   test('Scenario C: Task-1 (src/auth/**) + src/pay/y.ts 編集 → WARN SCOPE_DENIED', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     await writeState({
       version: 1,
       activeTaskId: 'Task-1',
@@ -56,7 +56,7 @@ describe('Acceptance Criteria A-I', () => {
   });
   
   test('Scenario D: specs/tasks.md 編集 → allow (Rule 0)', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateEdit('specs/tasks.md');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
@@ -64,21 +64,21 @@ describe('Acceptance Criteria A-I', () => {
   });
   
   test('Scenario E: ../secrets.txt 編集 → WARN OUTSIDE_WORKTREE', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateEdit('../secrets.txt');
     expect(result.warned).toBe(true);
     expect(result.message).toContain('OUTSIDE_WORKTREE');
   });
   
   test('Scenario F: bash rm -rf → WARN', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateBash('rm -rf /tmp/test');
     expect(result.warned).toBe(true);
     expect(result.rule).toBe('Rule4');
   });
   
   test('Scenario G: multiedit with mixed scope → partial WARN', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     await writeState({
       version: 1,
       activeTaskId: 'Task-1',
@@ -100,7 +100,7 @@ describe('Acceptance Criteria A-I', () => {
   });
   
   test('Scenario H: state corrupted (no backup) + src/a.ts → WARN STATE_CORRUPTED', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
@@ -110,7 +110,7 @@ describe('Acceptance Criteria A-I', () => {
   });
   
   test('Scenario I: state corrupted (no backup) + specs/tasks.md → allow (Rule 0)', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
@@ -122,18 +122,18 @@ describe('Acceptance Criteria A-I', () => {
 });
 
 describe('Phase 1 Block Mode Acceptance', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setupTestState();
-    clearState();
+    await clearState();
   });
   
-  afterEach(() => {
-    clearState();
+  afterEach(async () => {
+    await clearState();
     cleanupTestState();
   });
 
   test("Scenario A': block + state なし + src/a.ts 編集 → BLOCK NO_ACTIVE_TASK", async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateEdit('src/a.ts', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
@@ -142,7 +142,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
   });
 
   test("Scenario C': block + Task-1 (src/auth/**) + src/pay/y.ts 編集 → BLOCK SCOPE_DENIED", async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     await writeState({
       version: 1,
       activeTaskId: 'Task-1',
@@ -161,7 +161,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
   });
 
   test("Scenario E': block + ../secrets.txt 編集 → BLOCK OUTSIDE_WORKTREE", async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateEdit('../secrets.txt', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
@@ -170,7 +170,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
   });
 
   test("Scenario F': block + bash rm -rf → BLOCK", async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateBash('rm -rf /tmp/test', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
@@ -178,7 +178,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
   });
 
   test("Scenario H': block + state corrupted (no backup) + src/a.ts → BLOCK STATE_CORRUPTED", async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
@@ -190,7 +190,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
   });
 
   test("Block mode still allows Rule 0 (specs/tasks.md)", async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const result = await simulateEdit('specs/tasks.md', undefined, 'block');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
@@ -198,7 +198,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
   });
 
   test("Block mode still allows valid scope access", async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     await writeState({
       version: 1,
       activeTaskId: 'Task-1',

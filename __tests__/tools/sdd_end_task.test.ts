@@ -4,17 +4,18 @@ import { ensureNoBackups, deleteAllBackups, setupTestState, cleanupTestState } f
 import fs from 'fs';
 
 describe('sdd_end_task', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setupTestState();
-    clearState();
+    await clearState();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await clearState();
     cleanupTestState();
   });
 
   test('clears state when state exists', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const state = {
       version: 1,
       activeTaskId: 'Task-1',
@@ -35,7 +36,7 @@ describe('sdd_end_task', () => {
   });
 
   test('returns warning when no active task', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
     const result = await sddEndTask.default.execute({}, {} as any);
     
@@ -43,7 +44,7 @@ describe('sdd_end_task', () => {
   });
 
   test('clears corrupted state with warning', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     
@@ -56,17 +57,18 @@ describe('sdd_end_task', () => {
 });
 
 describe('sdd_show_context', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setupTestState();
-    clearState();
+    await clearState();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await clearState();
     cleanupTestState();
   });
 
   test('shows current task when state exists', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const state = {
       version: 1,
       activeTaskId: 'Task-1',
@@ -87,7 +89,7 @@ describe('sdd_show_context', () => {
   });
 
   test('shows message when no active task', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');
     const result = await sddShowContext.default.execute({}, {} as any);
     
@@ -95,7 +97,7 @@ describe('sdd_show_context', () => {
   });
 
   test('shows error for corrupted state', async () => {
-    ensureNoBackups();
+    await ensureNoBackups();
     fs.writeFileSync(getStatePath(), '{ invalid json');
     deleteAllBackups();
     

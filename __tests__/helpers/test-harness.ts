@@ -23,8 +23,8 @@ export function cleanupTestState(): void {
   delete process.env.SDD_KIRO_DIR;
 }
 
-export function ensureNoBackups(): void {
-  clearState();
+export async function ensureNoBackups(): Promise<void> {
+  await clearState();
   const statePath = getStatePath();
   const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
   backupPatterns.forEach(suffix => {
@@ -35,7 +35,7 @@ export function ensureNoBackups(): void {
   });
 }
 
-export function deleteAllBackups(): void {
+export async function deleteAllBackups(): Promise<void> {
   const statePath = getStatePath();
   const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
   backupPatterns.forEach(suffix => {

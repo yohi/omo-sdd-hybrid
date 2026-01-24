@@ -17,7 +17,7 @@ describe('sdd_sync_kiro', () => {
     TEST_SPEC_DIR = `${SPECS_DIR}/${TEST_FEATURE}`;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanupTestState();
   });
 

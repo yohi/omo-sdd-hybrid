@@ -146,6 +146,13 @@ export async function readState(): Promise<StateResult> {
 
 export async function clearState(): Promise<void> {
   const statePath = getStatePath();
+  const stateDir = getStateDir();
+
+  // If stateDir doesn't exist, nothing to clear
+  if (!fs.existsSync(stateDir)) {
+    return;
+  }
+
   // Attempt to acquire lock, but proceed even if it fails (force clear behavior)
   // or should we be strict? Design choice: clearState is destructive/cleanup.
   // Ideally, we lock. If lock fails (zombie), force unlock?
