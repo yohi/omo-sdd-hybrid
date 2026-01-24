@@ -120,7 +120,7 @@ describe('state-utils', () => {
       await writeState(state);
       expect(fs.existsSync(getStatePath())).toBe(true);
       
-      clearState();
+      await clearState();
       expect(fs.existsSync(getStatePath())).toBe(false);
       
       const result = await readState();
@@ -131,7 +131,7 @@ describe('state-utils', () => {
       cleanupStateFiles();
       const { clearState } = await import('../../.opencode/lib/state-utils');
       
-      expect(() => clearState()).not.toThrow();
+      await expect(clearState()).resolves.toBeUndefined();
     });
   });
 
