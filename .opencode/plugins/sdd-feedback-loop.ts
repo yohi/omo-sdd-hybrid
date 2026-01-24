@@ -65,4 +65,8 @@ export const SddFeedbackLoop: Plugin = async ({ client }) => {
   };
 };
 
-export default SddFeedbackLoop;
+
+export const resetThrottleForTesting = () => {
+  lastExecutionMap.clear();
+};
+
