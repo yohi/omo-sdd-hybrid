@@ -1,6 +1,7 @@
 import lockfile from 'proper-lockfile';
 import writeFileAtomic from 'write-file-atomic';
 import fs from 'fs';
+import path from 'path';
 import { rotateBackup, getBackupPaths } from './backup-utils';
 
 const DEFAULT_STATE_DIR = '.opencode/state';
@@ -54,15 +55,25 @@ export async function lockStateDir(): Promise<() => Promise<void>> {
     fs.mkdirSync(stateDir, { recursive: true });
   }
   
+  const options = getLockOptions();
+  
   try {
-    return await lockfile.lock(stateDir, getLockOptions());
+    return await lockfile.lock(stateDir, options);
   } catch (error: any) {
     if (error.code === 'ELOCKED') {
-      const lockDir = `${stateDir}/${stateDir.split('/').pop()}.lock`; // simplified guess
+      const lockFilePath = error.file || `${stateDir}.lock`;
+      
+      const retryOpts = options.retries as { retries: number; maxTimeout: number };
+      const count = retryOpts.retries || 0;
+      const time = retryOpts.maxTimeout || 0;
+      const totalWaitMs = count * time;
+      const totalWaitSec = Math.round(totalWaitMs / 1000);
+
       throw new Error(
         `[SDD] Failed to acquire lock on ${stateDir}.\n` +
+        `Lock file: ${lockFilePath}\n` +
         `Another process might be active, or a stale lock remains.\n` +
-        `We tried waiting for ~40s.\n` +
+        `We tried waiting for ~${totalWaitSec}s.\n` +
         `Try running: sdd_force_unlock`
       );
     }
