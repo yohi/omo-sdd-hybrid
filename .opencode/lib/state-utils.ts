@@ -32,14 +32,18 @@ export type StateResult =
 export function getLockOptions(): lockfile.LockOptions {
   const stale = parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
   // Default: retry 10 times, wait 4s each = 40s total coverage > 30s stale
-  const retries = parseInt(process.env.SDD_LOCK_RETRIES || '10', 10);
+  // For tests (when SDD_TEST_MODE is set), reduce timeouts to fail fast
+  const isTest = process.env.NODE_ENV === 'test' || process.env.SDD_TEST_MODE === 'true';
+  const retries = parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
+  const minTimeout = isTest ? 100 : 4000;
+  const maxTimeout = isTest ? 100 : 4000;
   
   return {
     stale,
     retries: {
       retries,
-      minTimeout: 4000,
-      maxTimeout: 4000
+      minTimeout,
+      maxTimeout
     }
   };
 }
@@ -140,8 +144,28 @@ export async function readState(): Promise<StateResult> {
   return { status: 'corrupted', error: result.error };
 }
 
-export function clearState(): void {
+export async function clearState(): Promise<void> {
   const statePath = getStatePath();
+  // Attempt to acquire lock, but proceed even if it fails (force clear behavior)
+  // or should we be strict? Design choice: clearState is destructive/cleanup.
+  // Ideally, we lock. If lock fails (zombie), force unlock?
+  // For now, let's just lock and rely on the new timeout logic.
+  let release: (() => Promise<void>) | undefined;
+  try {
+    release = await lockStateDir();
+  } catch (e) {
+    console.warn(`[SDD] Failed to lock state dir during clearState: ${(e as Error).message}`);
+    // Fallback: proceed to clear anyway? Or fail?
+    // Given the task is to fix zombie locks, maybe we should NOT block clearing.
+    // However, if we don't lock, we risk race.
+    // Let's assume lockStateDir will throw if it can't acquire, and that's good.
+    // But wait, clearState is used in "sdd_end_task". If sdd_end_task fails because of lock...
+    // user is stuck.
+    // But "sdd_force_unlock" is the new tool for that.
+    // So enforcing lock here is correct.
+    throw e;
+  }
+
   try {
     if (fs.existsSync(statePath)) {
       fs.unlinkSync(statePath);
@@ -151,7 +175,9 @@ export function clearState(): void {
         fs.unlinkSync(backupPath);
       }
     });
-  } catch { /* noop */ }
+  } catch { /* noop */ } finally {
+    if (release) await release();
+  }
 }
 
 export type GuardMode = 'warn' | 'block';
