@@ -31,11 +31,20 @@ export type StateResult =
   | { status: 'recovered'; state: State; fromBackup: string };
 
 export function getLockOptions(): lockfile.LockOptions {
-  const stale = parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
+  let stale = parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
+  if (!Number.isFinite(stale)) {
+    stale = 30000;
+  }
+
   // Default: retry 10 times, wait 4s each = 40s total coverage > 30s stale
   // For tests (when SDD_TEST_MODE is set), reduce timeouts to fail fast
   const isTest = process.env.NODE_ENV === 'test' || process.env.SDD_TEST_MODE === 'true';
-  const retries = parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
+  
+  let retries = parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
+  if (!Number.isFinite(retries)) {
+    retries = isTest ? 2 : 10;
+  }
+
   const minTimeout = isTest ? 100 : 4000;
   const maxTimeout = isTest ? 100 : 4000;
   
@@ -142,6 +151,12 @@ export async function readState(): Promise<StateResult> {
     if (backupResult.ok) {
       const release = await lockStateDir();
       try {
+        // Check current state again after acquiring lock (avoid TOCTOU)
+        const current = tryParseState(statePath);
+        if (current.ok) {
+          return { status: 'ok', state: current.state };
+        }
+        
         fs.copyFileSync(backupPath, statePath);
         console.warn(`[SDD] State recovered from ${backupPath}`);
         return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
