@@ -6,14 +6,14 @@ import fs from 'fs';
 describe('sdd_validate_gap enhanced', () => {
   const originalSkipEnv = process.env.SDD_SKIP_TEST_EXECUTION;
   
-  beforeEach(() => {
+  beforeEach(async () => {
     setupTestState();
-    ensureNoBackups();
+    await ensureNoBackups();
     process.env.SDD_SKIP_TEST_EXECUTION = 'true';
   });
 
-  afterEach(() => {
-    ensureNoBackups();
+  afterEach(async () => {
+    await ensureNoBackups();
     cleanupTestState();
     if (originalSkipEnv === undefined) {
       delete process.env.SDD_SKIP_TEST_EXECUTION;
@@ -23,8 +23,8 @@ describe('sdd_validate_gap enhanced', () => {
   });
 
   describe('with active state', () => {
-    beforeEach(() => {
-      ensureNoBackups();
+    beforeEach(async () => {
+      await ensureNoBackups();
       fs.writeFileSync(getStatePath(), JSON.stringify({
         version: 1,
         activeTaskId: 'Task-1',
@@ -72,8 +72,8 @@ describe('sdd_validate_gap enhanced', () => {
   });
 
   describe('without active state', () => {
-    beforeEach(() => {
-      ensureNoBackups();
+    beforeEach(async () => {
+      await ensureNoBackups();
     });
 
     test('returns error message when no active task', async () => {
