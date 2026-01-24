@@ -74,7 +74,7 @@ export default tool({
         // Let's check stats.
         const stats = fs.statSync(lockDirPath);
         if (stats.isDirectory()) {
-            fs.rmdirSync(lockDirPath);
+            fs.rmSync(lockDirPath, { recursive: true, force: true });
         } else {
             fs.unlinkSync(lockDirPath);
         }
