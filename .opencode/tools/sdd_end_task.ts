@@ -12,7 +12,7 @@ export default tool({
     }
     
     if (stateResult.status === 'corrupted') {
-      clearState();
+      await clearState();
       return `警告: State が破損していました (${stateResult.error})。State をクリアしました。`;
     }
     
@@ -21,7 +21,7 @@ export default tool({
       ? `\n(注: State はバックアップ ${stateResult.fromBackup} から復元されていました)`
       : '';
     
-    clearState();
+    await clearState();
     return `タスク終了: ${state.activeTaskId}${recoveryNote}
 State をクリアしました。次のタスクを開始するには sdd_start_task を実行してください。`;
   }

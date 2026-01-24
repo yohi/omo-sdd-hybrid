@@ -1,6 +1,7 @@
 import lockfile from 'proper-lockfile';
 import writeFileAtomic from 'write-file-atomic';
 import fs from 'fs';
+import path from 'path';
 import { rotateBackup, getBackupPaths } from './backup-utils';
 
 const DEFAULT_STATE_DIR = '.opencode/state';
@@ -29,18 +30,69 @@ export type StateResult =
   | { status: 'corrupted'; error: string }
   | { status: 'recovered'; state: State; fromBackup: string };
 
-export async function writeState(state: State): Promise<void> {
-  const stateDir = getStateDir();
-  const statePath = getStatePath();
+export function getLockOptions(): lockfile.LockOptions {
+  let stale = parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
+  if (!Number.isFinite(stale)) {
+    stale = 30000;
+  }
 
+  // Default: retry 10 times, wait 4s each = 40s total coverage > 30s stale
+  // For tests (when SDD_TEST_MODE is set), reduce timeouts to fail fast
+  const isTest = process.env.NODE_ENV === 'test' || process.env.SDD_TEST_MODE === 'true';
+  
+  let retries = parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
+  if (!Number.isFinite(retries)) {
+    retries = isTest ? 2 : 10;
+  }
+
+  const minTimeout = isTest ? 100 : 4000;
+  const maxTimeout = isTest ? 100 : 4000;
+  
+  return {
+    stale,
+    retries: {
+      retries,
+      minTimeout,
+      maxTimeout
+    }
+  };
+}
+
+export async function lockStateDir(): Promise<() => Promise<void>> {
+  const stateDir = getStateDir();
   if (!fs.existsSync(stateDir)) {
     fs.mkdirSync(stateDir, { recursive: true });
   }
   
-  const release = await lockfile.lock(stateDir, { 
-    retries: 5,
-    stale: 10000
-  });
+  const options = getLockOptions();
+  
+  try {
+    return await lockfile.lock(stateDir, options);
+  } catch (error: any) {
+    if (error.code === 'ELOCKED') {
+      const lockFilePath = error.file || `${stateDir}.lock`;
+      
+      const retryOpts = options.retries as { retries: number; maxTimeout: number };
+      const count = retryOpts.retries || 0;
+      const time = retryOpts.maxTimeout || 0;
+      const totalWaitMs = count * time;
+      const totalWaitSec = Math.round(totalWaitMs / 1000);
+
+      throw new Error(
+        `[SDD] Failed to acquire lock on ${stateDir}.\n` +
+        `Lock file: ${lockFilePath}\n` +
+        `Another process might be active, or a stale lock remains.\n` +
+        `We tried waiting for ~${totalWaitSec}s.\n` +
+        `Try running: sdd_force_unlock`
+      );
+    }
+    throw error;
+  }
+}
+
+export async function writeState(state: State): Promise<void> {
+  const statePath = getStatePath();
+  const release = await lockStateDir();
   try {
     rotateBackup(statePath);
     await writeFileAtomic(statePath, JSON.stringify(state, null, 2));
@@ -97,11 +149,14 @@ export async function readState(): Promise<StateResult> {
     
     const backupResult = tryParseState(backupPath);
     if (backupResult.ok) {
-      const release = await lockfile.lock(stateDir, { 
-        retries: 5,
-        stale: 10000
-      });
+      const release = await lockStateDir();
       try {
+        // Check current state again after acquiring lock (avoid TOCTOU)
+        const current = tryParseState(statePath);
+        if (current.ok) {
+          return { status: 'ok', state: current.state };
+        }
+        
         fs.copyFileSync(backupPath, statePath);
         console.warn(`[SDD] State recovered from ${backupPath}`);
         return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
@@ -115,8 +170,35 @@ export async function readState(): Promise<StateResult> {
   return { status: 'corrupted', error: result.error };
 }
 
-export function clearState(): void {
+export async function clearState(): Promise<void> {
   const statePath = getStatePath();
+  const stateDir = getStateDir();
+
+  // If stateDir doesn't exist, nothing to clear
+  if (!fs.existsSync(stateDir)) {
+    return;
+  }
+
+  // Attempt to acquire lock, but proceed even if it fails (force clear behavior)
+  // or should we be strict? Design choice: clearState is destructive/cleanup.
+  // Ideally, we lock. If lock fails (zombie), force unlock?
+  // For now, let's just lock and rely on the new timeout logic.
+  let release: (() => Promise<void>) | undefined;
+  try {
+    release = await lockStateDir();
+  } catch (e) {
+    console.warn(`[SDD] Failed to lock state dir during clearState: ${(e as Error).message}`);
+    // Fallback: proceed to clear anyway? Or fail?
+    // Given the task is to fix zombie locks, maybe we should NOT block clearing.
+    // However, if we don't lock, we risk race.
+    // Let's assume lockStateDir will throw if it can't acquire, and that's good.
+    // But wait, clearState is used in "sdd_end_task". If sdd_end_task fails because of lock...
+    // user is stuck.
+    // But "sdd_force_unlock" is the new tool for that.
+    // So enforcing lock here is correct.
+    throw e;
+  }
+
   try {
     if (fs.existsSync(statePath)) {
       fs.unlinkSync(statePath);
@@ -126,7 +208,9 @@ export function clearState(): void {
         fs.unlinkSync(backupPath);
       }
     });
-  } catch { /* noop */ }
+  } catch { /* noop */ } finally {
+    if (release) await release();
+  }
 }
 
 export type GuardMode = 'warn' | 'block';
@@ -157,17 +241,8 @@ export async function readGuardModeState(): Promise<GuardModeState | null> {
 }
 
 export async function writeGuardModeState(state: GuardModeState): Promise<void> {
-  const stateDir = getStateDir();
   const statePath = getGuardModePath();
-
-  if (!fs.existsSync(stateDir)) {
-    fs.mkdirSync(stateDir, { recursive: true });
-  }
-
-  const release = await lockfile.lock(stateDir, { 
-    retries: 5,
-    stale: 10000
-  });
+  const release = await lockStateDir();
   try {
     await writeFileAtomic(statePath, JSON.stringify(state, null, 2));
   } finally {

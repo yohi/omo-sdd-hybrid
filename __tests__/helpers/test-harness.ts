@@ -9,6 +9,7 @@ export function setupTestState(): string {
   process.env.SDD_STATE_DIR = tmpDir;
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
+  process.env.SDD_TEST_MODE = 'true'; // Enable fast locks
   return tmpDir;
 }
 
@@ -20,10 +21,11 @@ export function cleanupTestState(): void {
   delete process.env.SDD_STATE_DIR;
   delete process.env.SDD_TASKS_PATH;
   delete process.env.SDD_KIRO_DIR;
+  delete process.env.SDD_TEST_MODE;
 }
 
-export function ensureNoBackups(): void {
-  clearState();
+export async function ensureNoBackups(): Promise<void> {
+  await clearState();
   const statePath = getStatePath();
   const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
   backupPatterns.forEach(suffix => {
@@ -34,7 +36,7 @@ export function ensureNoBackups(): void {
   });
 }
 
-export function deleteAllBackups(): void {
+export async function deleteAllBackups(): Promise<void> {
   const statePath = getStatePath();
   const backupPatterns = ['.bak', '.bak.1', '.bak.2'];
   backupPatterns.forEach(suffix => {
