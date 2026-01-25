@@ -8,15 +8,17 @@ export default tool({
   description: 'Kiro仕様とRoot tasks.md を同期します',
   args: {},
   async execute() {
-    const ROOT_TASKS_PATH = process.env.SDD_TASKS_PATH || 'tasks.md';
+    const ROOT_TASKS_PATH = process.env.SDD_TASKS_PATH || 'specs/tasks.md';
     const lines: string[] = [];
     lines.push('🔄 Kiro ↔ Root Tasks 同期開始...');
 
-    if (!fs.existsSync(ROOT_TASKS_PATH)) {
-      return 'エラー: Root tasks.md が見つかりません';
+    let rootContent = '';
+    if (fs.existsSync(ROOT_TASKS_PATH)) {
+      rootContent = fs.readFileSync(ROOT_TASKS_PATH, 'utf-8');
+    } else {
+      lines.push('⚠️ Root tasks.md が存在しないため、新規作成します');
+      rootContent = '# Tasks\n';
     }
-    
-    let rootContent = fs.readFileSync(ROOT_TASKS_PATH, 'utf-8');
     const rootTasks = parseTasksFile(rootContent);
     const rootTaskMap = new Map(rootTasks.map(t => [t.id, t]));
     
@@ -74,6 +76,10 @@ export default tool({
     }
 
     if (updatedRoot) {
+      const dir = path.dirname(ROOT_TASKS_PATH);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
       fs.writeFileSync(ROOT_TASKS_PATH, rootContent, 'utf-8');
       lines.push('\n✅ Root tasks.md 更新完了');
     } else {
