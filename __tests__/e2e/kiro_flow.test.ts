@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 import syncTool from '../../.opencode/tools/sdd_sync_kiro';
+import startTool from '../../.opencode/tools/sdd_start_task';
 import validateTool from '../../.opencode/tools/sdd_validate_gap';
 
 describe('E2E: Kiro Flow', () => {
@@ -42,6 +43,8 @@ describe('E2E: Kiro Flow', () => {
     }
     expect(exists).toBe(true); 
 
+    await startTool.execute({ taskId: 'TEST-1' });
+
     // 2. Validate Gap (Deep)
     // Mock Fetch for Embeddings
     global.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({ data: [] }))));
@@ -49,7 +52,7 @@ describe('E2E: Kiro Flow', () => {
     // Unset API Key just in case
     delete process.env.SDD_EMBEDDINGS_API_KEY;
 
-    const validateOutput = await validateTool.execute({ deep: true, taskId: 'TEST-1' });
+    const validateOutput = await validateTool.execute({ deep: true, taskId: 'TEST-1', kiroSpec: 'test-feat' });
     
     // VERIFICATION 2: Warning check
     expect(validateOutput).toContain('WARN: Embeddings API Key not found');
