@@ -8,8 +8,12 @@ import validateTool from '../../.opencode/tools/sdd_validate_gap';
 
 describe('E2E: Kiro Flow', () => {
   let stateDir: string;
+  let origFetch: typeof global.fetch;
+  let origApiKey: string | undefined;
 
   beforeEach(() => {
+    origFetch = global.fetch;
+    origApiKey = process.env.SDD_EMBEDDINGS_API_KEY;
     stateDir = setupTestState();
     // Setup Kiro Spec
     const kiroDir = path.join(stateDir, '.kiro/specs/test-feat');
@@ -21,6 +25,12 @@ describe('E2E: Kiro Flow', () => {
   });
 
   afterEach(() => {
+    global.fetch = origFetch;
+    if (origApiKey === undefined) {
+      delete process.env.SDD_EMBEDDINGS_API_KEY;
+    } else {
+      process.env.SDD_EMBEDDINGS_API_KEY = origApiKey;
+    }
     cleanupTestState();
     mock.restore();
   });
@@ -55,6 +65,6 @@ describe('E2E: Kiro Flow', () => {
     const validateOutput = await validateTool.execute({ deep: true, taskId: 'TEST-1', kiroSpec: 'test-feat' });
     
     // VERIFICATION 2: Warning check
-    expect(validateOutput).toContain('WARN: Embeddings API Key not found');
+    expect(validateOutput).toContain('警告: 埋め込みAPIキーが見つかりません');
   });
 });

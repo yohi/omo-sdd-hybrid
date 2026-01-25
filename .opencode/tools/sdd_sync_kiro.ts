@@ -13,11 +13,13 @@ export default tool({
     lines.push('🔄 Kiro ↔ Root Tasks 同期開始...');
 
     let rootContent = '';
+    let rootMissing = false;
     if (fs.existsSync(ROOT_TASKS_PATH)) {
       rootContent = fs.readFileSync(ROOT_TASKS_PATH, 'utf-8');
     } else {
       lines.push('⚠️ Root tasks.md が存在しないため、新規作成します');
       rootContent = '# Tasks\n';
+      rootMissing = true;
     }
     const rootTasks = parseTasksFile(rootContent);
     const rootTaskMap = new Map(rootTasks.map(t => [t.id, t]));
@@ -75,7 +77,7 @@ export default tool({
       }
     }
 
-    if (updatedRoot) {
+    if (updatedRoot || rootMissing) {
       const dir = path.dirname(ROOT_TASKS_PATH);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
