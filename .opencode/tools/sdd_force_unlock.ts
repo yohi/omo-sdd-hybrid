@@ -33,6 +33,7 @@ export default tool({
     statusLines.push(`State Directory: ${stateDir}`);
     statusLines.push(`Locked (proper-lockfile check): ${isLocked ? 'YES' : 'NO'}`);
     statusLines.push(`Lock Artifact Found: ${hasLockFile ? `YES (${lockDirPath})` : 'NO'}`);
+
     
     // Validate JSON content
     if (fs.existsSync(statePath)) {
