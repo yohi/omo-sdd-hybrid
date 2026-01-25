@@ -25,6 +25,12 @@ describe('sdd_force_unlock', () => {
 
   afterEach(() => {
     cleanupTestState();
+    try {
+      if (fs.existsSync(lockPath)) {
+        fs.unlinkSync(lockPath);
+      }
+    } catch {
+    }
   });
 
   test('dry-run shows locked status when lock exists', async () => {
@@ -53,7 +59,7 @@ describe('sdd_force_unlock', () => {
     const result = await sddForceUnlock.default.execute({ force: true }, {} as any);
 
     expect(result).toContain('[FORCE UNLOCK]');
-    expect(result).toContain('Lock artifact removed');
+    expect(result).toContain('Lock artifact manually removed');
     expect(fs.existsSync(lockPath)).toBe(false);
   });
 
