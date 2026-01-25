@@ -19,6 +19,7 @@ export default tool({
     // We need to check lock status.
     
     let isLocked = false;
+    const statusLines: string[] = []; 
     try {
       isLocked = await lockfile.check(stateDir);
     } catch (e) {
@@ -28,7 +29,7 @@ export default tool({
     const lockDirPath = `${stateDir}.lock`; 
     const hasLockFile = fs.existsSync(lockDirPath);
 
-    const statusLines = [
+    statusLines.push(`# ロック診断レポート`);
     statusLines.push(`State Directory: ${stateDir}`);
     statusLines.push(`Locked (proper-lockfile check): ${isLocked ? 'YES' : 'NO'}`);
     statusLines.push(`Lock Artifact Found: ${hasLockFile ? `YES (${lockDirPath})` : 'NO'}`);
