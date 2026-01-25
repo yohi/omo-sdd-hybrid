@@ -1,6 +1,7 @@
 import lockfile from 'proper-lockfile';
 import writeFileAtomic from 'write-file-atomic';
 import fs from 'fs';
+import path from 'path';
 import { rotateBackup, getBackupPaths } from './backup-utils';
 
 const DEFAULT_STATE_DIR = '.opencode/state';
@@ -30,11 +31,20 @@ export type StateResult =
   | { status: 'recovered'; state: State; fromBackup: string };
 
 export function getLockOptions(): lockfile.LockOptions {
-  const stale = parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
+  let stale = parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
+  if (!Number.isFinite(stale)) {
+    stale = 30000;
+  }
+
   // Default: retry 10 times, wait 4s each = 40s total coverage > 30s stale
   // For tests (when SDD_TEST_MODE is set), reduce timeouts to fail fast
   const isTest = process.env.NODE_ENV === 'test' || process.env.SDD_TEST_MODE === 'true';
-  const retries = parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
+  
+  let retries = parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
+  if (!Number.isFinite(retries)) {
+    retries = isTest ? 2 : 10;
+  }
+
   const minTimeout = isTest ? 100 : 4000;
   const maxTimeout = isTest ? 100 : 4000;
   
@@ -54,15 +64,25 @@ export async function lockStateDir(): Promise<() => Promise<void>> {
     fs.mkdirSync(stateDir, { recursive: true });
   }
   
+  const options = getLockOptions();
+  
   try {
-    return await lockfile.lock(stateDir, getLockOptions());
+    return await lockfile.lock(stateDir, options);
   } catch (error: any) {
     if (error.code === 'ELOCKED') {
-      const lockDir = `${stateDir}/${stateDir.split('/').pop()}.lock`; // simplified guess
+      const lockFilePath = error.file || `${stateDir}.lock`;
+      
+      const retryOpts = options.retries as { retries: number; maxTimeout: number };
+      const count = retryOpts.retries || 0;
+      const time = retryOpts.maxTimeout || 0;
+      const totalWaitMs = count * time;
+      const totalWaitSec = Math.round(totalWaitMs / 1000);
+
       throw new Error(
         `[SDD] Failed to acquire lock on ${stateDir}.\n` +
+        `Lock file: ${lockFilePath}\n` +
         `Another process might be active, or a stale lock remains.\n` +
-        `We tried waiting for ~40s.\n` +
+        `We tried waiting for ~${totalWaitSec}s.\n` +
         `Try running: sdd_force_unlock`
       );
     }
@@ -131,6 +151,12 @@ export async function readState(): Promise<StateResult> {
     if (backupResult.ok) {
       const release = await lockStateDir();
       try {
+        // Check current state again after acquiring lock (avoid TOCTOU)
+        const current = tryParseState(statePath);
+        if (current.ok) {
+          return { status: 'ok', state: current.state };
+        }
+        
         fs.copyFileSync(backupPath, statePath);
         console.warn(`[SDD] State recovered from ${backupPath}`);
         return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };

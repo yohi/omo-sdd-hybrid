@@ -19,22 +19,21 @@ export default tool({
     // We need to check lock status.
     
     let isLocked = false;
+    const statusLines: string[] = []; 
     try {
       isLocked = await lockfile.check(stateDir);
     } catch (e) {
-      // If check fails, maybe it's not locked or other error
-      // But check() usually returns boolean.
+      statusLines.push(`Lock check failed for stateDir: ${e instanceof Error ? e.message : String(e)}`);
     }
 
-    const lockDirPath = `${stateDir}.lock`; // Default proper-lockfile path for dir
+    const lockDirPath = `${stateDir}.lock`; 
     const hasLockFile = fs.existsSync(lockDirPath);
 
-    const statusLines = [
-      `# ロック診断レポート`,
-      `State Directory: ${stateDir}`,
-      `Locked (proper-lockfile check): ${isLocked ? 'YES' : 'NO'}`,
-      `Lock Artifact Found: ${hasLockFile ? `YES (${lockDirPath})` : 'NO'}`,
-    ];
+    statusLines.push(`# ロック診断レポート`);
+    statusLines.push(`State Directory: ${stateDir}`);
+    statusLines.push(`Locked (proper-lockfile check): ${isLocked ? 'YES' : 'NO'}`);
+    statusLines.push(`Lock Artifact Found: ${hasLockFile ? `YES (${lockDirPath})` : 'NO'}`);
+
     
     // Validate JSON content
     if (fs.existsSync(statePath)) {
@@ -62,36 +61,37 @@ export default tool({
     statusLines.push(`\n[FORCE UNLOCK] 解除を実行します...`);
     
     try {
-      // Try proper-lockfile unlock first (if we could... but we can't without release function)
-      // So we manually remove the lock artifact.
-      // Wait, proper-lockfile has `unlock` method? No, only `lock` returns release.
-      // But `unlock(path)` exists in some versions? No.
-      // We must remove the lock directory/file.
-      
-      if (hasLockFile) {
-        // proper-lockfile uses mkdir for locking, so it's a directory (usually).
-        // But on some systems/configs it might be different.
-        // Let's check stats.
-        const stats = fs.statSync(lockDirPath);
-        if (stats.isDirectory()) {
-            fs.rmdirSync(lockDirPath);
-        } else {
-            fs.unlinkSync(lockDirPath);
-        }
-        statusLines.push(`✅ Lock artifact removed: ${lockDirPath}`);
-      } else {
-        statusLines.push(`Lock artifact not found at expected path. Attempting unlock via proper-lockfile (check only)...`);
-        // If check() said true but we didn't find file, maybe path is different?
-        // proper-lockfile resolves path.
-        // Let's trust user if they say force.
-      }
-      
-      statusLines.push(`ロック強制解除が完了しました。`);
+      // First, attempt to unlock using the library
+      await lockfile.unlock(stateDir);
+      statusLines.push(`✅ Unlocked via proper-lockfile`);
     } catch (e) {
-      statusLines.push(`❌ 解除失敗: ${(e as Error).message}`);
-      throw new Error(`Failed to force unlock: ${(e as Error).message}`);
-    }
+      statusLines.push(`⚠️ proper-lockfile unlock failed: ${(e as Error).message}`);
+      statusLines.push(`Attempting manual removal as fallback...`);
 
+      // Fallback: Manual safe removal for cases where library unlock fails (e.g. foreign lock)
+      if (fs.existsSync(lockDirPath)) {
+        try {
+          const stats = fs.lstatSync(lockDirPath);
+          
+          if (stats.isSymbolicLink()) {
+            fs.unlinkSync(lockDirPath);
+          } else if (stats.isDirectory()) {
+            fs.rmSync(lockDirPath, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(lockDirPath);
+          }
+          statusLines.push(`✅ Lock artifact manually removed: ${lockDirPath}`);
+        } catch (manualError) {
+           statusLines.push(`❌ Manual removal failed: ${(manualError as Error).message}`);
+           throw new Error(`Failed to force unlock (both library and manual): ${(e as Error).message} / ${(manualError as Error).message}`);
+        }
+      } else {
+         statusLines.push(`Lock artifact not found at ${lockDirPath}. Cannot force unlock manually.`);
+         throw new Error(`Failed to force unlock: Lock artifact not found and library unlock failed.`);
+      }
+    }
+    
+    statusLines.push(`ロック強制解除が完了しました。`);
     return statusLines.join('\n');
   }
 });
