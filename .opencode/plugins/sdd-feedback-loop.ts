@@ -8,7 +8,7 @@ const THROTTLE_MS = 2000; // 2 seconds throttle
 
 const TRIGGER_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
 
-export const SddFeedbackLoop: Plugin = async ({ client }) => {
+const SddFeedbackLoop: Plugin = async ({ client }) => {
   return {
     'tool.execute.after': async (input: any, output: any) => {
       // Handle tool name variation (string vs object)
@@ -65,8 +65,4 @@ export const SddFeedbackLoop: Plugin = async ({ client }) => {
   };
 };
 
-
-export const resetThrottleForTesting = () => {
-  lastExecutionMap.clear();
-};
-
+export default SddFeedbackLoop;

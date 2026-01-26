@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
-import { evaluateAccess, evaluateMultiEdit, AccessResult } from '../../.opencode/plugins/sdd-gatekeeper';
+import { evaluateAccess, evaluateMultiEdit, type AccessResult } from '../../.opencode/lib/access-policy';
 import { StateResult } from '../../.opencode/lib/state-utils';
 
 const worktreeRoot = process.cwd();
