@@ -87,9 +87,8 @@ test("Simulation: Feedback Loop (Violation)", async () => {
 test("Simulation: Feedback Loop (Valid)", async () => {
   console.log("\n[3/3] Simulating Feedback Loop (Valid)...");
   
-  resetThrottleForTesting();
-
   // Mock validation success
+  mockValidateGapInternal.mockResolvedValue("PASS: All clean");
   mockValidateGapInternal.mockResolvedValue("PASS: All clean");
   
   const plugin = await SddFeedbackLoop({ client: {} as any });
