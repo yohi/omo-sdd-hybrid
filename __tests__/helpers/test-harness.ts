@@ -1,4 +1,4 @@
-import { evaluateAccess, evaluateMultiEdit, AccessResult, GuardMode } from '../../.opencode/plugins/sdd-gatekeeper';
+import { evaluateAccess, evaluateMultiEdit, type AccessResult, type GuardMode } from '../../.opencode/lib/access-policy';
 import { StateResult, readState, clearState, getStatePath } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 import path from 'path';

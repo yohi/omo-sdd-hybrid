@@ -23,8 +23,8 @@ mock.module("../../.opencode/tools/sdd_validate_gap", () => ({
 }));
 
 // Import Plugins (after mocks)
-import { SddContextInjector } from "../../.opencode/plugins/sdd-context-injector";
-import { SddFeedbackLoop, resetThrottleForTesting } from "../../.opencode/plugins/sdd-feedback-loop";
+import SddContextInjector from "../../.opencode/plugins/sdd-context-injector";
+import SddFeedbackLoop from "../../.opencode/plugins/sdd-feedback-loop";
 
 // 2. Initialize State Mocks for all tests
 mockReadState.mockResolvedValue({
@@ -87,8 +87,6 @@ test("Simulation: Feedback Loop (Violation)", async () => {
 test("Simulation: Feedback Loop (Valid)", async () => {
   console.log("\n[3/3] Simulating Feedback Loop (Valid)...");
   
-  resetThrottleForTesting();
-
   // Mock validation success
   mockValidateGapInternal.mockResolvedValue("PASS: All clean");
   

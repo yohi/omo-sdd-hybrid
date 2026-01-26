@@ -10,9 +10,9 @@ import {
 } from '../lib/access-policy';
 
 // Re-export for backward compatibility
-export { evaluateAccess, evaluateMultiEdit, type AccessResult, type GuardMode };
+// export { evaluateAccess, evaluateMultiEdit, type AccessResult, type GuardMode };
 
-export const SddGatekeeper: Plugin = async ({ client }) => {
+const SddGatekeeper: Plugin = async ({ client }) => {
   const worktreeRoot = getWorktreeRoot();
   
   return {

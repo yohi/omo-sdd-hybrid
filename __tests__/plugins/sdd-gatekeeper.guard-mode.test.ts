@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
-import { SddGatekeeper } from '../../.opencode/plugins/sdd-gatekeeper';
+import SddGatekeeper from '../../.opencode/plugins/sdd-gatekeeper';
 import { writeGuardModeState, getStatePath, getGuardModePath, getStateDir } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { evaluateAccess, AccessResult } from '../../.opencode/plugins/sdd-gatekeeper';
+import { evaluateAccess, type AccessResult } from '../../.opencode/lib/access-policy';
 import { StateResult } from '../../.opencode/lib/state-utils';
 
 const worktreeRoot = process.cwd();
