@@ -1,5 +1,5 @@
 import { describe, it, expect, mock, beforeAll, afterAll, beforeEach } from 'bun:test';
-import { SddFeedbackLoop } from '../../.opencode/plugins/sdd-feedback-loop';
+import SddFeedbackLoop from '../../.opencode/plugins/sdd-feedback-loop';
 
 // Mock dependencies
 const mockReadState = mock(() => Promise.resolve({

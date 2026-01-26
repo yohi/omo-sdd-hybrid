@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
-import { SddContextInjector } from '../../.opencode/plugins/sdd-context-injector';
+import SddContextInjector from '../../.opencode/plugins/sdd-context-injector';
 
 // Mock dependencies
 const mockReadState = mock(() => Promise.resolve({ status: 'not_found' }));

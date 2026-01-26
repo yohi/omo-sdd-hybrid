@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from 'bun:test';
-import { SddGatekeeper } from '../../.opencode/plugins/sdd-gatekeeper';
+import SddGatekeeper from '../../.opencode/plugins/sdd-gatekeeper';
 import * as StateUtils from '../../.opencode/lib/state-utils';
 
 // Mock state-utils to avoid file I/O dependence
