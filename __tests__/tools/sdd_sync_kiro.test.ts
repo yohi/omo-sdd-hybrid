@@ -21,12 +21,12 @@ describe('sdd_sync_kiro', () => {
     cleanupTestState();
   });
 
-  test('returns error when root tasks.md does not exist', async () => {
+  test('returns info when root tasks.md does not exist and no kiro specs', async () => {
     const sddSyncKiro = await import('../../.opencode/tools/sdd_sync_kiro');
     const result = await sddSyncKiro.default.execute({}, {} as any);
     
-    expect(result).toContain('エラー');
-    expect(result).toContain('Root tasks.md が見つかりません');
+    expect(result).toContain('情報');
+    expect(result).toContain('Kiro仕様が見つかりません');
   });
 
   test('returns info when no kiro specs exist', async () => {

@@ -154,6 +154,10 @@ async function checkKiroIntegration(taskId: string, changedFiles: string[], useD
 
   if (matchedSpec) {
     if (useDeepAnalysis) {
+      if (!process.env.SDD_EMBEDDINGS_API_KEY) {
+        const gapResult = analyzeKiroGap(matchedSpec, changedFiles);
+        return `警告: 埋め込みAPIキーが見つかりません。意味解析はスキップされました。\n\n` + formatKiroGapReport(gapResult);
+      }
       const deepResult = await analyzeKiroGapDeep(matchedSpec, changedFiles);
       return formatEnhancedKiroGapReport(deepResult);
     } else {
