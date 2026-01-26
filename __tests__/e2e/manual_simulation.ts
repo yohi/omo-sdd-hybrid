@@ -89,7 +89,6 @@ test("Simulation: Feedback Loop (Valid)", async () => {
   
   // Mock validation success
   mockValidateGapInternal.mockResolvedValue("PASS: All clean");
-  mockValidateGapInternal.mockResolvedValue("PASS: All clean");
   
   const plugin = await SddFeedbackLoop({ client: {} as any });
   const hook = plugin['tool.execute.after'];
