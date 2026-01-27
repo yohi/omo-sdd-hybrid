@@ -60,7 +60,7 @@ export interface AccessResult {
   allowed: boolean;
   warned: boolean;
   message?: string;
-  rule?: 'Rule0' | 'Rule1' | 'Rule2' | 'Rule3' | 'Rule4' | 'StateCorrupted';
+  rule?: 'Rule0' | 'Rule1' | 'Rule2' | 'Rule3' | 'Rule4' | 'StateCorrupted' | 'RoleDenied' | 'RoleAllowed';
 }
 
 export function evaluateAccess(
@@ -135,6 +135,70 @@ export function evaluateAccess(
   return { allowed: true, warned: false };
 }
 
+export function evaluateRoleAccess(
+  toolName: string,
+  filePath: string | undefined,
+  command: string | undefined,
+  stateResult: StateResult,
+  worktreeRoot: string,
+  mode: GuardMode = getGuardMode()
+): AccessResult {
+  const baseResult = evaluateAccess(toolName, filePath, command, stateResult, worktreeRoot, mode);
+  
+  // Rule0 (specs/, .opencode/) is absolute
+  if (baseResult.rule === 'Rule0') {
+    return baseResult;
+  }
+
+  // Only check write tools and existing file paths
+  if (!filePath || !WRITE_TOOLS.includes(toolName)) {
+    return baseResult;
+  }
+
+  // Only check if state is available and role is defined
+  if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
+    return baseResult;
+  }
+
+  const role = stateResult.state.role;
+  if (!role) {
+    return baseResult;
+  }
+
+  const normalizedPath = normalizeToRepoRelative(filePath, worktreeRoot);
+  const isKiroPath = normalizedPath.startsWith('.kiro/');
+  const allowedOnViolation = mode === 'warn';
+
+  if (role === 'architect') {
+    // Architect: Only allow .kiro/** (Priority over scope)
+    if (isKiroPath) {
+      return { allowed: true, warned: false, rule: 'RoleAllowed' };
+    } else {
+      // Deny everything else (except Rule0 handled above)
+      return {
+        allowed: allowedOnViolation,
+        warned: true,
+        message: `ROLE_DENIED: role=architect は .kiro/** のみ書き込み可能です: ${normalizedPath}`,
+        rule: 'RoleDenied'
+      };
+    }
+  }
+
+  if (role === 'implementer') {
+    // Implementer: Deny .kiro/** (Priority over scope)
+    if (isKiroPath) {
+      return {
+        allowed: allowedOnViolation,
+        warned: true,
+        message: `ROLE_DENIED: role=implementer は .kiro/** への書き込みが禁止されています: ${normalizedPath}`,
+        rule: 'RoleDenied'
+      };
+    }
+  }
+
+  return baseResult;
+}
+
 export function evaluateMultiEdit(
   files: Array<{ filePath: string }>,
   stateResult: StateResult,
@@ -151,7 +215,7 @@ export function evaluateMultiEdit(
   }
 
   const results: AccessResult[] = files.map(f => 
-    evaluateAccess('edit', f.filePath, undefined, stateResult, worktreeRoot, mode)
+    evaluateRoleAccess('edit', f.filePath, undefined, stateResult, worktreeRoot, mode)
   );
   
   const warnings = results.filter(r => r.warned);

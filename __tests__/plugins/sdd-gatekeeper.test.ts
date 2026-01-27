@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
-import { evaluateAccess, evaluateMultiEdit, type AccessResult } from '../../.opencode/lib/access-policy';
+import { evaluateAccess, evaluateRoleAccess, evaluateMultiEdit, type AccessResult } from '../../.opencode/lib/access-policy';
 import { StateResult } from '../../.opencode/lib/state-utils';
 
 const worktreeRoot = process.cwd();
@@ -220,5 +220,79 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('INVALID_ARGUMENTS');
+  });
+});
+
+describe('Role-based Access Control', () => {
+  const architectState: StateResult = {
+    status: 'ok',
+    state: {
+      version: 1,
+      activeTaskId: 'Task-1',
+      activeTaskTitle: 'Design',
+      allowedScopes: ['src/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'architect',
+      role: 'architect',
+      validationAttempts: 0
+    }
+  };
+
+  const implementerState: StateResult = {
+    status: 'ok',
+    state: {
+      version: 1,
+      activeTaskId: 'Task-1',
+      activeTaskTitle: 'Impl',
+      allowedScopes: ['src/auth/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'implementer',
+      role: 'implementer',
+      validationAttempts: 0
+    }
+  };
+
+  describe('Architect Role', () => {
+    test('allows writing to .kiro/ directory (Priority over scope)', () => {
+      const result = evaluateRoleAccess('edit', '.kiro/specs/design.md', undefined, architectState, worktreeRoot);
+      expect(result.allowed).toBe(true);
+      expect(result.rule).toBe('RoleAllowed');
+    });
+
+    test('denies writing to src/ directory (even if in scope)', () => {
+      const result = evaluateRoleAccess('edit', 'src/app.ts', undefined, architectState, worktreeRoot, 'block');
+      expect(result.allowed).toBe(false);
+      expect(result.warned).toBe(true);
+      expect(result.message).toContain('ROLE_DENIED');
+      expect(result.message).toContain('architect');
+    });
+    
+    test('allows writing to specs/ (Rule0)', () => {
+      const result = evaluateRoleAccess('edit', 'specs/tasks.md', undefined, architectState, worktreeRoot);
+      expect(result.allowed).toBe(true);
+      expect(result.rule).toBe('Rule0');
+    });
+  });
+
+  describe('Implementer Role', () => {
+    test('denies writing to .kiro/ directory', () => {
+      const result = evaluateRoleAccess('edit', '.kiro/specs/design.md', undefined, implementerState, worktreeRoot, 'block');
+      expect(result.allowed).toBe(false);
+      expect(result.warned).toBe(true);
+      expect(result.message).toContain('ROLE_DENIED');
+      expect(result.message).toContain('implementer');
+    });
+
+    test('allows writing to allowed scope', () => {
+      const result = evaluateRoleAccess('edit', 'src/auth/login.ts', undefined, implementerState, worktreeRoot);
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+    
+    test('denies writing outside scope (standard behavior)', () => {
+      const result = evaluateRoleAccess('edit', 'src/other/feature.ts', undefined, implementerState, worktreeRoot, 'block');
+      expect(result.allowed).toBe(false);
+      expect(result.message).toContain('SCOPE_DENIED');
+    });
   });
 });
