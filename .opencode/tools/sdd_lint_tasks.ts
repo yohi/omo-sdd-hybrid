@@ -16,7 +16,19 @@ interface ValidationError {
 
 function validateTasksFile(filePath: string): ValidationError[] {
   const errors: ValidationError[] = [];
-  const content = fs.readFileSync(filePath, 'utf-8');
+  let content: string;
+  
+  try {
+    content = fs.readFileSync(filePath, 'utf-8');
+  } catch (error: any) {
+    errors.push({
+      line: 0,
+      content: '',
+      reason: `ファイルを読み込めませんでした: ${error.message}`
+    });
+    return errors;
+  }
+
   const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
