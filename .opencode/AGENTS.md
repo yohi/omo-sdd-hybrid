@@ -1,26 +1,38 @@
-# プロジェクトナレッジベース (.opencode)
+# CORE LOGIC & PLUGINS
+
+**Context:** OmO-SDD-Hybrid Core
+**Scope:** `.opencode/` Internal
 
 ## OVERVIEW
-このディレクトリは OpenCode プラグインの **ソースコード本体 (src)** です。
-仕様駆動開発 (SDD) を物理的に強制するための、ツール、プラグイン、共有ロジック、および実行状態（State）を含みます。
+SDD (Specification-Driven Development) を物理的に強制するためのプラグインコア。
+ユーザーには隠蔽された "Hidden Source" として機能し、OpenCode環境の挙動を制御する。
 
 ## STRUCTURE
-- **lib/**: コアロジック。タスク解析、パス操作、状態管理ユーティリティ。
-- **tools/**: `sdd_start_task` 等、OpenCode から呼び出される CLI コマンド。
-- **plugins/**: `tool.execute.before` をフックし、検証を行う Gatekeeper ロジック。
-- **state/**: 実行時のタスクコンテキストやロックファイルを保持。
-- **skills/**: 各役割（Architect/Implementer）向けのプロンプト指示書。
+```
+.opencode/
+├── plugins/         # [HOOK] ツール実行への介入 (Gatekeeper)
+├── tools/           # [CLI] ユーザーコマンド (start/end task)
+├── lib/             # [SHARED] 共通ロジック、状態管理
+└── state/           # [DB] 実行時状態とロックファイル (Git管理外)
+```
 
-## CONVENTIONS
-- **lib ユーティリティの強制**: 状態更新やパス計算は、必ず `lib/` 内のユーティリティを使用すること。
-- **ログプレフィックス**: Gatekeeper のログは `[SDD-GATEKEEPER]` を付与すること。
-- **インポートの制限**: `.opencode` ディレクトリ外からのソースコードインポートは禁止。
-- **モジュール完結**: 各ツールやプラグインは、独立性を保つこと。
+## COMPONENTS
 
-## ANTI-PATTERNS
-- **直接のファイル書き込み**: `fs.writeFileSync` を直接使わず、`lib/state-utils.ts` を経由する。
-- **循環参照**: `tools` と `plugins` 間の循環依存を避ける（ロジックは `lib` に集約）。
-- **ロジックの漏出**: ロジックファイルをルートディレクトリに配置しない。
+### 1. Plugins (`./plugins`)
+OpenCodeのライフサイクルイベント (`tool.execute.before` 等) をフックし、ポリシーを適用する。
+- **Gatekeeper**: ファイル操作を監視し、許可されていないスコープへの書き込みをブロック。
 
----
-**注意**: このディレクトリの変更はプラグイン全体の挙動に直結します。変更後は `__tests__/` での回帰テストが必須です。
+### 2. Tools (`./tools`)
+`opencode.json` によって動的に読み込まれるCLIコマンド群。
+- 標準的な `bin` ではなく、OpenCodeランタイム内で実行されるTypeScript関数。
+
+### 3. Lib (`./lib`)
+ステートレスなロジックと、排他制御付きの状態管理。
+
+## CONVENTIONS (Dual package.json)
+- **Runtime Isolation**: このディレクトリには独自の `package.json` があり、プラグイン実行に必要な依存 (`@opencode-ai/plugin` 等) を管理する。
+- **State Management**: 状態 (`state/`) はJSONファイルとして永続化され、`lib/state-utils.ts` を介してアトミックに読み書きされる。
+
+## DEPENDENCIES
+ルートの `package.json` とは独立しているため、ここで `bun install` が必要となる場合がある。
+- `cc-sdd`: 仕様書連携用ライブラリ

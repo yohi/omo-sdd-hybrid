@@ -2,6 +2,7 @@
 
 > **For AI Agents & Developers:**
 > プロジェクトの規約、構造、開発ルールについては、ルートおよび各ディレクトリの [AGENTS.md](./AGENTS.md) を **必ず** 参照してください。
+> 本プロジェクトは **Strict Hybrid Structure** を採用しており、ソースコードの配置場所が標準的な構成とは異なります。
 
 タスク単位のファイルアクセス制御で「Vibe Coding（仕様逸脱）」を物理的に抑止する OpenCode プラグイン。
 
@@ -259,15 +260,22 @@ bun .opencode/tools/sdd_set_guard_mode.ts block
 
 ## ファイル構成
 
-このプラグイン自体も SDD 構成に従っています。
+本プロジェクトは **Hybrid構成** を採用しています。
+ソースコードの大部分は `.opencode/` に隠蔽され、`src/` はユーザー実装領域として管理されます。
+
+詳細な構造と役割については、各ディレクトリの `AGENTS.md` を参照してください。
 
 ```text
 omo-sdd-hybrid/
-├── specs/               # 仕様定義
-├── .opencode/           # プラグイン実装（ユーザーからは隠蔽）
-│   ├── plugins/         # Gatekeeper ロジック
-│   └── tools/           # CLI ツール実装
-└── __tests__/           # テストコード
+├── .opencode/           # [CORE] プラグインの実体 (Hidden Source)
+│   ├── plugins/         # Gatekeeper, Context Injector
+│   ├── tools/           # CLIコマンド実装
+│   ├── lib/             # 共通ロジック & 状態管理
+│   └── state/           # 実行時状態 (Git管理外)
+├── src/                 # [USER] SDD管理対象のコード領域 (Userland)
+├── specs/               # [USER] タスク・仕様定義 (Source of Truth)
+├── __tests__/           # [DEV] テスト (.opencodeと鏡像構成)
+└── package.json         # 開発用設定
 ```
 
 ## ライセンス
