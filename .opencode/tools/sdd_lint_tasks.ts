@@ -1,12 +1,35 @@
 import { tool } from '../lib/plugin-stub';
 import fs from 'fs';
+import path from 'path';
 
-function getTasksPath() {
-  return process.env.SDD_TASKS_PATH || '.kiro/specs/default/tasks.md';
+function getTasksPath(feature?: string) {
+  if (process.env.SDD_TASKS_PATH) {
+    return process.env.SDD_TASKS_PATH;
+  }
+
+  const baseDir = '.kiro/specs';
+  // Sanitize feature input
+  const featureName = feature || 'default';
+  
+  // Basic sanity check for null bytes and obvious traversal attempts
+  if (featureName.includes('\0') || featureName.includes('..')) {
+    throw new Error('Invalid feature name: contains forbidden characters or segments');
+  }
+
+  const resolvedBase = path.resolve(baseDir);
+  const candidatePath = path.join(baseDir, featureName, 'tasks.md');
+  const resolvedPath = path.resolve(candidatePath);
+
+  // Path Traversal Protection: Ensure resolved path is still within the base directory
+  if (!resolvedPath.startsWith(resolvedBase)) {
+    throw new Error(`Access Denied: Path traversal detected. Resolved path '${resolvedPath}' is outside base '${resolvedBase}'`);
+  }
+
+  return resolvedPath;
 }
 
 // Regex: * [x] TaskID: Description (Scope: `pattern`)
-const TASK_LINE_PATTERN = /^\* \[([ x])\] ([^:]+): (.+) \(Scope: `(.*)`\)$/;
+const TASK_LINE_PATTERN = /^[\*-] \[([ x])\] ([^:]+): (.+) \(Scope: `(.*)`\)$/;
 
 interface ValidationError {
   line: number;
@@ -16,7 +39,19 @@ interface ValidationError {
 
 function validateTasksFile(filePath: string): ValidationError[] {
   const errors: ValidationError[] = [];
-  const content = fs.readFileSync(filePath, 'utf-8');
+  let content: string;
+  
+  try {
+    content = fs.readFileSync(filePath, 'utf-8');
+  } catch (error: any) {
+    errors.push({
+      line: 0,
+      content: '',
+      reason: `ファイルを読み込めませんでした: ${error.message}`
+    });
+    return errors;
+  }
+
   const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
@@ -26,7 +61,7 @@ function validateTasksFile(filePath: string): ValidationError[] {
       continue;
     }
 
-    if (line.startsWith('* [')) {
+    if (line.startsWith('* [') || line.startsWith('- [')) {
       const match = TASK_LINE_PATTERN.exec(line);
       
       if (!match) {
@@ -40,7 +75,7 @@ function validateTasksFile(filePath: string): ValidationError[] {
 
       const [, checkbox, taskId, description, scope] = match;
 
-      if (!/^[A-Z][a-zA-Z]+-\d+$/.test(taskId)) {
+      if (!/^[A-Za-z0-9._-]+-\d+$/.test(taskId)) {
         errors.push({
           line: i + 1,
           content: line,
@@ -67,7 +102,12 @@ export default tool({
     feature: tool.schema.string().optional().describe('検証する機能名（.kiro/specs/配下のディレクトリ名）')
   },
   async execute({ feature }) {
-    const tasksPath = getTasksPath();
+    let tasksPath: string;
+    try {
+      tasksPath = getTasksPath(feature);
+    } catch (error: any) {
+      return `エラー: パス解決に失敗しました (${error.message})`;
+    }
     
     if (!fs.existsSync(tasksPath)) {
       return `エラー: ${tasksPath} が見つかりません`;
