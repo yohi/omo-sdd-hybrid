@@ -57,9 +57,10 @@ function parseTasksFile(content: string): ParsedTask[] {
 export default tool({
   description: 'タスクを開始し、編集可能なスコープを設定します',
   args: {
-    taskId: tool.schema.string().describe('開始するタスクID (例: Task-1)')
+    taskId: tool.schema.string().describe('開始するタスクID (例: Task-1)'),
+    role: tool.schema.string().optional().describe('ロールを指定 (architect | implementer)')
   },
-  async execute({ taskId }) {
+  async execute({ taskId, role }) {
     const tasksPath = getTasksPath();
     if (!fs.existsSync(tasksPath)) {
       throw new Error(`E_TASKS_NOT_FOUND: ${tasksPath} が見つかりません`);
@@ -91,6 +92,20 @@ export default tool({
     if (task.scopes.length === 0) {
       throw new Error(`E_SCOPE_MISSING: ${taskId} に Scope が定義されていません`);
     }
+
+    let determinedRole: 'architect' | 'implementer' | null = null;
+    if (role) {
+      if (role !== 'architect' && role !== 'implementer') {
+        throw new Error(`E_INVALID_ROLE: role must be 'architect' or 'implementer', got ${role}`);
+      }
+      determinedRole = role as 'architect' | 'implementer';
+    } else {
+      if (/^KIRO-\d+$/.test(taskId)) {
+        determinedRole = 'architect';
+      } else {
+        determinedRole = 'implementer';
+      }
+    }
     
     await writeState({
       version: 1,
@@ -99,11 +114,13 @@ export default tool({
       allowedScopes: task.scopes,
       startedAt: new Date().toISOString(),
       startedBy: 'sdd_start_task',
-      validationAttempts: 0
+      validationAttempts: 0,
+      role: determinedRole
     });
     
     return `タスク開始: ${task.id}
 タイトル: ${task.title}
+ロール: ${determinedRole}
 許可スコープ: ${task.scopes.join(', ')}
 State: .opencode/state/current_context.json`;
   }

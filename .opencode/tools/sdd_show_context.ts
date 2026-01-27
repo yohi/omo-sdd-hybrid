@@ -1,10 +1,12 @@
 import { tool } from '../lib/plugin-stub';
-import { readState } from '../lib/state-utils';
+import { readState as defaultReadState } from '../lib/state-utils';
 
 export default tool({
   description: '現在のタスクコンテキストを表示します',
   args: {},
-  async execute() {
+  async execute(_args, context: any) {
+    const readState = context?.__testDeps?.readState ?? defaultReadState;
+
     const stateResult = await readState();
     
     if (stateResult.status === 'not_found') {
@@ -23,6 +25,7 @@ sdd_end_task でクリアするか、.opencode/state/current_context.json を削
     
     return `現在のタスク: ${state.activeTaskId}
 タイトル: ${state.activeTaskTitle}
+ロール: ${state.role ?? 'implementer'}
 許可スコープ:
 ${state.allowedScopes.map(s => `  - ${s}`).join('\n')}
 開始時刻: ${state.startedAt}${recoveryNote}`;

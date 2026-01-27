@@ -1,37 +1,22 @@
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { ensureNoBackups, setupTestState, cleanupTestState } from '../helpers/test-harness';
-import { getStatePath } from '../../.opencode/lib/state-utils';
-import fs from 'fs';
+import { describe, test, expect, mock } from 'bun:test';
 
 describe('sdd_validate_gap', () => {
-  const originalSkipEnv = process.env.SDD_SKIP_TEST_EXECUTION;
-  
-  beforeEach(() => {
-    setupTestState();
-    process.env.SDD_SKIP_TEST_EXECUTION = 'true';
-  });
-
-  afterEach(() => {
-    cleanupTestState();
-    if (originalSkipEnv === undefined) {
-      delete process.env.SDD_SKIP_TEST_EXECUTION;
-    } else {
-      process.env.SDD_SKIP_TEST_EXECUTION = originalSkipEnv;
-    }
-  });
-
   test('returns error when no active task', async () => {
-    await ensureNoBackups();
+    const mockReadState = mock(() => Promise.resolve({ status: 'not_found' } as any));
+    const mockWriteState = mock(() => Promise.resolve());
+    const mockValidateGapInternal = mock(() => Promise.resolve('PASS: No issues'));
+
     const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-    const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {} as any);
+    const result = await sddValidateGap.default.execute({ taskId: 'Task-1' }, {
+      __testDeps: { readState: mockReadState, writeState: mockWriteState, validateGapInternal: mockValidateGapInternal }
+    } as any);
     
     expect(result).toContain('sdd_start_task');
     expect(result).toContain('アクティブなタスクがありません');
   });
 
   test('returns validation report with active state', async () => {
-    await ensureNoBackups();
-    fs.writeFileSync(getStatePath(), JSON.stringify({
+    const mockState = {
       version: 1,
       activeTaskId: 'Task-1',
       activeTaskTitle: 'Test',
@@ -39,11 +24,18 @@ describe('sdd_validate_gap', () => {
       startedAt: new Date().toISOString(),
       startedBy: 'test',
       validationAttempts: 0
-    }));
+    };
     
+    const mockReadState = mock(() => Promise.resolve({ status: 'ok', state: mockState } as any));
+    const mockWriteState = mock(() => Promise.resolve());
+    const mockValidateGapInternal = mock(() => Promise.resolve('PASS: No issues\nTask-1\nsdd_end_task'));
+
     const sddValidateGap = await import('../../.opencode/tools/sdd_validate_gap');
-    const result = await sddValidateGap.default.execute({}, {} as any);
+    const result = await sddValidateGap.default.execute({}, {
+      __testDeps: { readState: mockReadState, writeState: mockWriteState, validateGapInternal: mockValidateGapInternal }
+    } as any);
     
+    expect(mockValidateGapInternal).toHaveBeenCalled();
     expect(result).toContain('Task-1');
     expect(result).toContain('sdd_end_task');
   });

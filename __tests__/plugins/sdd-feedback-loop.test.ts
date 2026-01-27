@@ -13,13 +13,6 @@ const mockReadState = mock(() => Promise.resolve({
 
 const mockValidateGapInternal = mock(() => Promise.resolve('PASS: No issues'));
 
-mock.module('../../.opencode/lib/state-utils', () => ({
-  readState: mockReadState
-}));
-
-mock.module('../../.opencode/tools/sdd_validate_gap', () => ({
-  validateGapInternal: mockValidateGapInternal
-}));
 
 describe('SddFeedbackLoop', () => {
   beforeEach(() => {
@@ -28,7 +21,9 @@ describe('SddFeedbackLoop', () => {
   });
 
   it('should ignore non-trigger tools', async () => {
-    const plugin = await SddFeedbackLoop({} as any);
+    const plugin = await SddFeedbackLoop({
+      __testDeps: { readState: mockReadState, validateGapInternal: mockValidateGapInternal }
+    } as any);
     const hook = plugin['tool.execute.after'];
     
     if (!hook) throw new Error('Hook not found');
@@ -41,7 +36,9 @@ describe('SddFeedbackLoop', () => {
   });
 
   it('should run validation for trigger tools', async () => {
-    const plugin = await SddFeedbackLoop({} as any);
+    const plugin = await SddFeedbackLoop({
+      __testDeps: { readState: mockReadState, validateGapInternal: mockValidateGapInternal }
+    } as any);
     const hook = plugin['tool.execute.after'];
     
     if (!hook) throw new Error('Hook not found');
@@ -55,7 +52,9 @@ describe('SddFeedbackLoop', () => {
   it('should append warning when validation fails', async () => {
     mockValidateGapInternal.mockResolvedValueOnce('WARN: Scope violation');
     
-    const plugin = await SddFeedbackLoop({} as any);
+    const plugin = await SddFeedbackLoop({
+      __testDeps: { readState: mockReadState, validateGapInternal: mockValidateGapInternal }
+    } as any);
     const hook = plugin['tool.execute.after'];
     
     if (!hook) throw new Error('Hook not found');
@@ -74,7 +73,9 @@ describe('SddFeedbackLoop', () => {
   it('should NOT append warning when validation passes', async () => {
     mockValidateGapInternal.mockResolvedValueOnce('PASS: All good');
     
-    const plugin = await SddFeedbackLoop({} as any);
+    const plugin = await SddFeedbackLoop({
+      __testDeps: { readState: mockReadState, validateGapInternal: mockValidateGapInternal }
+    } as any);
     const hook = plugin['tool.execute.after'];
     
     if (!hook) throw new Error('Hook not found');
@@ -93,7 +94,9 @@ describe('SddFeedbackLoop', () => {
   it('should handle string tool name format', async () => {
     mockValidateGapInternal.mockResolvedValueOnce('WARN: Violation');
     
-    const plugin = await SddFeedbackLoop({} as any);
+    const plugin = await SddFeedbackLoop({
+      __testDeps: { readState: mockReadState, validateGapInternal: mockValidateGapInternal }
+    } as any);
     const hook = plugin['tool.execute.after'];
     
     if (!hook) throw new Error('Hook not found');
