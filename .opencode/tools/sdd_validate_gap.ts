@@ -1,7 +1,34 @@
 import { tool } from '../lib/plugin-stub';
-import { readState } from '../lib/state-utils';
+import { readState, State } from '../lib/state-utils';
 
-export async function validateGapInternal(_state: any, _options: any): Promise<string> {
+export async function validateGapInternal(stateResult: unknown, options: unknown): Promise<string> {
+  // Runtime type narrowing
+  const r = stateResult as Partial<{ status: string; state: State }>;
+  
+  if (!r || typeof r !== 'object') {
+    throw new Error('Invalid input: stateResult must be an object');
+  }
+
+  // Verify status fields (existing guard logic)
+  if (r.status !== 'ok' && r.status !== 'recovered') {
+    throw new Error(`Invalid state status: ${r.status}`);
+  }
+
+  // Assert/cast to State
+  // ensure state property exists (it should if status is ok/recovered based on StateResult type, but checking for safety)
+  if (!r.state) {
+    throw new Error('Invalid state: missing state property');
+  }
+
+  const state = r.state as State;
+  const _opts = options as Record<string, unknown>;
+
+  if (_opts && _opts.skipTests === true) {
+    return 'SKIP: テスト実行はスキップされました';
+  }
+
+  // Now access to allowedScopes is safe
+  // (Stub implementation)
   return 'ℹ️ validateGapInternal は Step 2 で実装予定です（現在は仮実装）';
 }
 

@@ -23,7 +23,7 @@ describe('validateGapInternal', () => {
   };
 
   test('skipTests: true should return skip message', async () => {
-    const result = await validateGapInternal(mockState, {
+    const result = await validateGapInternal({ status: 'ok', state: mockState }, {
       skipTests: true
     });
 
@@ -41,7 +41,7 @@ describe('validateGapInternal', () => {
     delete process.env.SDD_SKIP_TEST_EXECUTION;
 
     try {
-      const result = await validateGapInternal(mockState, {
+      const result = await validateGapInternal({ status: 'ok', state: mockState }, {
         skipTests: false
       });
 
