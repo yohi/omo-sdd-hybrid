@@ -1,64 +1,66 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-23
+**Generated:** 2026-01-27
 **Context:** OmO-SDD-Hybrid (OpenCode Plugin)
 **Stack:** TypeScript, Bun, OpenCode API
 
 ## OVERVIEW
-OpenCode環境における「仕様逸脱（Vibe Coding）」を物理的に抑止するためのプラグインプロジェクト。
-仕様駆動開発（SDD）を強制するため、タスクベースのファイルアクセス制御（Gatekeeper）を提供する。
+OpenCode環境における「仕様逸脱（Vibe Coding）」を物理的に抑止するプラグイン。
+タスクベースのファイルアクセス制御（Gatekeeper）を提供し、仕様駆動開発（SDD）を強制する。
 
 ## STRUCTURE
-ソースコードが `src/` ではなく `.opencode/` に隠蔽されているのが最大の特徴。
+ソースコードが `.opencode/` に隠蔽される "Hybrid" 構成。
 
 ```
 omo-sdd-hybrid/
-├── .opencode/           # [CORE] ソースコードの実体
-│   ├── plugins/         # 監視・制御ロジック (Gatekeeper)
-│   ├── tools/           # CLIコマンド (start/end task)
-│   ├── lib/             # 共通ロジック (Parser, State)
-│   └── state/           # 実行時状態と履歴
-├── specs/               # [USER] 仕様・タスク定義 (SDDの起点)
-├── __tests__/           # [DEV] テスト (.opencodeと鏡像構成)
-└── package.json         # 開発用設定
+├── .opencode/           # [CORE] プラグインの実体
+│   ├── plugins/         # Gatekeeper, Context Injector
+│   ├── tools/           # CLIコマンド実装 (sdd_start_task等)
+│   ├── lib/             # 共通ロジック & 状態管理
+│   └── state/           # 実行時状態 (lock, active-task)
+├── src/                 # [USER] SDD管理対象のコード領域
+├── specs/               # [USER] タスク・仕様定義
+├── __tests__/           # [DEV] テスト (.opencodeと鏡像)
+└── package.json         # 開発用 (テスト, ビルド)
 ```
 
 ## WHERE TO LOOK
 
 | Task | Location | Notes |
 |------|----------|-------|
-| **タスク定義の確認** | `specs/tasks.md` | ユーザーが編集する唯一のエントリーポイント |
-| **ファイル監視ロジック** | `.opencode/plugins/sdd-gatekeeper.ts` | `tool.execute.before` をフックして検証 |
-| **CLIコマンド実装** | `.opencode/tools/` | `sdd_start_task.ts` 等の実装 |
-| **状態管理ロジック** | `.opencode/lib/state-utils.ts` | JSON読み書き、アトミック操作 |
+| **Core Logic** | `.opencode/` | プラグインの全機能はこの中にある |
+| **Task Defs** | `specs/tasks.md` | ユーザーが編集する唯一のエントリーポイント |
+| **Gatekeeper** | `.opencode/plugins/sdd-gatekeeper.ts` | ファイル書き込み監視・ブロックロジック |
+| **State Mgr** | `.opencode/lib/state-utils.ts` | 排他制御付き状態管理 (Manual edit禁止) |
+| **CLI Tools** | `.opencode/tools/*.ts` | 各コマンドの実装 |
 
 ## CONVENTIONS
 
-### 開発フロー (SDD Cycle)
-1. **Architect**: `specs/tasks.md` にタスクとScopeを定義。
-2. **Implementer**: `sdd_start_task <ID>` を実行して権限を取得。
-3. **Coding**: `allowedScopes` 内のファイルのみ編集。
-4. **Validate**: `sdd_validate_gap` で整合性チェック。
-5. **End**: `sdd_end_task` で完了。
+### Hybrid Package Structure
+| File | Role |
+|------|------|
+| `./package.json` | プロジェクト開発用 (Bun, Test, DevDeps) |
+| `.opencode/package.json` | プラグイン実行用 (Runtime Deps) |
 
-### 実装ルール
-- **言語**: TypeScript (Bunランタイム)。
-- **依存管理**: ルート（開発用）と `.opencode/`（プラグイン用）で `package.json` が分離されている。
-- **状態更新**: 必ず `lib/state-utils.ts` を経由する（`proper-lockfile` 対応）。
+### SDD Cycle
+1. **Define**: `specs/tasks.md` にタスクとScopeを記述
+2. **Start**: `sdd_start_task <ID>` で権限取得
+3. **Code**: Scope内のみ編集可能
+4. **Validate**: `sdd_validate_gap` で整合性確認
+5. **End**: `sdd_end_task` で完了
 
 ## ANTI-PATTERNS (THIS PROJECT)
-- **[FORBIDDEN] Vibe Coding**: `sdd_start_task` なしでのコード編集（Gatekeeperによりブロック）。
-- **[FORBIDDEN] Destructive Bash**: `rm`, `git push` 等はプラグインにより物理的に禁止。
-- **[Avoid] Manual State Edit**: `.opencode/state/` 内の JSON を手動で書き換えない。
+- **[FORBIDDEN] Vibe Coding**: `sdd_start_task` なしでのコード編集（Gatekeeperがブロック）。
+- **[FORBIDDEN] Manual State Edit**: `.opencode/state/` 内のJSONを直接編集しない。
+- **[FORBIDDEN] Destructive Bash**: `rm`, `git push` 等は物理的に禁止。
 
 ## UNIQUE STYLES
-- **Hidden Source**: メインロジックは `.opencode/` 内に隠蔽。
+- **Hidden Source**: コアロジックは `.opencode/` に配置。`src/` は管理対象。
 - **Mirror Testing**: `__tests__` は `.opencode` の構造を厳密に反映。
-- **Japanese Only**: コミットメッセージ、ドキュメントは全て日本語。
+- **Japanese Only**: コミットメッセージ、ドキュメント、コメントは全て日本語。
 
 ## COMMANDS
 ```bash
-bun install      # 依存関係インストール
 bun test         # 全テスト実行
 bun test:seq     # 直列実行（ステート依存テスト用）
 ```
