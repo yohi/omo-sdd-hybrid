@@ -1,7 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { getEmbeddings, isEmbeddingsEnabled } from './embeddings-provider';
-import type { ExtractedRequirement } from './spec-parser';
+
+// spec-parser.ts から移動した型定義
+export interface ExtractedRequirement {
+  id: string;
+  description: string;
+  acceptanceCriteria: string[];
+}
 
 export interface SemanticAnalysisResult {
   gaps: string[];

@@ -1,10 +1,57 @@
 import { tool } from '../lib/plugin-stub';
-import { parseTasksFile, ScopeFormatError, ParsedTask } from '../lib/tasks-parser';
 import { writeState } from '../lib/state-utils';
 import fs from 'fs';
 
 function getTasksPath() {
   return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+}
+
+// tasks-parser.ts から移動した型・関数
+export interface ParsedTask {
+  id: string;
+  title: string;
+  scopes: string[];
+  done: boolean;
+}
+
+export class ScopeFormatError extends Error {
+  taskId?: string;
+  constructor(message: string, taskId?: string) {
+    super(message);
+    this.name = 'ScopeFormatError';
+    this.taskId = taskId;
+  }
+}
+
+function parseScopes(scopeStr: string): string[] {
+  const backtickRegex = /`([^`]*)`/g;
+  const matches = [...scopeStr.matchAll(backtickRegex)];
+  return matches.map(m => m[1]).filter(s => s.trim().length > 0);
+}
+
+function parseTasksFile(content: string): ParsedTask[] {
+  const lines = content.split('\n');
+  const tasks: ParsedTask[] = [];
+  const taskRegex = /^\* \[([ x])\] ([A-Za-z][A-Za-z0-9_-]*-\d+): (.+?) \(Scope: (.+)\)$/;
+
+  for (const line of lines) {
+    const match = line.match(taskRegex);
+    if (match) {
+      const [, doneStr, id, title, scopeStr] = match;
+      const done = doneStr === 'x';
+      const scopes = parseScopes(scopeStr);
+      
+      if (scopes.length === 0 && !scopeStr.includes('`')) {
+        if (process.env.SDD_SCOPE_FORMAT === 'strict') {
+          throw new ScopeFormatError(`Scope must be enclosed in backticks: ${scopeStr}`, id);
+        }
+      }
+      
+      tasks.push({ id, title, scopes, done });
+    }
+  }
+  
+  return tasks;
 }
 
 export default tool({
