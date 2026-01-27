@@ -1,5 +1,11 @@
 import { matchesScope } from './glob-utils';
-import type { ExtractedDesign } from './spec-parser';
+
+// spec-parser.ts から移動した型定義
+export interface ExtractedDesign {
+  impactedFiles: string[];
+  components: string[];
+  dependencies: string[];
+}
 
 /**
  * カバレッジ分析結果を表す構造体
