@@ -6,10 +6,12 @@ import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 describe('sdd_lint_tasks', () => {
   let tasksPath: string;
   let originalCwd: string;
+  let originalSddTasksPath: string | undefined;
 
   beforeEach(() => {
     const tmpDir = setupTestState();
     originalCwd = process.cwd();
+    originalSddTasksPath = process.env.SDD_TASKS_PATH;
     
     const kiroSpecsDir = path.join(tmpDir, '.kiro', 'specs');
     fs.mkdirSync(kiroSpecsDir, { recursive: true });
@@ -22,6 +24,11 @@ describe('sdd_lint_tasks', () => {
 
   afterEach(() => {
     process.chdir(originalCwd);
+    if (originalSddTasksPath === undefined) {
+      delete process.env.SDD_TASKS_PATH;
+    } else {
+      process.env.SDD_TASKS_PATH = originalSddTasksPath;
+    }
     cleanupTestState();
   });
 
