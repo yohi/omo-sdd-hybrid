@@ -1,8 +1,31 @@
 import { tool } from '../lib/plugin-stub';
 import fs from 'fs';
+import path from 'path';
 
 function getTasksPath(feature?: string) {
-  return process.env.SDD_TASKS_PATH || `.kiro/specs/${feature || 'default'}/tasks.md`;
+  if (process.env.SDD_TASKS_PATH) {
+    return process.env.SDD_TASKS_PATH;
+  }
+
+  const baseDir = '.kiro/specs';
+  // Sanitize feature input
+  const featureName = feature || 'default';
+  
+  // Basic sanity check for null bytes and obvious traversal attempts
+  if (featureName.includes('\0') || featureName.includes('..')) {
+    throw new Error('Invalid feature name: contains forbidden characters or segments');
+  }
+
+  const resolvedBase = path.resolve(baseDir);
+  const candidatePath = path.join(baseDir, featureName, 'tasks.md');
+  const resolvedPath = path.resolve(candidatePath);
+
+  // Path Traversal Protection: Ensure resolved path is still within the base directory
+  if (!resolvedPath.startsWith(resolvedBase)) {
+    throw new Error(`Access Denied: Path traversal detected. Resolved path '${resolvedPath}' is outside base '${resolvedBase}'`);
+  }
+
+  return resolvedPath;
 }
 
 // Regex: * [x] TaskID: Description (Scope: `pattern`)
@@ -79,7 +102,12 @@ export default tool({
     feature: tool.schema.string().optional().describe('検証する機能名（.kiro/specs/配下のディレクトリ名）')
   },
   async execute({ feature }) {
-    const tasksPath = getTasksPath(feature);
+    let tasksPath: string;
+    try {
+      tasksPath = getTasksPath(feature);
+    } catch (error: any) {
+      return `エラー: パス解決に失敗しました (${error.message})`;
+    }
     
     if (!fs.existsSync(tasksPath)) {
       return `エラー: ${tasksPath} が見つかりません`;
