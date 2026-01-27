@@ -3,11 +3,17 @@ import fs from 'fs';
 import path from 'path';
 
 function getTasksPath(feature?: string) {
+  const baseDir = '.kiro/specs';
+  const resolvedBase = path.resolve(baseDir);
+
   if (process.env.SDD_TASKS_PATH) {
-    return process.env.SDD_TASKS_PATH;
+    const resolvedEnv = path.resolve(process.env.SDD_TASKS_PATH);
+    if (resolvedEnv.includes('\0') || resolvedEnv.includes('..') || !resolvedEnv.startsWith(resolvedBase)) {
+       throw new Error(`Access Denied: Path traversal detected. SDD_TASKS_PATH '${resolvedEnv}' is outside base '${resolvedBase}'`);
+    }
+    return resolvedEnv;
   }
 
-  const baseDir = '.kiro/specs';
   // Sanitize feature input
   const featureName = feature || 'default';
   
@@ -16,7 +22,6 @@ function getTasksPath(feature?: string) {
     throw new Error('Invalid feature name: contains forbidden characters or segments');
   }
 
-  const resolvedBase = path.resolve(baseDir);
   const candidatePath = path.join(baseDir, featureName, 'tasks.md');
   const resolvedPath = path.resolve(candidatePath);
 

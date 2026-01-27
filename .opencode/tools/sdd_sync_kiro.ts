@@ -95,7 +95,7 @@ export default tool({
       }
 
       const kiroContent = fs.readFileSync(kiroTasksPath, 'utf-8');
-      const kiroTasks = parseTasksFromContent(kiroContent, true);
+      
       let kiroModified = false;
       const newKiroLines: string[] = [];
 

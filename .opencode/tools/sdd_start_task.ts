@@ -100,7 +100,7 @@ export default tool({
       }
       determinedRole = role as 'architect' | 'implementer';
     } else {
-      if (taskId.startsWith('.kiro/') || /^KIRO-\d+$/.test(taskId)) {
+      if (/^KIRO-\d+$/.test(taskId)) {
         determinedRole = 'architect';
       } else {
         determinedRole = 'implementer';

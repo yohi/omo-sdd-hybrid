@@ -9,7 +9,11 @@ describe('sdd-gatekeeper guard mode priority', () => {
   });
 
   afterEach(() => {
-    process.env.SDD_GUARD_MODE = originalEnv;
+    if (originalEnv === undefined) {
+      delete process.env.SDD_GUARD_MODE;
+    } else {
+      process.env.SDD_GUARD_MODE = originalEnv;
+    }
   });
 
   test('file=block overrides env=warn', async () => {

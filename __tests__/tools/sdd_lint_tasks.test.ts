@@ -1,16 +1,27 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
+import path from 'path';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 describe('sdd_lint_tasks', () => {
   let tasksPath: string;
+  let originalCwd: string;
 
   beforeEach(() => {
-    setupTestState();
-    tasksPath = process.env.SDD_TASKS_PATH!;
+    const tmpDir = setupTestState();
+    originalCwd = process.cwd();
+    
+    const kiroSpecsDir = path.join(tmpDir, '.kiro', 'specs');
+    fs.mkdirSync(kiroSpecsDir, { recursive: true });
+    
+    process.chdir(tmpDir);
+    
+    tasksPath = path.join(kiroSpecsDir, 'tasks.md');
+    process.env.SDD_TASKS_PATH = tasksPath;
   });
 
   afterEach(() => {
+    process.chdir(originalCwd);
     cleanupTestState();
   });
 
@@ -35,7 +46,7 @@ describe('sdd_lint_tasks', () => {
   });
 
   test('detects invalid TaskID format', async () => {
-    fs.writeFileSync(tasksPath, '# Tasks\n\n* [ ] invalid-1: Test (Scope: `src/**`)\n');
+    fs.writeFileSync(tasksPath, '# Tasks\n\n* [ ] TaskNoNumber: Test (Scope: `src/**`)\n');
 
     const sddLintTasks = await import('../../.opencode/tools/sdd_lint_tasks');
     const result = await sddLintTasks.default.execute({}, {} as any);

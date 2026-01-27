@@ -23,7 +23,7 @@ describe('validateGapInternal', () => {
   };
 
   test('skipTests: true should return skip message', async () => {
-    const result = await validateGapInternal({ status: 'ok', state: mockState }, {
+    const result = await validateGapInternal(mockState, {
       skipTests: true
     });
 
@@ -36,12 +36,12 @@ describe('validateGapInternal', () => {
     // But specifically 'SKIP: テスト実行はスキップされました（手動で実行してください）' should only appear
     // if skipTests is true OR env var SDD_SKIP_TEST_EXECUTION is true.
     
-    const result = await validateGapInternal({ status: 'ok', state: mockState }, {
+    const result = await validateGapInternal(mockState, {
       skipTests: false
     });
 
     // The message 'SKIP: テスト実行はスキップされました（手動で実行してください）'
     // comes from runScopedTests when skip is requested.
-    expect(result).toContain('Step 2 で実装予定');
+    expect(result).toContain('SKIP: テストスコープが定義されていません');
   });
 });
