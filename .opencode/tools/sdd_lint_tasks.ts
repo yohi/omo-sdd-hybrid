@@ -1,12 +1,12 @@
 import { tool } from '../lib/plugin-stub';
 import fs from 'fs';
 
-function getTasksPath() {
-  return process.env.SDD_TASKS_PATH || '.kiro/specs/default/tasks.md';
+function getTasksPath(feature?: string) {
+  return process.env.SDD_TASKS_PATH || `.kiro/specs/${feature || 'default'}/tasks.md`;
 }
 
 // Regex: * [x] TaskID: Description (Scope: `pattern`)
-const TASK_LINE_PATTERN = /^\* \[([ x])\] ([^:]+): (.+) \(Scope: `(.*)`\)$/;
+const TASK_LINE_PATTERN = /^[\*-] \[([ x])\] ([^:]+): (.+) \(Scope: `(.*)`\)$/;
 
 interface ValidationError {
   line: number;
@@ -26,7 +26,7 @@ function validateTasksFile(filePath: string): ValidationError[] {
       continue;
     }
 
-    if (line.startsWith('* [')) {
+    if (line.startsWith('* [') || line.startsWith('- [')) {
       const match = TASK_LINE_PATTERN.exec(line);
       
       if (!match) {
@@ -40,7 +40,7 @@ function validateTasksFile(filePath: string): ValidationError[] {
 
       const [, checkbox, taskId, description, scope] = match;
 
-      if (!/^[A-Z][a-zA-Z]+-\d+$/.test(taskId)) {
+      if (!/^[A-Za-z0-9._-]+-\d+$/.test(taskId)) {
         errors.push({
           line: i + 1,
           content: line,
@@ -67,7 +67,7 @@ export default tool({
     feature: tool.schema.string().optional().describe('検証する機能名（.kiro/specs/配下のディレクトリ名）')
   },
   async execute({ feature }) {
-    const tasksPath = getTasksPath();
+    const tasksPath = getTasksPath(feature);
     
     if (!fs.existsSync(tasksPath)) {
       return `エラー: ${tasksPath} が見つかりません`;
