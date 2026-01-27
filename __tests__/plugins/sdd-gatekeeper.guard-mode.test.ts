@@ -1,7 +1,17 @@
-import { describe, test, expect, mock } from 'bun:test';
+import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
 import SddGatekeeper from '../../.opencode/plugins/sdd-gatekeeper';
 
 describe('sdd-gatekeeper guard mode priority', () => {
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    originalEnv = process.env.SDD_GUARD_MODE;
+  });
+
+  afterEach(() => {
+    process.env.SDD_GUARD_MODE = originalEnv;
+  });
+
   test('file=block overrides env=warn', async () => {
     const mockReadGuardModeState = mock(() => Promise.resolve({
       mode: 'block',
