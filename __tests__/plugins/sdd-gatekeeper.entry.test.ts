@@ -1,9 +1,6 @@
-import { describe, test, expect, spyOn } from 'bun:test';
+import { describe, test, expect, mock } from 'bun:test';
 import SddGatekeeper from '../../.opencode/plugins/sdd-gatekeeper';
-import * as StateUtils from '../../.opencode/lib/state-utils';
 
-// Mock state-utils to avoid file I/O dependence
-// Using a simple mock since we just want to verify argument handling
 const mockStateResult = {
   status: 'ok',
   state: {
@@ -18,16 +15,19 @@ const mockStateResult = {
 
 describe('SddGatekeeper Entry Point', () => {
   test('handles tool event with undefined args gracefully', async () => {
-    spyOn(StateUtils, 'readState').mockReturnValue(mockStateResult as any);
+    const mockReadState = mock(() => Promise.resolve(mockStateResult as any));
+    const mockReadGuardModeState = mock(() => Promise.resolve(null));
 
-    const plugin = await SddGatekeeper({ client: {} as any });
+    const plugin = await SddGatekeeper({
+      client: {} as any,
+      __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
+    } as any);
     const handler = plugin['tool.execute.before'];
 
     if (!handler) {
       throw new Error('Handler not found');
     }
     
-    // Simulate event with undefined args
     const event = {
       tool: {
         name: 'edit',
@@ -35,21 +35,22 @@ describe('SddGatekeeper Entry Point', () => {
       }
     };
 
-    // Should not throw TypeError
     try {
       await handler(event);
     } catch (e: any) {
-      // It might throw Error from evaluateAccess due to missing filePath (Rule1)
-      // but it should NOT throw TypeError: undefined is not an object
       expect(e).toBeInstanceOf(Error);
       expect(e.message).not.toContain('undefined is not an object');
-      // Depending on implementation, it might throw "[SDD-GATEKEEPER] MISSING_FILEPATH"
     }
   });
 
   test('handles multiedit with invalid files arg via entry point', async () => {
-    spyOn(StateUtils, 'readState').mockReturnValue(mockStateResult as any);
-    const plugin = await SddGatekeeper({ client: {} as any });
+    const mockReadState = mock(() => Promise.resolve(mockStateResult as any));
+    const mockReadGuardModeState = mock(() => Promise.resolve(null));
+    
+    const plugin = await SddGatekeeper({
+      client: {} as any,
+      __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
+    } as any);
     const handler = plugin['tool.execute.before'];
 
     if (!handler) throw new Error('Handler not found');
@@ -58,7 +59,7 @@ describe('SddGatekeeper Entry Point', () => {
       tool: {
         name: 'multiedit',
         args: {
-          files: "not-an-array" // Invalid type
+          files: "not-an-array"
         }
       }
     };

@@ -1,10 +1,13 @@
 import { tool } from '../lib/plugin-stub';
-import { clearState, readState } from '../lib/state-utils';
+import { clearState as defaultClearState, readState as defaultReadState } from '../lib/state-utils';
 
 export default tool({
   description: '現在のタスクを終了し、State をクリアします',
   args: {},
-  async execute() {
+  async execute(_args, context: any) {
+    const readState = context?.__testDeps?.readState ?? defaultReadState;
+    const clearState = context?.__testDeps?.clearState ?? defaultClearState;
+
     const stateResult = await readState();
     
     if (stateResult.status === 'not_found') {

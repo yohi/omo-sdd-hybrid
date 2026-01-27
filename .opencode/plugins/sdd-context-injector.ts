@@ -1,8 +1,11 @@
 import type { Plugin } from '../lib/plugin-stub';
-import { readState, readGuardModeState } from '../lib/state-utils';
+import { readState as defaultReadState, readGuardModeState as defaultReadGuardModeState } from '../lib/state-utils';
 import { determineEffectiveGuardMode } from '../lib/access-policy';
 
-const SddContextInjector: Plugin = async () => {
+const SddContextInjector: Plugin = async (options: any) => {
+  const readState = options?.__testDeps?.readState ?? defaultReadState;
+  const readGuardModeState = options?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
+
   return {
     'experimental.chat.system.transform': async (_input, output) => {
       try {

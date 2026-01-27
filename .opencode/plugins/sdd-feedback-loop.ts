@@ -1,6 +1,6 @@
 import type { Plugin } from '../lib/plugin-stub';
-import { readState } from '../lib/state-utils';
-import { validateGapInternal } from '../tools/sdd_validate_gap';
+import { readState as defaultReadState } from '../lib/state-utils';
+import { validateGapInternal as defaultValidateGapInternal } from '../tools/sdd_validate_gap';
 
 // Simple throttle mechanism: taskId -> lastExecutionTimestamp
 const lastExecutionMap = new Map<string, number>();
@@ -8,7 +8,10 @@ const THROTTLE_MS = 2000; // 2 seconds throttle
 
 const TRIGGER_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
 
-const SddFeedbackLoop: Plugin = async ({ client }) => {
+const SddFeedbackLoop: Plugin = async (options) => {
+  const readState = options?.__testDeps?.readState ?? defaultReadState;
+  const validateGapInternal = options?.__testDeps?.validateGapInternal ?? defaultValidateGapInternal;
+
   return {
     'tool.execute.after': async (input: any, output: any) => {
       // Handle tool name variation (string vs object)

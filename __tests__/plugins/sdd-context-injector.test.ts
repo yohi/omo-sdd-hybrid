@@ -5,10 +5,6 @@ import SddContextInjector from '../../.opencode/plugins/sdd-context-injector';
 const mockReadState = mock(() => Promise.resolve({ status: 'not_found' }));
 const mockReadGuardModeState = mock(() => Promise.resolve(null));
 
-mock.module('../../.opencode/lib/state-utils', () => ({
-  readState: mockReadState,
-  readGuardModeState: mockReadGuardModeState
-}));
 
 describe('SddContextInjector', () => {
   beforeEach(() => {
@@ -25,7 +21,9 @@ describe('SddContextInjector', () => {
     mockReadState.mockResolvedValue({ status: 'not_found' });
     mockReadGuardModeState.mockResolvedValue(null);
 
-    const plugin = await SddContextInjector({} as any);
+    const plugin = await SddContextInjector({
+      __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
+    } as any);
     const hook = plugin['experimental.chat.system.transform'];
     
     expect(hook).toBeDefined();
@@ -53,7 +51,9 @@ describe('SddContextInjector', () => {
     });
     mockReadGuardModeState.mockResolvedValue({ mode: 'block', updatedAt: 'now', updatedBy: 'admin' });
 
-    const plugin = await SddContextInjector({} as any);
+    const plugin = await SddContextInjector({
+      __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
+    } as any);
     const hook = plugin['experimental.chat.system.transform'];
     const output = { system: [] as string[] };
     
@@ -79,7 +79,9 @@ describe('SddContextInjector', () => {
       }
     });
 
-    const plugin = await SddContextInjector({} as any);
+    const plugin = await SddContextInjector({
+      __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
+    } as any);
     const hook = plugin['experimental.chat.system.transform'];
     const output = { system: [] as string[] };
     
@@ -97,7 +99,9 @@ describe('SddContextInjector', () => {
     console.warn = consoleSpy;
 
     try {
-      const plugin = await SddContextInjector({} as any);
+      const plugin = await SddContextInjector({
+      __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
+    } as any);
       const hook = plugin['experimental.chat.system.transform'];
       const output = { system: [] as string[] };
       
