@@ -12,19 +12,16 @@
 最も重要なファイルは `tasks.md` である。
 
 ### tasks.md structure
-各タスクは以下の要素を持つ必要がある：
-- **ID**: 一意の識別子（例: `TASK-001`）
-- **Description**: 何をするか
-- **Status**: `TODO`, `IN_PROGRESS`, `DONE`
-- **Scope**: このタスクで変更を許可するファイルパス（Globパターン可）
+各タスクは以下の要素を持つ（Markdownのチェックボックスリスト形式）：
+- **Checkbox**: ステータスを表す (`[ ]`=TODO/IN_PROGRESS, `[x]`=DONE)
+- **ID**: 一意の識別子（例: `Task-1`）
+- **Description**: タスクの説明
+- **Scope**: このタスクで変更を許可するファイルパス（括弧内にGlobパターン記述）
 
 ```markdown
 # Tasks
-## [TASK-001] Feature X Implementation
-- Status: TODO
-- Scope:
-  - src/feature-x/**/*.ts
-  - specs/feature-x.md
+* [ ] Task-1: Feature X Implementation (Scope: `src/feature-x/**/*.ts`, `specs/feature-x.md`)
+* [x] Task-2: Bug Fix Y (Scope: `src/utils.ts`)
 ```
 
 ## EDITING RULES
