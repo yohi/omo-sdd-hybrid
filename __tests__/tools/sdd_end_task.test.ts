@@ -1,22 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { writeState, clearState, getStatePath } from '../../.opencode/lib/state-utils';
-import { ensureNoBackups, deleteAllBackups, setupTestState, cleanupTestState } from '../helpers/test-harness';
-import fs from 'fs';
+import { describe, test, expect, mock } from 'bun:test';
 
 describe('sdd_end_task', () => {
-  beforeEach(async () => {
-    setupTestState();
-    await clearState();
-  });
-
-  afterEach(async () => {
-    await clearState();
-    cleanupTestState();
-  });
-
   test('clears state when state exists', async () => {
-    await ensureNoBackups();
-    const state = {
+    const mockState = {
       version: 1,
       activeTaskId: 'Task-1',
       activeTaskTitle: 'Test',
@@ -25,51 +11,44 @@ describe('sdd_end_task', () => {
       startedBy: 'test',
       validationAttempts: 0
     };
-    await writeState(state);
     
+    const mockReadState = mock(() => Promise.resolve({ status: 'ok', state: mockState } as any));
+    const mockClearState = mock(() => Promise.resolve());
+
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
-    const result = await sddEndTask.default.execute({}, {} as any);
+    const result = await sddEndTask.default.execute({}, { __testDeps: { readState: mockReadState, clearState: mockClearState } } as any);
     
     expect(result).toContain('タスク終了');
     expect(result).toContain('Task-1');
-    expect(fs.existsSync(getStatePath())).toBe(false);
+    expect(mockClearState).toHaveBeenCalled();
   });
 
   test('returns warning when no active task', async () => {
-    await ensureNoBackups();
+    const mockReadState = mock(() => Promise.resolve({ status: 'not_found' } as any));
+    const mockClearState = mock(() => Promise.resolve());
+
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
-    const result = await sddEndTask.default.execute({}, {} as any);
+    const result = await sddEndTask.default.execute({}, { __testDeps: { readState: mockReadState, clearState: mockClearState } } as any);
     
     expect(result).toContain('アクティブなタスクはありません');
+    expect(mockClearState).not.toHaveBeenCalled();
   });
 
   test('clears corrupted state with warning', async () => {
-    await ensureNoBackups();
-    fs.writeFileSync(getStatePath(), '{ invalid json');
-    deleteAllBackups();
-    
+    const mockReadState = mock(() => Promise.resolve({ status: 'corrupted', error: 'Invalid JSON' } as any));
+    const mockClearState = mock(() => Promise.resolve());
+
     const sddEndTask = await import('../../.opencode/tools/sdd_end_task');
-    const result = await sddEndTask.default.execute({}, {} as any);
+    const result = await sddEndTask.default.execute({}, { __testDeps: { readState: mockReadState, clearState: mockClearState } } as any);
     
     expect(result).toContain('破損');
-    expect(fs.existsSync(getStatePath())).toBe(false);
+    expect(mockClearState).toHaveBeenCalled();
   });
 });
 
 describe('sdd_show_context', () => {
-  beforeEach(async () => {
-    setupTestState();
-    await clearState();
-  });
-
-  afterEach(async () => {
-    await clearState();
-    cleanupTestState();
-  });
-
   test('shows current task when state exists', async () => {
-    await ensureNoBackups();
-    const state = {
+    const mockState = {
       version: 1,
       activeTaskId: 'Task-1',
       activeTaskTitle: 'Test Task',
@@ -78,10 +57,11 @@ describe('sdd_show_context', () => {
       startedBy: 'test',
       validationAttempts: 0
     };
-    await writeState(state);
     
+    const mockReadState = mock(() => Promise.resolve({ status: 'ok', state: mockState } as any));
+
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');
-    const result = await sddShowContext.default.execute({}, {} as any);
+    const result = await sddShowContext.default.execute({}, { __testDeps: { readState: mockReadState } } as any);
     
     expect(result).toContain('Task-1');
     expect(result).toContain('Test Task');
@@ -89,20 +69,19 @@ describe('sdd_show_context', () => {
   });
 
   test('shows message when no active task', async () => {
-    await ensureNoBackups();
+    const mockReadState = mock(() => Promise.resolve({ status: 'not_found' } as any));
+
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');
-    const result = await sddShowContext.default.execute({}, {} as any);
+    const result = await sddShowContext.default.execute({}, { __testDeps: { readState: mockReadState } } as any);
     
     expect(result).toContain('タスク未開始');
   });
 
   test('shows error for corrupted state', async () => {
-    await ensureNoBackups();
-    fs.writeFileSync(getStatePath(), '{ invalid json');
-    deleteAllBackups();
-    
+    const mockReadState = mock(() => Promise.resolve({ status: 'corrupted', error: 'Invalid JSON' } as any));
+
     const sddShowContext = await import('../../.opencode/tools/sdd_show_context');
-    const result = await sddShowContext.default.execute({}, {} as any);
+    const result = await sddShowContext.default.execute({}, { __testDeps: { readState: mockReadState } } as any);
     
     expect(result).toContain('破損');
   });

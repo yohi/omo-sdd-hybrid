@@ -64,6 +64,37 @@ describe('sdd_start_task', () => {
       .rejects.toThrow('E_SCOPE_MISSING');
   });
 
+  test('assigns implementer role by default', async () => {
+    fs.writeFileSync(tasksPath, '* [ ] Task-1: Test (Scope: `src/**`)');
+    const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+    await sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any);
+    const state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('implementer');
+  });
+
+  test('assigns architect role for KIRO tasks', async () => {
+    fs.writeFileSync(tasksPath, '* [ ] KIRO-123: Kiro Task (Scope: `src/**`)');
+    const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+    await sddStartTask.default.execute({ taskId: 'KIRO-123' }, {} as any);
+    const state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('architect');
+  });
+
+  test('assigns explicitly provided role', async () => {
+    fs.writeFileSync(tasksPath, '* [ ] Task-1: Test (Scope: `src/**`)');
+    const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+    await sddStartTask.default.execute({ taskId: 'Task-1', role: 'architect' }, {} as any);
+    const state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('architect');
+  });
+
+  test('throws for invalid role', async () => {
+    fs.writeFileSync(tasksPath, '* [ ] Task-1: Test (Scope: `src/**`)');
+    const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+    await expect(sddStartTask.default.execute({ taskId: 'Task-1', role: 'invalid' as any }, {} as any))
+      .rejects.toThrow('E_INVALID_ROLE');
+  });
+
   describe('strict mode (SDD_SCOPE_FORMAT=strict)', () => {
     const originalEnv = process.env.SDD_SCOPE_FORMAT;
     

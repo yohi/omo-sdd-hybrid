@@ -22,6 +22,7 @@ export interface State {
   startedAt: string;
   startedBy: string;
   validationAttempts: number;
+  role: 'architect' | 'implementer' | null;
 }
 
 export type StateResult = 
@@ -104,6 +105,14 @@ export async function writeState(state: State): Promise<void> {
 function validateState(state: unknown): state is State {
   if (!state || typeof state !== 'object') return false;
   const s = state as Record<string, unknown>;
+
+  // Check role if present (backward compatibility: allow missing, check valid if present)
+  if ('role' in s) {
+    if (s.role !== 'architect' && s.role !== 'implementer' && s.role !== null) {
+      return false;
+    }
+  }
+
   return (
     typeof s.version === 'number' && Number.isFinite(s.version) &&
     typeof s.activeTaskId === 'string' && s.activeTaskId.trim() !== '' &&
@@ -120,7 +129,11 @@ function tryParseState(filePath: string): { ok: true; state: State } | { ok: fal
     const content = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(content);
     if (validateState(parsed)) {
-      return { ok: true, state: parsed };
+      // Migration: Inject default role if missing
+      if (!('role' in parsed)) {
+        (parsed as any).role = null;
+      }
+      return { ok: true, state: parsed as State };
     }
     return { ok: false, error: 'Invalid state schema' };
   } catch (error) {
