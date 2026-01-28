@@ -78,6 +78,12 @@ export default tool({
     }
     
     if (task.scopes.length === 0) {
+      const rawScope = task.rawScopeText?.trim();
+      if (rawScope && rawScope.replace(/`/g, '').trim().length > 0) {
+        throw new Error(
+          `E_SCOPE_FORMAT: ${taskId} の Scope 形式が不正です。バッククォートで囲んでください: (Scope: \`path/**\`)`
+        );
+      }
       throw new Error(`E_SCOPE_MISSING: ${taskId} に Scope が定義されていません`);
     }
 

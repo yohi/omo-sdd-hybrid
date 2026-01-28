@@ -113,7 +113,12 @@ export function validateKiroIntegration(kiroSpec?: string, deep?: boolean): stri
     return `WARN: 不正な kiroSpec が指定されました: ${kiroSpec}`;
   }
 
-  if (!fs.existsSync(resolvedSpecDir)) {
+  try {
+    const stat = fs.statSync(resolvedSpecDir);
+    if (!stat.isDirectory()) {
+      return `WARN: 仕様ディレクトリが見つかりません: ${resolvedSpecDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
+    }
+  } catch {
     return `WARN: 仕様ディレクトリが見つかりません: ${resolvedSpecDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
   }
 
