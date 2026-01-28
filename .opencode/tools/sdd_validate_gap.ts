@@ -96,15 +96,25 @@ function checkDiagnostics(allowedScopes: string[], changedFiles: string[] | null
 }
 
 export function validateKiroIntegration(kiroSpec?: string, deep?: boolean): string {
-  if (!kiroSpec) {
+  if (!kiroSpec || kiroSpec.trim() === '') {
     return 'INFO: kiroSpec が指定されていません。仕様とのギャップ分析を行うには --kiroSpec <feature> を指定してください。';
   }
 
   const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
-  const specDir = path.join(kiroDir, 'specs', kiroSpec);
+  const baseSpecsDir = path.resolve(kiroDir, 'specs');
 
-  if (!fs.existsSync(specDir)) {
-    return `WARN: 仕様ディレクトリが見つかりません: ${specDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
+  if (kiroSpec.includes('\0') || path.isAbsolute(kiroSpec) || kiroSpec.split(/[/\\]/).includes('..')) {
+    return `WARN: 不正な kiroSpec が指定されました: ${kiroSpec}`;
+  }
+
+  const resolvedSpecDir = path.resolve(baseSpecsDir, kiroSpec);
+  const relative = path.relative(baseSpecsDir, resolvedSpecDir);
+  if (relative === '..' || relative.startsWith('..' + path.sep)) {
+    return `WARN: 不正な kiroSpec が指定されました: ${kiroSpec}`;
+  }
+
+  if (!fs.existsSync(resolvedSpecDir)) {
+    return `WARN: 仕様ディレクトリが見つかりません: ${resolvedSpecDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
   }
 
   const reports: string[] = [];
@@ -120,7 +130,7 @@ export function validateKiroIntegration(kiroSpec?: string, deep?: boolean): stri
   let tasksInfo = '';
 
   for (const file of files) {
-    const filePath = path.join(specDir, file.name);
+    const filePath = path.join(resolvedSpecDir, file.name);
     if (fs.existsSync(filePath)) {
       statusLines.push(`[PASS] ${file.name}`);
       

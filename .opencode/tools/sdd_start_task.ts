@@ -3,6 +3,10 @@ import { writeState } from '../lib/state-utils';
 import fs from 'fs';
 import { parseSddTasks } from '../lib/tasks_markdown';
 
+const processLogger = {
+  error: (...args: any[]) => console.error(...args),
+};
+
 function getTasksPath() {
   return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
 }
@@ -29,8 +33,20 @@ export default tool({
     }
     
     const content = fs.readFileSync(tasksPath, 'utf-8');
-    
-    const { tasks } = parseSddTasks(content, { validateScopes: false });
+
+    const result = parseSddTasks(content, { validateScopes: false });
+    if (result.errors.length > 0) {
+      processLogger.error('[SDD] tasks.md のパースに失敗しました', {
+        tasksPath,
+        errors: result.errors,
+      });
+      throw new Error(
+        `E_TASKS_PARSE_ERROR: ${tasksPath} の解析に失敗しました。\n` +
+          result.errors.map(e => `- L${e.line}: ${e.reason} (${e.content})`).join('\n')
+      );
+    }
+
+    const { tasks } = result;
     
     try {
       if (process.env.SDD_SCOPE_FORMAT === 'strict') {

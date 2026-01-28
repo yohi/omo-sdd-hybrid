@@ -3,6 +3,42 @@ import fs from 'fs';
 import path from 'path';
 import { parseSddTasks, parseKiroTasks, SddTask } from '../lib/tasks_markdown';
 
+const processLogger = {
+  error: (...args: any[]) => console.error(...args),
+};
+
+function replaceFirstCheckboxToken(line: string, checked: boolean): string {
+  const newToken = checked ? '[x]' : '[ ]';
+  const targets = ['[ ]', '[x]', '[X]'];
+
+  let bestIdx = -1;
+  for (const target of targets) {
+    const idx = line.indexOf(target);
+    if (idx === -1) continue;
+    if (bestIdx === -1 || idx < bestIdx) {
+      bestIdx = idx;
+    }
+  }
+
+  if (bestIdx === -1) {
+    // 期待するトークンが見つからない場合は、"[?]" 形式のチェックボックスを探索する
+    let open = line.indexOf('[');
+    while (open !== -1) {
+      const close = line.indexOf(']', open + 1);
+      if (close === open + 2) {
+        const c = line[open + 1];
+        if (c === ' ' || c === 'x' || c === 'X') {
+          return line.slice(0, open) + newToken + line.slice(close + 1);
+        }
+      }
+      open = line.indexOf('[', open + 1);
+    }
+    return line;
+  }
+
+  return line.slice(0, bestIdx) + newToken + line.slice(bestIdx + 3);
+}
+
 export default tool({
   description: 'Kiro仕様とRoot tasks.md を同期します',
   args: {},
@@ -24,7 +60,19 @@ export default tool({
     // 3. Root タスク読み込み (AST)
     const rootContent = fs.readFileSync(rootTasksPath, 'utf-8');
     // Sync時はScopeの厳密な検証は不要（タスクIDとステータスが重要）
-    const { tasks: rootTasks } = parseSddTasks(rootContent, { validateScopes: false });
+    const rootResult = parseSddTasks(rootContent, { validateScopes: false });
+    if (rootResult.errors.length > 0) {
+      processLogger.error('[SDD] Root tasks.md のパースに失敗しました', {
+        rootTasksPath,
+        errors: rootResult.errors,
+      });
+      throw new Error(
+        `E_TASKS_PARSE_ERROR: Root tasks.md (${rootTasksPath}) の解析に失敗しました。\n` +
+          rootResult.errors.map(e => `- L${e.line}: ${e.reason} (${e.content})`).join('\n')
+      );
+    }
+
+    const { tasks: rootTasks } = rootResult;
     const rootTaskMap = new Map(rootTasks.map(t => [t.id, t]));
 
     // 4. Kiro specs スキャン
@@ -47,7 +95,19 @@ export default tool({
       }
 
       const kiroContent = fs.readFileSync(kiroTasksPath, 'utf-8');
-      const { tasks: kiroTasks } = parseKiroTasks(kiroContent);
+      const kiroResult = parseKiroTasks(kiroContent);
+      if (kiroResult.errors.length > 0) {
+        processLogger.error('[SDD] Kiro tasks.md のパースに失敗しました', {
+          kiroTasksPath,
+          errors: kiroResult.errors,
+        });
+        throw new Error(
+          `E_TASKS_PARSE_ERROR: Kiro tasks.md (${kiroTasksPath}) の解析に失敗しました。\n` +
+            kiroResult.errors.map(e => `- L${e.line}: ${e.reason} (${e.content})`).join('\n')
+        );
+      }
+
+      const { tasks: kiroTasks } = kiroResult;
       
       const kiroLines = kiroContent.split('\n');
       const newKiroLines = [...kiroLines];
@@ -69,10 +129,9 @@ export default tool({
         if (rootTask) {
           // Root→Kiro: ステータス同期
           if (rootTask.checked !== kiroTask.checked) {
-            const newCheckbox = rootTask.checked ? 'x' : ' ';
-            // Kiroは通常 "- [ ]" 形式
-            const newLine = `- [${newCheckbox}] ${kiroTask.id}: ${kiroTask.description}`;
-            newKiroLines[i] = newLine;
+            const originalLine = kiroLines[i];
+            const updatedLine = replaceFirstCheckboxToken(originalLine, rootTask.checked);
+            newKiroLines[i] = updatedLine;
             kiroModified = true;
             results.push(`[SYNC] ${feature}/${kiroTask.id} → ${rootTask.checked ? 'DONE' : 'TODO'}`);
           }
@@ -108,4 +167,3 @@ export default tool({
       : `✅ すべて同期済み (Features: ${features.join(', ')})`;
   }
 });
-

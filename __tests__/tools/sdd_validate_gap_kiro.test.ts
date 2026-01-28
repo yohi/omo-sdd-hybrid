@@ -33,6 +33,11 @@ describe('validateKiroIntegration', () => {
     expect(result).toContain('missing-feature');
   });
 
+  test('rejects dangerous kiroSpec (path traversal)', () => {
+    const result = validateKiroIntegration('../evil');
+    expect(result).toContain('WARN: 不正な kiroSpec');
+  });
+
   test('checks files and tasks progress', () => {
     const feature = 'test-feature';
     const specDir = path.join(KIRO_DIR, 'specs', feature);
