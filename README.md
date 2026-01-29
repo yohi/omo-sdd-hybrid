@@ -139,7 +139,13 @@ sdd_end_task
 
 ## 高度な機能: Kiro 統合 (cc-sdd)
 
-[cc-sdd](https://github.com/gotalab/cc-sdd) と連携し、仕様書（Requirements, Design, Tasks）との完全なトレーサビリティを実現します。
+[cc-sdd](https://github.com/gotalab/cc-sdd)（Kiro）と連携し、仕様書（Requirements, Design, Tasks）と実装の整合を確認しやすくします。
+
+### 現状の対応範囲（重要）
+
+- `cc-sdd@2.x` は主に「スラッシュコマンド等の導入・セットアップ」を行うCLIであり、`cc-sdd validate tasks --json` のようなサブコマンド型の検証CLIとしては動作しません。
+- 本プロジェクトの `sdd_validate_gap --kiroSpec <feature>` は、現時点では `.kiro/specs/<feature>/` 配下の主要ファイル存在確認と `tasks.md` のチェックボックス進捗集計を行います。
+  - 仕様内容（REQや設計）とコードの意味的な突き合わせは、将来的な拡張（`--deep`）として段階的に追加していく想定です。
 
 ### セットアップ
 
@@ -173,8 +179,8 @@ sdd_validate_gap --kiroSpec <feature-name> --deep
 ```
 
 **`--deep` オプションの効果:**
-- **構造的分析**: 要件（REQ-XXX）の網羅状況、設計で定義されたコンポーネントの実装状況をチェックします。
-- **意味的分析**: LLM用のプロンプトを生成し、「実装が本当に要件を満たしているか」を意味的に検証する準備をします。
+- （開発中）**構造的分析**: 要件（REQ-XXX）の網羅状況、設計で定義されたコンポーネントの実装状況のチェックを追加予定です。
+- （開発中）**意味的分析**: LLM用のプロンプト生成やEmbeddings等を用いた意味的検証を追加予定です。
 
 ### 意味的検証 (Semantic Verification)
 

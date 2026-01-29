@@ -1,6 +1,7 @@
 import { tool } from '../lib/plugin-stub';
 import fs from 'fs';
 import path from 'path';
+import { parseSddTasks } from '../lib/tasks_markdown';
 
 function getTasksPath(feature?: string) {
   const baseDir = '.kiro/specs';
@@ -33,76 +34,8 @@ function getTasksPath(feature?: string) {
   return resolvedPath;
 }
 
-// Regex: * [x] TaskID: Description (Scope: `pattern`)
-const TASK_LINE_PATTERN = /^[\*-] \[([ x])\] ([^:]+): (.+) \(Scope: `(.*)`\)$/;
-
-interface ValidationError {
-  line: number;
-  content: string;
-  reason: string;
-}
-
-function validateTasksFile(filePath: string): ValidationError[] {
-  const errors: ValidationError[] = [];
-  let content: string;
-  
-  try {
-    content = fs.readFileSync(filePath, 'utf-8');
-  } catch (error: any) {
-    errors.push({
-      line: 0,
-      content: '',
-      reason: `ファイルを読み込めませんでした: ${error.message}`
-    });
-    return errors;
-  }
-
-  const lines = content.split('\n');
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    if (!line || line.startsWith('#')) {
-      continue;
-    }
-
-    if (line.startsWith('* [') || line.startsWith('- [')) {
-      const match = TASK_LINE_PATTERN.exec(line);
-      
-      if (!match) {
-        errors.push({
-          line: i + 1,
-          content: line,
-          reason: 'フォーマットエラー: タスク行は "* [ ] TaskID: Description (Scope: `pattern`)" 形式である必要があります'
-        });
-        continue;
-      }
-
-      const [, checkbox, taskId, description, scope] = match;
-
-      if (!/^[A-Za-z0-9._-]+-\d+$/.test(taskId)) {
-        errors.push({
-          line: i + 1,
-          content: line,
-          reason: `TaskID のフォーマットエラー: "${taskId}" は "TaskID-N" または "PREFIX-N" 形式である必要があります`
-        });
-      }
-
-      if (!scope || scope.trim() === '') {
-        errors.push({
-          line: i + 1,
-          content: line,
-          reason: 'Scope が空です'
-        });
-      }
-    }
-  }
-
-  return errors;
-}
-
 export default tool({
-  description: '.kiro/specs/*/tasks.md のフォーマットを検証し、問題を報告します（正規表現ベース）',
+  description: '.kiro/specs/*/tasks.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）',
   args: {
     feature: tool.schema.string().optional().describe('検証する機能名（.kiro/specs/配下のディレクトリ名）')
   },
@@ -118,7 +51,14 @@ export default tool({
       return `エラー: ${tasksPath} が見つかりません`;
     }
 
-    const errors = validateTasksFile(tasksPath);
+    let content: string;
+    try {
+      content = fs.readFileSync(tasksPath, 'utf-8');
+    } catch (error: any) {
+       return `ファイルを読み込めませんでした: ${error.message}`;
+    }
+
+    const { errors } = parseSddTasks(content);
 
     if (errors.length === 0) {
       return `✅ バリデーション完了\n\nすべてのタスクが正常です`;

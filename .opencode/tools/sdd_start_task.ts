@@ -1,17 +1,14 @@
 import { tool } from '../lib/plugin-stub';
 import { writeState } from '../lib/state-utils';
 import fs from 'fs';
+import { parseSddTasks } from '../lib/tasks_markdown';
+
+const processLogger = {
+  error: (...args: any[]) => console.error(...args),
+};
 
 function getTasksPath() {
   return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
-}
-
-// tasks-parser.ts から移動した型・関数
-export interface ParsedTask {
-  id: string;
-  title: string;
-  scopes: string[];
-  done: boolean;
 }
 
 export class ScopeFormatError extends Error {
@@ -21,37 +18,6 @@ export class ScopeFormatError extends Error {
     this.name = 'ScopeFormatError';
     this.taskId = taskId;
   }
-}
-
-function parseScopes(scopeStr: string): string[] {
-  const backtickRegex = /`([^`]*)`/g;
-  const matches = [...scopeStr.matchAll(backtickRegex)];
-  return matches.map(m => m[1]).filter(s => s.trim().length > 0);
-}
-
-function parseTasksFile(content: string): ParsedTask[] {
-  const lines = content.split('\n');
-  const tasks: ParsedTask[] = [];
-  const taskRegex = /^\* \[([ x])\] ([A-Za-z][A-Za-z0-9_-]*-\d+): (.+?) \(Scope: (.+)\)$/;
-
-  for (const line of lines) {
-    const match = line.match(taskRegex);
-    if (match) {
-      const [, doneStr, id, title, scopeStr] = match;
-      const done = doneStr === 'x';
-      const scopes = parseScopes(scopeStr);
-      
-      if (scopes.length === 0 && !scopeStr.includes('`')) {
-        if (process.env.SDD_SCOPE_FORMAT === 'strict') {
-          throw new ScopeFormatError(`Scope must be enclosed in backticks: ${scopeStr}`, id);
-        }
-      }
-      
-      tasks.push({ id, title, scopes, done });
-    }
-  }
-  
-  return tasks;
 }
 
 export default tool({
@@ -67,11 +33,33 @@ export default tool({
     }
     
     const content = fs.readFileSync(tasksPath, 'utf-8');
+
+    const result = parseSddTasks(content, { validateScopes: false });
+    if (result.errors.length > 0) {
+      processLogger.error('[SDD] tasks.md のパースに失敗しました', {
+        tasksPath,
+        errors: result.errors,
+      });
+      throw new Error(
+        `E_TASKS_PARSE_ERROR: ${tasksPath} の解析に失敗しました。\n` +
+          result.errors.map(e => `- L${e.line}: ${e.reason} (${e.content})`).join('\n')
+      );
+    }
+
+    const { tasks } = result;
     
-    let tasks: ParsedTask[];
     try {
-      tasks = parseTasksFile(content);
-    } catch (error) {
+      if (process.env.SDD_SCOPE_FORMAT === 'strict') {
+        for (const t of tasks) {
+          const rawText = t.rawScopeText ? t.rawScopeText.trim() : '';
+          const isJustBackticks = rawText.replace(/`/g, '').trim().length === 0;
+
+          if (t.scopes.length === 0 && rawText.length > 0 && !isJustBackticks) {
+            throw new ScopeFormatError(`Scope must be enclosed in backticks: ${t.rawScopeText}`, t.id);
+          }
+        }
+      }
+    } catch (error: any) {
       if (error instanceof ScopeFormatError) {
         const failingTaskInfo = error.taskId ? `タスク ${error.taskId}` : 'いずれかのタスク';
         throw new Error(`E_SCOPE_FORMAT: ${failingTaskInfo} の Scope 形式が不正です（リクエストされたタスク: ${taskId}）。\nバッククォートで囲んでください: (Scope: \`path/**\`)\n現在の環境: SDD_SCOPE_FORMAT=${process.env.SDD_SCOPE_FORMAT || 'lenient'}\n元のエラー: ${error.message}`);
@@ -85,11 +73,17 @@ export default tool({
       throw new Error(`E_TASK_NOT_FOUND: ${taskId} が見つかりません`);
     }
     
-    if (task.done) {
+    if (task.checked) {
       throw new Error(`E_TASK_ALREADY_DONE: ${taskId} は既に完了しています`);
     }
     
     if (task.scopes.length === 0) {
+      const rawScope = task.rawScopeText?.trim();
+      if (rawScope && rawScope.replace(/`/g, '').trim().length > 0) {
+        throw new Error(
+          `E_SCOPE_FORMAT: ${taskId} の Scope 形式が不正です。バッククォートで囲んでください: (Scope: \`path/**\`)`
+        );
+      }
       throw new Error(`E_SCOPE_MISSING: ${taskId} に Scope が定義されていません`);
     }
 
@@ -110,7 +104,7 @@ export default tool({
     await writeState({
       version: 1,
       activeTaskId: task.id,
-      activeTaskTitle: task.title,
+      activeTaskTitle: task.description,
       allowedScopes: task.scopes,
       startedAt: new Date().toISOString(),
       startedBy: 'sdd_start_task',
@@ -119,7 +113,7 @@ export default tool({
     });
     
     return `タスク開始: ${task.id}
-タイトル: ${task.title}
+タイトル: ${task.description}
 ロール: ${determinedRole}
 許可スコープ: ${task.scopes.join(', ')}
 State: .opencode/state/current_context.json`;

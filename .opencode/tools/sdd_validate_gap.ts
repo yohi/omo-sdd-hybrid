@@ -1,7 +1,10 @@
 import { tool } from '../lib/plugin-stub';
 import { readState as defaultReadState, writeState as defaultWriteState, State } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
+import { countMarkdownTasks } from '../lib/tasks_markdown';
 import { spawnSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const MAX_VALIDATION_ATTEMPTS = 5;
 
@@ -92,13 +95,76 @@ function checkDiagnostics(allowedScopes: string[], changedFiles: string[] | null
   return `以下のファイルで lsp_diagnostics を実行してください:\n  - ${tsFiles.join('\n  - ')}`;
 }
 
-function getKiroInfo(): string {
-  return `INFO: cc-sdd は仕様ファイル生成ツールです。
-ギャップ分析は上記のスコープ検証結果を参照してください。
+export function validateKiroIntegration(kiroSpec?: string, deep?: boolean): string {
+  if (!kiroSpec || kiroSpec.trim() === '') {
+    return 'INFO: kiroSpec が指定されていません。仕様とのギャップ分析を行うには --kiroSpec <feature> を指定してください。';
+  }
 
-仕様書の確認:
-  cat .kiro/specs/{feature}/requirements.md
-  cat .kiro/specs/{feature}/design.md`;
+  const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
+  const baseSpecsDir = path.resolve(kiroDir, 'specs');
+
+  if (kiroSpec.includes('\0') || path.isAbsolute(kiroSpec) || kiroSpec.split(/[/\\]/).includes('..')) {
+    return `WARN: 不正な kiroSpec が指定されました: ${kiroSpec}`;
+  }
+
+  const resolvedSpecDir = path.resolve(baseSpecsDir, kiroSpec);
+  const relative = path.relative(baseSpecsDir, resolvedSpecDir);
+  if (relative === '..' || relative.startsWith('..' + path.sep)) {
+    return `WARN: 不正な kiroSpec が指定されました: ${kiroSpec}`;
+  }
+
+  try {
+    const stat = fs.statSync(resolvedSpecDir);
+    if (!stat.isDirectory()) {
+      return `WARN: 仕様ディレクトリが見つかりません: ${resolvedSpecDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
+    }
+  } catch {
+    return `WARN: 仕様ディレクトリが見つかりません: ${resolvedSpecDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
+  }
+
+  const reports: string[] = [];
+  
+  const files = [
+    { name: 'spec.json', required: false },
+    { name: 'requirements.md', required: true },
+    { name: 'design.md', required: true },
+    { name: 'tasks.md', required: true }
+  ];
+
+  const statusLines: string[] = [];
+  let tasksInfo = '';
+
+  for (const file of files) {
+    const filePath = path.join(resolvedSpecDir, file.name);
+    if (fs.existsSync(filePath)) {
+      statusLines.push(`[PASS] ${file.name}`);
+      
+      if (file.name === 'tasks.md') {
+        try {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const progress = countMarkdownTasks(content);
+          const percent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+          tasksInfo = `\n  進捗: ${progress.completed}/${progress.total} (${percent}%)`;
+        } catch (e) {
+          tasksInfo = `\n  進捗: 取得失敗 (${e instanceof Error ? e.message : String(e)})`;
+        }
+      }
+    } else {
+      statusLines.push(file.required ? `[FAIL] ${file.name} (Not Found)` : `[SKIP] ${file.name} (Optional)`);
+    }
+  }
+
+  reports.push(statusLines.join('\n') + tasksInfo);
+
+  if (deep) {
+    reports.push('\n[Deep Analysis]');
+    reports.push('  構造的・意味的ギャップ分析は現在開発中です。');
+    reports.push('  現在の実装状況と requirements.md の項目を突き合わせてください。');
+  } else {
+    reports.push('\nHint: --deep オプションで詳細な分析（Embeddings等）を有効化できます（未実装）。');
+  }
+
+  return reports.join('\n');
 }
 
 export interface ValidateGapOptions {
@@ -131,7 +197,7 @@ export async function validateGapInternal(state: State, options: ValidateGapOpti
   sections.push(runScopedTests(allowedScopes, options.skipTests));
   
   sections.push('\n## Kiro統合 (cc-sdd)');
-  sections.push(getKiroInfo());
+  sections.push(validateKiroIntegration(options.kiroSpec, options.deep));
   
   sections.push('\n---');
   sections.push('検証完了後、sdd_end_task を実行してタスクを終了してください。');
