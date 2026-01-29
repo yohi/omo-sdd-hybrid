@@ -15,7 +15,7 @@ import {
 
 const SddGatekeeper: Plugin = async (options) => {
   const { client } = options || {};
-  const worktreeRoot = getWorktreeRoot();
+  const worktreeRoot = options?.worktree || getWorktreeRoot();
   const readState = options?.__testDeps?.readState ?? defaultReadState;
   const readGuardModeState = options?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
   
