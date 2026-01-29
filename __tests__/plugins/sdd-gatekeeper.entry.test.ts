@@ -35,12 +35,15 @@ describe('SddGatekeeper Entry Point', () => {
       }
     };
 
+    let caughtError: any;
     try {
       await handler(event);
     } catch (e: any) {
-      expect(e, 'エラーが投げられること').toBeInstanceOf(Error);
-      expect(e.message, '未定義アクセスの例外ではないこと').not.toContain('undefined is not an object');
+      caughtError = e;
     }
+
+    expect(caughtError, 'エラーが投げられること').toBeInstanceOf(Error);
+    expect(caughtError.message, '未定義アクセスの例外ではないこと').not.toContain('undefined is not an object');
   });
 
   test('handles multiedit with invalid files arg via entry point', async () => {
