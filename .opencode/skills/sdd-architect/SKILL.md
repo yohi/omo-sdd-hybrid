@@ -41,7 +41,7 @@ Implementer が `sdd_request_spec_change` で生成した申請を処理する�
 2. **レビューとマージ**
    - 申請内容が妥当か判断する
    - **妥当な場合**:
-     - `specs/tasks.md` や `.kiro/specs/<feature>/*.md` に変更内容を手動で反映（マージ）する
+     - `specs/tasks.md` や `specs/<feature>/*.md` に変更内容を手動で反映（マージ）する
      - 反映時は整合性を意識する（RequirementsとTasksの乖離など）
    - **妥当でない場合**:
      - 却下理由をコメントするか、Implementerに修正を指示する（状況に応じた対話）
