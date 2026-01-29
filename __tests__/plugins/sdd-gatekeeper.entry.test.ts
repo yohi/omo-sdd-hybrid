@@ -35,12 +35,15 @@ describe('SddGatekeeper Entry Point', () => {
       }
     };
 
+    let caughtError: any;
     try {
       await handler(event);
     } catch (e: any) {
-      expect(e).toBeInstanceOf(Error);
-      expect(e.message).not.toContain('undefined is not an object');
+      caughtError = e;
     }
+
+    expect(caughtError, 'エラーが投げられること').toBeInstanceOf(Error);
+    expect(caughtError.message, '未定義アクセスの例外ではないこと').not.toContain('undefined is not an object');
   });
 
   test('handles multiedit with invalid files arg via entry point', async () => {
@@ -64,6 +67,43 @@ describe('SddGatekeeper Entry Point', () => {
       }
     };
 
-    await expect(handler(event)).rejects.toThrow('INVALID_ARGUMENTS');
+    await expect(handler(event), '無効なfilesでエラーになること').rejects.toThrow('INVALID_ARGUMENTS');
+  });
+
+  test('blocks implementer writing to .kiro/tasks.md via entry point', async () => {
+    const implementerState = {
+      status: 'ok',
+      state: {
+        version: 1,
+        activeTaskId: 'Task-1',
+        activeTaskTitle: 'Impl',
+        allowedScopes: ['src/**'],
+        startedAt: new Date().toISOString(),
+        startedBy: 'implementer',
+        validationAttempts: 0,
+        role: 'implementer'
+      }
+    };
+    const mockReadState = mock(() => Promise.resolve(implementerState as any));
+    const mockReadGuardModeState = mock(() => Promise.resolve({ mode: 'block' }));
+
+    const plugin = await SddGatekeeper({
+      client: {} as any,
+      __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
+    } as any);
+    const handler = plugin['tool.execute.before'];
+
+    if (!handler) throw new Error('Handler not found');
+
+    const event = {
+      tool: {
+        name: 'edit',
+        args: {
+          filePath: '.kiro/tasks.md'
+        }
+      }
+    };
+
+    await expect(handler(event), 'implementerが.kiroに書けないこと').rejects.toThrow('ROLE_DENIED');
   });
 });
