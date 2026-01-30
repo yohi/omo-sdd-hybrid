@@ -76,9 +76,11 @@ export default tool({
 
     // 6. Feature specs の集計
     const specsDir = path.join(kiroDir, 'specs');
+    reportLines.push('', '## 機能別進捗');
+    
+    let featureFound = false;
+
     if (fs.existsSync(specsDir)) {
-      reportLines.push('', '## 機能別進捗');
-      let featureFound = false;
       try {
         const features = fs.readdirSync(specsDir).filter(f => {
           try {
@@ -102,14 +104,13 @@ export default tool({
                 }
             }
         }
-        
-        if (!featureFound) {
-           reportLines.push('- 機能定義なし (または tasks.md なし)');
-        }
-
       } catch (e) {
         reportLines.push(`- エラー: 機能一覧の取得に失敗 (${(e as Error).message})`);
       }
+    }
+    
+    if (!featureFound) {
+       reportLines.push('- 機能定義なし (または tasks.md なし)');
     }
 
     return reportLines.join('\n');

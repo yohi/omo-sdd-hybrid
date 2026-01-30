@@ -1,7 +1,17 @@
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import statusTool from '../../.opencode/tools/sdd_project_status';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 import fs from 'fs';
 import path from 'path';
+
+const baseMockContext: any = {
+  sessionID: 'test-session',
+  messageID: 'test-message',
+  agent: 'test-agent',
+  abort: new AbortController().signal,
+  metadata: () => {},
+  ask: async () => {}
+};
 
 describe('sdd_project_status', () => {
   let tmpDir: string;
@@ -48,6 +58,7 @@ describe('sdd_project_status', () => {
     };
     
     const context = {
+        ...baseMockContext,
         __testDeps: {
             readState: async () => mockStateResult
         }
@@ -63,6 +74,7 @@ describe('sdd_project_status', () => {
 
   test('Stateなし、ファイルなしの場合', async () => {
     const context = {
+        ...baseMockContext,
         __testDeps: {
             readState: async () => ({ status: 'not_found' as const })
         }
@@ -75,5 +87,21 @@ describe('sdd_project_status', () => {
     expect(output).toContain('**未処理の変更提案**: 0件');
     expect(output).toContain('**現在のアクティブタスク**: なし');
     expect(output).toContain('機能定義なし');
+  });
+
+  test('specsDirが存在しない場合でもヘッダーを表示', async () => {
+    fs.rmSync(path.join(tmpDir, '.kiro'), { recursive: true, force: true });
+
+    const context = {
+        ...baseMockContext,
+        __testDeps: {
+            readState: async () => ({ status: 'not_found' as const })
+        }
+    };
+    
+    const output = await statusTool.execute({}, context);
+
+    expect(output).toContain('## 機能別進捗');
+    expect(output).toContain('- 機能定義なし (または tasks.md なし)');
   });
 });
