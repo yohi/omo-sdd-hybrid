@@ -10,12 +10,12 @@ export default tool({
   async execute(_args, context: any) {
     const readState = context?.__testDeps?.readState ?? defaultReadState;
     const worktreeRoot = process.cwd();
-    
+
     // 1. 環境変数の解決 (テスト用環境変数を優先)
-    const tasksPath = process.env.SDD_TASKS_PATH 
+    const tasksPath = process.env.SDD_TASKS_PATH
       ? (path.isAbsolute(process.env.SDD_TASKS_PATH) ? process.env.SDD_TASKS_PATH : path.join(worktreeRoot, process.env.SDD_TASKS_PATH))
       : path.join(worktreeRoot, 'specs/tasks.md');
-      
+
     const kiroDir = process.env.SDD_KIRO_DIR
       ? (path.isAbsolute(process.env.SDD_KIRO_DIR) ? process.env.SDD_KIRO_DIR : path.join(worktreeRoot, process.env.SDD_KIRO_DIR))
       : path.join(worktreeRoot, '.kiro');
@@ -61,8 +61,8 @@ export default tool({
     }
 
     // 5. レポート生成
-    const rootPercent = rootProgress.total > 0 
-      ? Math.round((rootProgress.completed / rootProgress.total) * 100) 
+    const rootPercent = rootProgress.total > 0
+      ? Math.round((rootProgress.completed / rootProgress.total) * 100)
       : 0;
 
     const reportLines = [
@@ -77,7 +77,7 @@ export default tool({
     // 6. Feature specs の集計
     const specsDir = path.join(kiroDir, 'specs');
     reportLines.push('', '## 機能別進捗');
-    
+
     let featureFound = false;
 
     if (fs.existsSync(specsDir)) {
@@ -91,27 +91,28 @@ export default tool({
         });
 
         for (const feature of features) {
-            const featTasksPath = path.join(specsDir, feature, 'tasks.md');
-            if (fs.existsSync(featTasksPath)) {
-                try {
-                  const content = fs.readFileSync(featTasksPath, 'utf-8');
-                  const prog = countMarkdownTasks(content);
-                  const pct = prog.total > 0 ? Math.round((prog.completed / prog.total) * 100) : 0;
-                  reportLines.push(`- **${feature}**: ${prog.completed}/${prog.total} (${pct}%)`);
-                  featureFound = true;
-                } catch {
-                  // 読み込みエラー無視
-                }
+          const featTasksPath = path.join(specsDir, feature, 'tasks.md');
+          if (fs.existsSync(featTasksPath)) {
+            try {
+              const content = fs.readFileSync(featTasksPath, 'utf-8');
+              const prog = countMarkdownTasks(content);
+              const pct = prog.total > 0 ? Math.round((prog.completed / prog.total) * 100) : 0;
+              reportLines.push(`- **${feature}**: ${prog.completed}/${prog.total} (${pct}%)`);
+              featureFound = true;
+            } catch (e) {
+              reportLines.push(`- **${feature}**: tasks.md の読み込みに失敗 (${(e as Error).message})`);
+              featureFound = true;
             }
+          }
         }
       } catch (e) {
         reportLines.push(`- エラー: 機能一覧の取得に失敗 (${(e as Error).message})`);
         featureFound = true; // エラー時はフォールバックメッセージを抑制
       }
     }
-    
+
     if (!featureFound) {
-       reportLines.push('- 機能定義なし (または tasks.md なし)');
+      reportLines.push('- 機能定義なし (または tasks.md なし)');
     }
 
     return reportLines.join('\n');
