@@ -106,6 +106,7 @@ export default tool({
         }
       } catch (e) {
         reportLines.push(`- エラー: 機能一覧の取得に失敗 (${(e as Error).message})`);
+        featureFound = true; // エラー時はフォールバックメッセージを抑制
       }
     }
     
