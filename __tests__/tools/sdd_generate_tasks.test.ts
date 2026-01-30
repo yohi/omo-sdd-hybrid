@@ -25,7 +25,7 @@ describe('sdd_generate_tasks', () => {
     return module.default.execute(args, {});
   }
 
-  function createSpecs(feature: string, reqContent: string = '', designContent: string = '') {
+  function createSpecs(feature: string, reqContent: string | null = '', designContent: string | null = '') {
     const specDir = path.join(kiroDir, 'specs', feature);
     fs.mkdirSync(specDir, { recursive: true });
     
