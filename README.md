@@ -137,6 +137,7 @@ sdd_end_task
 | `sdd_show_context` | 現在アクティブなタスク、許可されたスコープ、開始時間を表示します。 |
 | `sdd_validate_gap` | 仕様とコードのギャップ分析、テスト実行、Diagnostics検証を行います。 |
 | `sdd_scaffold_specs` | Kiro形式の仕様書（Requirements/Design/Tasks）の雛形（テンプレート）を生成・初期化します。 |
+| `sdd_generate_tasks` | 要件・設計ファイルに基づき、タスク定義ファイル（tasks.md）の雛形を生成します。 |
 
 ## 高度な機能: Kiro 統合 (cc-sdd)
 
@@ -184,6 +185,37 @@ sdd_scaffold_specs --feature <name> [--prompt "指示"] [--overwrite true]
 
   # 強制上書き
   sdd_scaffold_specs --feature auth-flow --overwrite true
+  ```
+
+### タスク雛形生成ツール (sdd_generate_tasks)
+
+Kiro 仕様書（Requirements, Design）に基づき、タスク定義ファイル (`tasks.md`) の雛形を生成します。
+
+```bash
+sdd_generate_tasks --feature <name> [--overwrite true]
+```
+
+- **前提条件**:
+  - `.kiro/specs/<feature>/requirements.md` および `design.md` が存在すること。
+
+- **生成ファイル**:
+  - `.kiro/specs/<feature>/tasks.md`: タスクリストの雛形
+
+- **引数**:
+  - `--feature` (必須): 対象の機能名。
+  - `--overwrite` (任意): 既存の `tasks.md` を上書きする場合 `true` を指定。
+
+- **sdd_scaffold_specs との違い**:
+  - `sdd_scaffold_specs`: 仕様書セット全体の構造と空ファイルを初期化します。
+  - `sdd_generate_tasks`: 既存の要件・設計ファイルからタスクリストのテンプレートを生成します。
+
+- **使用例**:
+  ```bash
+  # tasks.md の生成
+  sdd_generate_tasks --feature auth-flow
+
+  # 強制上書き
+  sdd_generate_tasks --feature auth-flow --overwrite true
   ```
 
 ### 仕様駆動ワークフロー
