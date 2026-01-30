@@ -16,7 +16,7 @@ const ALLOWED_DIRS = ['specs/', '.opencode/', 'scripts/', '.github/'];
 function getChangedFiles(): string[] {
   // CI判定: GitHub Actions または 明示的なフラグ
   const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.SDD_CI_MODE === 'true';
-  
+
   let args: string[];
 
   if (isCI) {
@@ -27,8 +27,20 @@ function getChangedFiles(): string[] {
       args = ['diff', '--name-only', `origin/${baseRef}...HEAD`];
     } else {
       // Push: 直前のコミットとの差分
-      console.log('🔍 CI Mode (Push): Checking diff for HEAD');
-      args = ['diff', '--name-only', 'HEAD~1...HEAD'];
+      // HEAD~1 の存在を確認し、存在しない場合(初回コミット)はフォールバック
+      const verifyResult = spawnSync('git', ['-C', '..', 'rev-parse', '--verify', 'HEAD~1'], {
+        encoding: 'utf-8'
+      });
+
+      if (verifyResult.status === 0) {
+        // HEAD~1 が存在する場合: 通常の差分
+        console.log('🔍 CI Mode (Push): Checking diff for HEAD');
+        args = ['diff', '--name-only', 'HEAD~1...HEAD'];
+      } else {
+        // HEAD~1 が存在しない場合: 初回コミットのファイル一覧
+        console.log('🔍 CI Mode (Push, initial commit): Listing files in HEAD');
+        args = ['show', '--name-only', '--pretty=', 'HEAD'];
+      }
     }
   } else {
     // Local: Staged files (pre-commit)
@@ -70,7 +82,7 @@ function validatePhase3Guard(files: string[]) {
 
 function validateTasksMarkdown() {
   const tasksPath = path.resolve('..', 'specs', 'tasks.md');
-  
+
   if (!fs.existsSync(tasksPath)) {
     throw new Error(`❌ Tasks definition not found: ${tasksPath}`);
   }
@@ -94,7 +106,7 @@ const sddCiRunnerTool = tool({
   args: {},
   async execute() {
     console.log('--- SDD CI Runner ---');
-    
+
     // 1. tasks.md の構文チェック
     validateTasksMarkdown();
 
