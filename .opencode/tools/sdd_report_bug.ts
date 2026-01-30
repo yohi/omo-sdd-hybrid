@@ -22,8 +22,8 @@ export default tool({
 
     const { state } = result;
 
-    // ロール制約: implementer, architect, null (ロールなし) は許可
-    const allowedRoles = ['implementer', 'architect', null];
+    // ロール制約: implementer, architect, null (ロールなし), undefined は許可
+    const allowedRoles = ['implementer', 'architect', null, undefined];
     if (!allowedRoles.includes(state.role)) {
       throw new Error(`E_PERMISSION_DENIED: このコマンドは現在のロールでは実行できません (Current role: ${state.role})`);
     }
@@ -52,7 +52,7 @@ export default tool({
 
     // スラッグが空になった場合のフォールバック
     const finalSlug = safeSlug || 'untitled-bug';
-    
+
     // ユニーク性を担保するためにミリ秒を追加してもよいが、要件にはないためシンプルにタイムスタンプ+スラッグ
     // ただし、同日に同じタイトルだと被る可能性はある。
     // 要件「タイムスタンプ + タイトルから安全化したslug」
