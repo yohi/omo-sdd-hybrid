@@ -135,9 +135,21 @@ sdd_end_task
 | `sdd_start_task <TaskID>` | 指定したタスクを開始し、編集スコープを有効化します。 |
 | `sdd_end_task` | 現在のタスクを終了し、状態をクリアします。 |
 | `sdd_show_context` | 現在アクティブなタスク、許可されたスコープ、開始時間を表示します。 |
+| `sdd_project_status` | プロジェクトの進捗状況とステータスを表示します。 |
 | `sdd_validate_gap` | 仕様とコードのギャップ分析、テスト実行、Diagnostics検証を行います。 |
+| `sdd_request_spec_change` | Implementerが仕様変更を提案するためのリクエストを作成します。 |
+| `sdd_review_pending` | 保留中の仕様変更提案を一覧表示します（Architect専用）。 |
+| `sdd_merge_change` | 保留中の仕様変更をマージし、アーカイブします（Architect専用）。 |
+| `sdd_reject_change` | 保留中の仕様変更を却下し、アーカイブします（Architect専用）。 |
+| `sdd_report_bug` | 発見された不具合をバグ票として報告します。 |
 | `sdd_scaffold_specs` | Kiro形式の仕様書（Requirements/Design/Tasks）の雛形（テンプレート）を生成・初期化します。 |
 | `sdd_generate_tasks` | 要件・設計ファイルに基づき、タスク定義ファイル（tasks.md）の雛形を生成します。 |
+| `sdd_generate_tests` | requirements.md の受入条件からテストコードの雛形を生成します。 |
+| `sdd_lint_tasks` | tasks.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）。 |
+| `sdd_sync_kiro` | Kiro仕様とRoot tasks.md を同期します。 |
+| `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block）を切り替えます。 |
+| `sdd_force_unlock` | 【非常用】ロック状態を強制解除します。 |
+| `sdd_ci_runner` | CI環境での検証（tasks.md整合性、変更範囲ガード）を実行します。 |
 
 ## 高度な機能: Kiro 統合 (cc-sdd)
 
@@ -274,6 +286,40 @@ sdd_validate_gap --kiroSpec <feature-name> --deep
 
 3. **Deep Analysis の活用**:
    - PR提出前や、主要な機能実装のマイルストーンで必ず `--deep` オプション付きの検証を実行し、AIによる客観的なレビューを受けてください。
+
+## Gitフックの設定 (Pre-commit)
+
+ローカルでのコミット時に `validate_gap` を強制することで、不整合な状態でのコミット（Vibe Coding）を防止できます。
+`.git/hooks/pre-commit` はGit管理対象外のため、開発者が個別に設定する必要があります。
+
+**設定手順:**
+
+1. `.git/hooks/pre-commit` を作成:
+
+```bash
+cat << 'EOF' > .git/hooks/pre-commit
+#!/bin/bash
+set -euo pipefail
+
+echo "🔍 Running SDD validation..."
+
+# 1. ユニットテストの実行
+bun test
+
+# 2. SDD整合性チェック (tasks.md vs 変更範囲)
+# 内部で .opencode/tools/sdd_ci_runner.ts を呼び出し、スコープ違反があればブロックします
+# ローカル実行時は staged files (コミット予定ファイル) のみが検証対象です
+bun run scripts/sdd_ci_validate.ts
+
+echo "✅ All checks passed."
+EOF
+```
+
+2. 実行権限を付与:
+
+```bash
+chmod +x .git/hooks/pre-commit
+```
 
 ## トラブルシューティング
 

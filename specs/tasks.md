@@ -4,6 +4,13 @@
 
 * [ ] Task-2-1: `sdd_scaffold_specs` ツールとテストの実装 (Scope: `.opencode/tools/sdd_scaffold_specs.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_scaffold_specs.test.ts`, `README.md`)
 * [ ] Task-2-2: `sdd_generate_tasks` ツールとテストの実装 (Scope: `.opencode/tools/sdd_generate_tasks.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_generate_tasks.test.ts`, `README.md`)
+* [x] Task-2-3: `sdd_review_pending` ツールとテストの実装 (Scope: `.opencode/tools/sdd_review_pending.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_review_pending.test.ts`, `README.md`)
+* [x] Task-2-4: `sdd_merge_change` / `sdd_reject_change` ツールとテストの実装 (Scope: `.opencode/tools/sdd_merge_change.ts`, `.opencode/tools/sdd_reject_change.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_merge_change.test.ts`, `__tests__/tools/sdd_reject_change.test.ts`, `README.md`)
+* [x] Task-2-5: `sdd_project_status` ツールとテストの実装 (Scope: `.opencode/tools/sdd_project_status.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_project_status.test.ts`, `README.md`)
+* [x] Task-3-1: `QA Engineer` スキル定義の追加 (Scope: `.opencode/skills/sdd-qa-engineer/SKILL.md`, `README.md`)
+* [x] Task-3-2: `sdd_generate_tests` ツールとテストの実装 (Scope: `.opencode/tools/sdd_generate_tests.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_generate_tests.test.ts`, `README.md`)
+* [x] Task-3-3: `sdd_report_bug` ツールとテストの実装（QAがバグ票を起票する） (Scope: `.opencode/tools/sdd_report_bug.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_report_bug.test.ts`, `.opencode/skills/sdd-qa-engineer/SKILL.md`, `README.md`, `.opencode/plugins/sdd-feedback-loop.ts`, `__tests__/plugins/sdd-feedback-loop.test.ts`)
+* [x] Task-3-4: Pre-commit Hook / CI Integration（検証強制） (Scope: `.github/workflows/ci.yml`, `.github/workflows/ci.yaml`, `scripts/sdd_ci_validate.ts`, `.opencode/tools/sdd_ci_runner.ts`, `README.md`)
 
 ## Completed Tasks
 
