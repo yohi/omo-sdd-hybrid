@@ -136,6 +136,7 @@ sdd_end_task
 | `sdd_end_task` | 現在のタスクを終了し、状態をクリアします。 |
 | `sdd_show_context` | 現在アクティブなタスク、許可されたスコープ、開始時間を表示します。 |
 | `sdd_validate_gap` | 仕様とコードのギャップ分析、テスト実行、Diagnostics検証を行います。 |
+| `sdd_scaffold_specs` | Kiro形式の仕様書（Requirements/Design/Tasks）の雛形（テンプレート）を生成・初期化します。 |
 
 ## 高度な機能: Kiro 統合 (cc-sdd)
 
@@ -154,6 +155,36 @@ Kiro（cc-sdd）をプロジェクトにセットアップします。
 ```bash
 npx cc-sdd@latest --claude
 ```
+
+### 仕様書テンプレート生成ツール (sdd_scaffold_specs)
+
+Kiro 形式の仕様書テンプレートを一括生成します。
+
+```bash
+sdd_scaffold_specs --feature <name> [--prompt "指示"] [--overwrite true]
+```
+
+- **生成ファイル**:
+  - `.kiro/specs/<feature>/requirements.md`: 要件定義
+  - `.kiro/specs/<feature>/design.md`: 基本設計
+  - `.kiro/specs/<feature>/tasks.md`: タスク分解
+
+- **引数**:
+  - `--feature` (必須): 機能名。英数字記号 `^[A-Za-z][A-Za-z0-9._-]*$` のみ使用可能。
+  - `--prompt` (任意): 生成時の追加指示（コンテキスト）。
+  - `--overwrite` (任意): 既存ファイルを上書きする場合 `true` を指定。
+
+- **使用例**:
+  ```bash
+  # 基本的な生成
+  sdd_scaffold_specs --feature auth-flow
+
+  # 指示を与えて生成
+  sdd_scaffold_specs --feature payment --prompt "Stripeを使用した決済フロー"
+
+  # 強制上書き
+  sdd_scaffold_specs --feature auth-flow --overwrite true
+  ```
 
 ### 仕様駆動ワークフロー
 

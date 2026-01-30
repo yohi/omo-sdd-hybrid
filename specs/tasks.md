@@ -2,7 +2,7 @@
 
 ## Active Tasks
 
-<!-- 現在進行中のタスクはここに記載 -->
+* [ ] Task-2-1: `sdd_scaffold_specs` ツールとテストの実装 (Scope: `.opencode/tools/sdd_scaffold_specs.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_scaffold_specs.test.ts`, `README.md`)
 
 ## Completed Tasks
 
