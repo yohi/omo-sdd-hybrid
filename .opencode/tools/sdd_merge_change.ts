@@ -25,6 +25,10 @@ export default tool({
     if (changeId.includes('/') || changeId.includes('\\') || changeId.includes('..')) {
       throw new Error('E_INVALID_ARG: changeId にパスセパレータや相対パスを含めることはできません');
     }
+
+    if (feature.includes('/') || feature.includes('\\') || feature.includes('..')) {
+      throw new Error('E_INVALID_ARG: feature にパスセパレータや相対パスを含めることはできません');
+    }
     
     if (!['requirements', 'design', 'tasks'].includes(target)) {
         throw new Error(`E_INVALID_ARG: target は requirements, design, tasks のいずれかである必要があります (Got: ${target})`);

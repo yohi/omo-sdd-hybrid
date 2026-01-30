@@ -5,6 +5,15 @@ import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 import { writeState, type State } from '../../.opencode/lib/state-utils';
 import sddMergeChange from '../../.opencode/tools/sdd_merge_change';
 
+const mockContext: any = {
+  sessionID: 'test-session',
+  messageID: 'test-message',
+  agent: 'test-agent',
+  abort: new AbortController().signal,
+  metadata: () => {},
+  ask: async () => {}
+};
+
 describe('sdd_merge_change', () => {
   let tmpDir: string;
 
@@ -53,7 +62,7 @@ Update requirements to include 2FA.
       changeId: 'change-123.md',
       feature: 'auth-feature',
       target: 'requirements'
-    });
+    }, mockContext);
 
     expect(result).toContain('仕様変更をマージしました');
     expect(result).toContain('Source: change-123.md (Archived)');
@@ -93,23 +102,26 @@ Update requirements to include 2FA.
 
     await expect(sddMergeChange.execute({
       changeId: 'change-123.md',
-      feature: 'auth-feature'
-    })).rejects.toThrow('E_PERMISSION_DENIED');
+      feature: 'auth-feature',
+      target: 'requirements'
+    }, mockContext)).rejects.toThrow('E_PERMISSION_DENIED');
   });
 
   test('should fail if pending file not found', async () => {
     const result = await sddMergeChange.execute({
       changeId: 'non-existent.md',
-      feature: 'auth-feature'
-    });
+      feature: 'auth-feature',
+      target: 'requirements'
+    }, mockContext);
     expect(result).toContain('エラー: 指定された変更リクエストファイルが見つかりません');
   });
 
   test('should fail if target file not found', async () => {
     const result = await sddMergeChange.execute({
       changeId: 'change-123.md',
-      feature: 'unknown-feature'
-    });
+      feature: 'unknown-feature',
+      target: 'requirements'
+    }, mockContext);
     expect(result).toContain('エラー: マージ先の仕様書ファイルが見つかりません');
   });
 
@@ -119,13 +131,22 @@ Update requirements to include 2FA.
       changeId: 'change-123.md',
       feature: 'auth-feature',
       target: 'invalid-target'
-    })).rejects.toThrow('E_INVALID_ARG');
+    }, mockContext)).rejects.toThrow('E_INVALID_ARG');
   });
   
   test('should fail with path traversal in changeId', async () => {
     await expect(sddMergeChange.execute({
       changeId: '../secret.txt',
-      feature: 'auth-feature'
-    })).rejects.toThrow('E_INVALID_ARG');
+      feature: 'auth-feature',
+      target: 'requirements'
+    }, mockContext)).rejects.toThrow('E_INVALID_ARG');
+  });
+
+  test('should fail with path traversal in feature', async () => {
+    await expect(sddMergeChange.execute({
+      changeId: 'change-123.md',
+      feature: '../auth-feature',
+      target: 'requirements'
+    }, mockContext)).rejects.toThrow('E_INVALID_ARG: feature にパスセパレータや相対パスを含めることはできません');
   });
 });
