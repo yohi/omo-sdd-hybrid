@@ -18,7 +18,7 @@ function validateFeatureName(feature: string, baseDir: string) {
   }
 
   const resolvedPath = path.resolve(baseDir, feature);
-  
+
   if (!resolvedPath.startsWith(baseDir)) {
     throw new Error('無効な機能名: パストラバーサルが検出されました');
   }
@@ -39,7 +39,7 @@ function extractAcceptanceCriteria(content: string): string[] {
       inSection = true;
       continue;
     }
-    
+
     if (inSection) {
       if (nextSectionRegex.test(line)) {
         break;
@@ -61,7 +61,7 @@ export default tool({
   },
   async execute({ feature, overwrite }) {
     const baseDir = getKiroSpecsDir();
-    
+
     let specDir: string;
     try {
       specDir = validateFeatureName(feature, baseDir);
@@ -70,7 +70,7 @@ export default tool({
     }
 
     if (!fs.existsSync(specDir)) {
-       return `エラー: 機能ディレクトリが見つかりません (${specDir})`;
+      return `エラー: 機能ディレクトリが見つかりません (${specDir})`;
     }
 
     const reqPath = path.join(specDir, 'requirements.md');
@@ -111,11 +111,11 @@ export default tool({
 
     const testContent = `import { describe, test } from "bun:test";
 
-describe('Acceptance: ${feature}', () => {
-${hasCriteria 
-  ? criteria.map(c => `  test.todo('${c.replace(/'/g, "\\'")}');`).join('\n')
-  : "  test.todo('受入条件が requirements.md に見つかりません');"
-}
+describe('Acceptance: ${JSON.stringify(feature).slice(1, -1)}', () => {
+${hasCriteria
+        ? criteria.map(c => `  test.todo(${JSON.stringify(c)});`).join('\n')
+        : "  test.todo('受入条件が requirements.md に見つかりません');"
+      }
 });
 `;
 
