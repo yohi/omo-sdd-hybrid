@@ -408,6 +408,58 @@ function loadState(): State | null {
 }
 ```
 
+#### 5.4.5 ロック安全弁仕様（Normative）
+
+##### Owner 情報の記録（MUST）
+
+ロック取得時、以下のowner情報を `.lock-info.json` に記録すること:
+
+```json
+{
+  "taskId": "Task-1",
+  "pid": 12345,
+  "host": "hostname",
+  "startedAt": "2026-01-20T00:00:00.000Z"
+}
+```
+
+| フィールド | 型 | 説明 |
+|------------|------|------|
+| `taskId` | `string \| null` | 現在のタスクID（タスク外ロックは `null`） |
+| `pid` | `number` | ロックを取得したプロセスID |
+| `host` | `string` | ロックを取得したホスト名 |
+| `startedAt` | `string` | ロック取得時刻（ISO8601形式） |
+
+##### Force Unlock の安全弁（MUST）
+
+強制ロック解除（`sdd_force_unlock --force`）の動作:
+
+| 条件 | 動作 | 理由 |
+|------|------|------|
+| owner一致（同一pid/host） | 即時解除 | 自プロセスのロックなら安全 |
+| owner不一致 | dry-run強制（解除せず警告のみ） | 他プロセスへの干渉を防止 |
+| owner不一致 + `--overrideOwner` | 解除実行（警告付き） | 明示的な承認による例外 |
+
+**実装例:**
+```typescript
+// Owner一致確認
+const isOwnerMatch = lockInfo.pid === process.pid && 
+                     lockInfo.host === os.hostname();
+
+// owner不一致時はdry-run強制
+if (!isOwnerMatch && !overrideOwner) {
+  return '[OWNER MISMATCH] 他プロセスがロック保持中。--overrideOwner で強制解除可能';
+}
+```
+
+##### 推奨運用
+
+1. **通常時:** `sdd_force_unlock`（dry-run）で診断のみ
+2. **自プロセスのロック解除:** `sdd_force_unlock --force true`
+3. **他プロセスのロック強制解除:** 状況確認後 `sdd_force_unlock --force true --overrideOwner true`
+
+> ⚠️ `--overrideOwner` は他プロセスが実行中の場合、データ競合や破損のリスクがあります
+
 ---
 
 ## 6. Custom Tool 仕様

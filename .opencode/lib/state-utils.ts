@@ -1,10 +1,12 @@
 // Simple file-based lock implementation to avoid proper-lockfile Bun 1.3.5 crash
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { rotateBackup, getBackupPaths } from './backup-utils';
 
 const DEFAULT_STATE_DIR = '.opencode/state';
 const LOCK_DIR_NAME = '.lock';
+const LOCK_INFO_NAME = '.lock-info.json';
 
 export function getStateDir(): string {
   return process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
@@ -25,6 +27,13 @@ export interface State {
   role: 'architect' | 'implementer' | null;
 }
 
+export interface LockInfo {
+  taskId: string | null;
+  pid: number;
+  host: string;
+  startedAt: string;
+}
+
 export type StateResult =
   | { status: 'ok'; state: State }
   | { status: 'not_found' }
@@ -34,6 +43,10 @@ export type StateResult =
 // Simple file-based lock utilities
 function getLockPath(): string {
   return `${getStateDir()}/${LOCK_DIR_NAME}`;
+}
+
+function getLockInfoPath(): string {
+  return `${getStateDir()}/${LOCK_INFO_NAME}`;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -49,7 +62,42 @@ function isLockStale(lockPath: string, staleMs: number): boolean {
   }
 }
 
-export async function lockStateDir(): Promise<() => Promise<void>> {
+export function readLockInfo(): LockInfo | null {
+  const infoPath = getLockInfoPath();
+  if (!fs.existsSync(infoPath)) return null;
+  try {
+    const content = fs.readFileSync(infoPath, 'utf-8');
+    const parsed = JSON.parse(content);
+    if (parsed && typeof parsed.pid === 'number' && typeof parsed.host === 'string') {
+      return parsed as LockInfo;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLockInfo(taskId: string | null): void {
+  const infoPath = getLockInfoPath();
+  const info: LockInfo = {
+    taskId,
+    pid: process.pid,
+    host: os.hostname(),
+    startedAt: new Date().toISOString()
+  };
+  fs.writeFileSync(infoPath, JSON.stringify(info, null, 2));
+}
+
+function removeLockInfo(): void {
+  const infoPath = getLockInfoPath();
+  try {
+    if (fs.existsSync(infoPath)) {
+      fs.unlinkSync(infoPath);
+    }
+  } catch { /* ignore */ }
+}
+
+export async function lockStateDir(taskId?: string | null): Promise<() => Promise<void>> {
   const stateDir = getStateDir();
   if (!fs.existsSync(stateDir)) {
     fs.mkdirSync(stateDir, { recursive: true });
@@ -71,9 +119,13 @@ export async function lockStateDir(): Promise<() => Promise<void>> {
       // Atomic directory creation - fails if already exists
       fs.mkdirSync(lockPath);
 
+      // Write owner information
+      writeLockInfo(taskId ?? null);
+
       // Lock acquired - return release function
       return async () => {
         try {
+          removeLockInfo();
           fs.rmdirSync(lockPath);
         } catch { /* ignore */ }
       };

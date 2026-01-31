@@ -1,33 +1,34 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
-import { getStateDir } from '../../.opencode/lib/state-utils';
+import { getStateDir, LockInfo } from '../../.opencode/lib/state-utils';
 
 describe('sdd_force_unlock', () => {
   let stateDir: string;
   let lockPath: string;
+  let internalLockPath: string;
+  let lockInfoPath: string;
 
   beforeEach(() => {
     stateDir = setupTestState();
-    lockPath = path.join(stateDir, '.opencode/state.lock');
-    // Note: stateDir is typically `/tmp/.../state`. 
-    // proper-lockfile on `stateDir` creates `${stateDir}.lock` which is `/tmp/.../state.lock`.
-    // Wait, setupTestState sets `SDD_STATE_DIR`. 
-    // If SDD_STATE_DIR is `/tmp/x`, lockfile locks `/tmp/x`.
-    // The lock path is `/tmp/x.lock`.
-    // Let's adjust lockPath accordingly.
-    
-    // Actually, `lockStateDir` locks `getStateDir()`.
-    // proper-lockfile default for dir `foo` is `foo.lock`.
     lockPath = `${stateDir}.lock`;
+    internalLockPath = path.join(stateDir, '.lock');
+    lockInfoPath = path.join(stateDir, '.lock-info.json');
   });
 
   afterEach(() => {
     cleanupTestState();
     try {
       if (fs.existsSync(lockPath)) {
-        fs.unlinkSync(lockPath);
+        fs.rmSync(lockPath, { recursive: true, force: true });
+      }
+      if (fs.existsSync(internalLockPath)) {
+        fs.rmdirSync(internalLockPath);
+      }
+      if (fs.existsSync(lockInfoPath)) {
+        fs.unlinkSync(lockInfoPath);
       }
     } catch {
     }
@@ -73,5 +74,124 @@ describe('sdd_force_unlock', () => {
     const result = await sddForceUnlock.default.execute({ force: false }, {} as any);
 
     expect(result).toContain('State Integrity: CORRUPTED');
+  });
+});
+
+describe('sdd_force_unlock owner safety valve', () => {
+  let stateDir: string;
+  let lockPath: string;
+  let internalLockPath: string;
+  let lockInfoPath: string;
+
+  beforeEach(() => {
+    stateDir = setupTestState();
+    lockPath = `${stateDir}.lock`;
+    internalLockPath = path.join(stateDir, '.lock');
+    lockInfoPath = path.join(stateDir, '.lock-info.json');
+  });
+
+  afterEach(() => {
+    cleanupTestState();
+    try {
+      if (fs.existsSync(lockPath)) {
+        fs.rmSync(lockPath, { recursive: true, force: true });
+      }
+      if (fs.existsSync(internalLockPath)) {
+        fs.rmdirSync(internalLockPath);
+      }
+      if (fs.existsSync(lockInfoPath)) {
+        fs.unlinkSync(lockInfoPath);
+      }
+    } catch {
+    }
+  });
+
+  test('displays owner information when lock-info.json exists', async () => {
+    // Create lock artifacts
+    fs.mkdirSync(lockPath);
+    fs.mkdirSync(internalLockPath);
+
+    // Create lock info with current process info
+    const lockInfo: LockInfo = {
+      taskId: 'Task-Display',
+      pid: process.pid,
+      host: os.hostname(),
+      startedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(lockInfoPath, JSON.stringify(lockInfo, null, 2));
+
+    const sddForceUnlock = await import('../../.opencode/tools/sdd_force_unlock');
+    const result = await sddForceUnlock.default.execute({ force: false }, {} as any);
+
+    expect(result).toContain('## Owner情報');
+    expect(result).toContain('Task ID: Task-Display');
+    expect(result).toContain(`PID: ${process.pid}`);
+    expect(result).toContain(`Host: ${os.hostname()}`);
+  });
+
+  test('force unlock succeeds when owner matches', async () => {
+    // Create lock artifacts with current process info
+    fs.mkdirSync(lockPath);
+    fs.mkdirSync(internalLockPath);
+
+    const lockInfo: LockInfo = {
+      taskId: 'Task-Match',
+      pid: process.pid,
+      host: os.hostname(),
+      startedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(lockInfoPath, JSON.stringify(lockInfo, null, 2));
+
+    const sddForceUnlock = await import('../../.opencode/tools/sdd_force_unlock');
+    const result = await sddForceUnlock.default.execute({ force: true }, {} as any);
+
+    expect(result).toContain('[FORCE UNLOCK]');
+    expect(result).toContain('Owner Match: ✅ YES');
+    expect(result).toContain('ロック強制解除が完了しました');
+  });
+
+  test('force unlock is blocked and forced to dry-run when owner does not match', async () => {
+    // Create lock artifacts with different process info
+    fs.mkdirSync(lockPath);
+    fs.mkdirSync(internalLockPath);
+
+    const lockInfo: LockInfo = {
+      taskId: 'Task-Mismatch',
+      pid: 99999, // Different PID
+      host: 'different-host',
+      startedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(lockInfoPath, JSON.stringify(lockInfo, null, 2));
+
+    const sddForceUnlock = await import('../../.opencode/tools/sdd_force_unlock');
+    const result = await sddForceUnlock.default.execute({ force: true }, {} as any);
+
+    expect(result).toContain('[OWNER MISMATCH - DRY-RUN強制]');
+    expect(result).toContain('Owner Match: ❌ NO');
+    expect(result).not.toContain('[FORCE UNLOCK]');
+    expect(result).toContain('--force true --overrideOwner true');
+    // Lock should NOT be removed
+    expect(fs.existsSync(lockPath)).toBe(true);
+  });
+
+  test('force unlock succeeds with overrideOwner when owner does not match', async () => {
+    // Create lock artifacts with different process info
+    fs.mkdirSync(lockPath);
+    fs.mkdirSync(internalLockPath);
+
+    const lockInfo: LockInfo = {
+      taskId: 'Task-Override',
+      pid: 99999, // Different PID
+      host: 'different-host',
+      startedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(lockInfoPath, JSON.stringify(lockInfo, null, 2));
+
+    const sddForceUnlock = await import('../../.opencode/tools/sdd_force_unlock');
+    const result = await sddForceUnlock.default.execute({ force: true, overrideOwner: true }, {} as any);
+
+    expect(result).toContain('[OVERRIDE WARNING]');
+    expect(result).toContain('[FORCE UNLOCK]');
+    expect(result).toContain('ロック強制解除が完了しました');
   });
 });
