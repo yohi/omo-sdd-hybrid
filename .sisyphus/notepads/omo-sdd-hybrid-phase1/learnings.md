@@ -63,3 +63,8 @@ return { allowed: allowedOnViolation, warned: true, message: '...', rule: '...' 
 - `experimental.chat.system.transform` hook allows dynamic injection of system prompt context.
 - Useful for providing "always-on" context like active task ID and guard mode to the AI agent.
 - Must handle state read errors gracefully to avoid crashing the chat interface.
+
+## Test Concurrency Issues
+- **Observation**: `__tests__/lib/state-utils.test.ts` fails with "Disk error" when run in parallel (default `bun test`).
+- **Cause**: Shared temporary directory usage or race conditions on file system resources during parallel execution.
+- **Solution**: Use `bun test:seq` (defined in package.json) to run tests sequentially. This eliminates the race conditions and ensures reliable test execution.

@@ -1,10 +1,14 @@
 import { tool } from '../lib/plugin-stub';
-import { readState as defaultReadState, writeState as defaultWriteState, State } from '../lib/state-utils';
+import { readState, writeState, State } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
-import { countMarkdownTasks } from '../lib/tasks_markdown';
+import { parseTasksFile, ParsedTask } from '../lib/tasks-parser';
+import { analyzeKiroGap, formatKiroGapReport, findKiroSpecs, analyzeKiroGapDeep, formatEnhancedKiroGapReport } from '../lib/kiro-utils';
 import { spawnSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'fs';
+
+function getTasksPath() {
+  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+}
 
 const MAX_VALIDATION_ATTEMPTS = 5;
 
@@ -23,7 +27,7 @@ function getChangedFiles(): string[] | null {
 
 function validateScopes(allowedScopes: string[], changedFiles: string[] | null): string {
   if (changedFiles === null) {
-    return 'ERROR: git コマンドの実行に失敗しました';
+    return 'ERROR: git コマンドの実行に失敗しました（git が利用できないか、git リポジトリ外です）';
   }
   
   if (changedFiles.length === 0) {
@@ -50,7 +54,7 @@ function validateScopes(allowedScopes: string[], changedFiles: string[] | null):
 
 function runScopedTests(allowedScopes: string[], skipTests: boolean = false): string {
   if (skipTests || process.env.SDD_SKIP_TEST_EXECUTION === 'true') {
-    return 'SKIP: テスト実行はスキップされました';
+    return 'SKIP: テスト実行はスキップされました（手動で実行してください）';
   }
   
   const testPatterns = allowedScopes
@@ -81,90 +85,88 @@ function runScopedTests(allowedScopes: string[], skipTests: boolean = false): st
 }
 
 function checkDiagnostics(allowedScopes: string[], changedFiles: string[] | null): string {
-  if (changedFiles === null || changedFiles.length === 0) {
+  if (changedFiles === null) {
+    return 'SKIP: 変更ファイルの取得に失敗しました - git 差分の取得エラー';
+  }
+  
+  if (changedFiles.length === 0) {
     return 'SKIP: 変更ファイルがないため、診断不要';
   }
 
   const scopedFiles = changedFiles.filter(file => matchesScope(file, allowedScopes));
+  
+  if (scopedFiles.length === 0) {
+    return 'SKIP: スコープ内の変更ファイルなし';
+  }
+
   const tsFiles = scopedFiles.filter(f => f.endsWith('.ts') || f.endsWith('.tsx'));
   
   if (tsFiles.length === 0) {
     return 'SKIP: TypeScriptファイルの変更なし';
   }
 
-  return `以下のファイルで lsp_diagnostics を実行してください:\n  - ${tsFiles.join('\n  - ')}`;
+  const lines: string[] = [
+    '以下のファイルで lsp_diagnostics を実行してください:',
+    ''
+  ];
+  
+  tsFiles.forEach(file => {
+    lines.push(`  - ${file}`);
+  });
+  
+  lines.push('');
+  lines.push('コマンド例:');
+  lines.push(`  lsp_diagnostics("${tsFiles[0]}")`);
+  
+  return lines.join('\n');
 }
 
-export function validateKiroIntegration(kiroSpec?: string, deep?: boolean): string {
-  if (!kiroSpec || kiroSpec.trim() === '') {
-    return 'INFO: kiroSpec が指定されていません。仕様とのギャップ分析を行うには --kiroSpec <feature> を指定してください。';
-  }
-
-  const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
-  const baseSpecsDir = path.resolve(kiroDir, 'specs');
-
-  if (kiroSpec.includes('\0') || path.isAbsolute(kiroSpec) || kiroSpec.split(/[/\\]/).includes('..')) {
-    return `WARN: 不正な kiroSpec が指定されました: ${kiroSpec}`;
-  }
-
-  const resolvedSpecDir = path.resolve(baseSpecsDir, kiroSpec);
-  const relative = path.relative(baseSpecsDir, resolvedSpecDir);
-  if (relative === '..' || relative.startsWith('..' + path.sep)) {
-    return `WARN: 不正な kiroSpec が指定されました: ${kiroSpec}`;
-  }
-
-  try {
-    const stat = fs.statSync(resolvedSpecDir);
-    if (!stat.isDirectory()) {
-      return `WARN: 仕様ディレクトリが見つかりません: ${resolvedSpecDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
-    }
-  } catch {
-    return `WARN: 仕様ディレクトリが見つかりません: ${resolvedSpecDir}\n  仕様を作成するには: /kiro:spec-init ${kiroSpec} (または READMEのKiro統合手順を参照)`;
-  }
-
-  const reports: string[] = [];
+async function checkKiroIntegration(taskId: string, changedFiles: string[], useDeepAnalysis: boolean = false): Promise<string> {
+  const kiroSpecs = findKiroSpecs();
   
-  const files = [
-    { name: 'spec.json', required: false },
-    { name: 'requirements.md', required: true },
-    { name: 'design.md', required: true },
-    { name: 'tasks.md', required: true }
-  ];
+  if (kiroSpecs.length === 0) {
+    return 'INFO: Kiro仕様が見つかりません（オプション機能）\n' +
+           '> Kiro統合を有効にするには: npx cc-sdd@latest --claude';
+  }
 
-  const statusLines: string[] = [];
-  let tasksInfo = '';
-
-  for (const file of files) {
-    const filePath = path.join(resolvedSpecDir, file.name);
-    if (fs.existsSync(filePath)) {
-      statusLines.push(`[PASS] ${file.name}`);
-      
-      if (file.name === 'tasks.md') {
-        try {
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const progress = countMarkdownTasks(content);
-          const percent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
-          tasksInfo = `\n  進捗: ${progress.completed}/${progress.total} (${percent}%)`;
-        } catch (e) {
-          tasksInfo = `\n  進捗: 取得失敗 (${e instanceof Error ? e.message : String(e)})`;
-        }
-      }
-    } else {
-      statusLines.push(file.required ? `[FAIL] ${file.name} (Not Found)` : `[SKIP] ${file.name} (Optional)`);
+  let matchedSpec = kiroSpecs.find(s => s === taskId);
+  
+  if (!matchedSpec) {
+    matchedSpec = kiroSpecs.find(s => s.toLowerCase() === taskId.toLowerCase());
+  }
+  
+  if (!matchedSpec) {
+    const normalizedTaskId = taskId.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    matchedSpec = kiroSpecs.find(s => s === normalizedTaskId);
+    
+    if (!matchedSpec) {
+      matchedSpec = kiroSpecs.find(s => 
+        s.includes(normalizedTaskId) || normalizedTaskId.includes(s)
+      );
     }
   }
 
-  reports.push(statusLines.join('\n') + tasksInfo);
-
-  if (deep) {
-    reports.push('\n[Deep Analysis]');
-    reports.push('  構造的・意味的ギャップ分析は現在開発中です。');
-    reports.push('  現在の実装状況と requirements.md の項目を突き合わせてください。');
-  } else {
-    reports.push('\nHint: --deep オプションで詳細な分析（Embeddings等）を有効化できます（未実装）。');
+  if (!matchedSpec && kiroSpecs.length > 0) {
+    return `INFO: タスク '${taskId}' に対応するKiro仕様が見つかりません\n` +
+           `利用可能な仕様: ${kiroSpecs.join(', ')}\n` +
+           '> 仕様を指定するには taskId を Kiro仕様名と一致させてください';
   }
 
-  return reports.join('\n');
+  if (matchedSpec) {
+    if (useDeepAnalysis) {
+      if (!process.env.SDD_EMBEDDINGS_API_KEY) {
+        const gapResult = analyzeKiroGap(matchedSpec, changedFiles);
+        return `警告: 埋め込みAPIキーが見つかりません。意味解析はスキップされました。\n\n` + formatKiroGapReport(gapResult);
+      }
+      const deepResult = await analyzeKiroGapDeep(matchedSpec, changedFiles);
+      return formatEnhancedKiroGapReport(deepResult);
+    } else {
+      const gapResult = analyzeKiroGap(matchedSpec, changedFiles);
+      return formatKiroGapReport(gapResult);
+    }
+  }
+
+  return 'INFO: Kiro統合はスキップされました';
 }
 
 export interface ValidateGapOptions {
@@ -179,25 +181,64 @@ export async function validateGapInternal(state: State, options: ValidateGapOpti
   const effectiveTaskId = options.taskId || state.activeTaskId;
   const currentAttempts = options.currentAttempts ?? state.validationAttempts;
   const allowedScopes = state.allowedScopes;
+
+  // If taskId is provided specifically (overriding state), we might need to look up scopes from file
+  let effectiveAllowedScopes = allowedScopes;
+  if (options.taskId && options.taskId !== state.activeTaskId) {
+    const tasksPath = getTasksPath();
+    if (!fs.existsSync(tasksPath)) {
+      return `エラー: ${tasksPath} が見つかりません`;
+    }
+    
+    const content = fs.readFileSync(tasksPath, 'utf-8');
+    let tasks: ParsedTask[];
+    try {
+      tasks = parseTasksFile(content);
+    } catch (error) {
+       // Return error string instead of exit/throw to be safe in internal calls
+       if (error instanceof Error) {
+         return `エラー: ${tasksPath} の解析に失敗しました: ${error.message}`;
+       }
+       return `エラー: ${tasksPath} の解析に失敗しました`;
+    }
+    
+    const task = tasks.find(t => t.id === options.taskId);
+    if (!task) {
+      return `エラー: タスク ${options.taskId} が見つかりません`;
+    }
+    
+    if (task.scopes.length === 0) {
+      return `エラー: タスク ${options.taskId} に Scope が定義されていません`;
+    }
+    effectiveAllowedScopes = task.scopes;
+  }
+
   const changedFiles = getChangedFiles();
   
   const sections: string[] = [];
   
   sections.push(`# 検証レポート: ${effectiveTaskId}`);
   sections.push(`試行回数: ${currentAttempts} / ${MAX_VALIDATION_ATTEMPTS}`);
-  sections.push(`許可スコープ: ${allowedScopes.join(', ')}`);
+  sections.push(`許可スコープ: ${effectiveAllowedScopes.join(', ')}`);
   
   sections.push('\n## スコープ検証');
-  sections.push(validateScopes(allowedScopes, changedFiles));
+  sections.push(validateScopes(effectiveAllowedScopes, changedFiles));
   
   sections.push('\n## Diagnostics');
-  sections.push(checkDiagnostics(allowedScopes, changedFiles));
+  sections.push(checkDiagnostics(effectiveAllowedScopes, changedFiles));
   
   sections.push('\n## テスト');
-  sections.push(runScopedTests(allowedScopes, options.skipTests));
+  sections.push(runScopedTests(effectiveAllowedScopes, options.skipTests));
   
-  sections.push('\n## Kiro統合 (cc-sdd)');
-  sections.push(validateKiroIntegration(options.kiroSpec, options.deep));
+  sections.push('\n## Kiro統合');
+  const kiroTarget = options.kiroSpec || effectiveTaskId;
+  const useDeepAnalysis = options.deep === true;
+  
+  if (changedFiles === null) {
+    sections.push('SKIP: 変更ファイルの取得に失敗したため、Kiro統合はスキップされました');
+  } else {
+    sections.push(await checkKiroIntegration(kiroTarget, changedFiles, useDeepAnalysis));
+  }
   
   sections.push('\n---');
   sections.push('検証完了後、sdd_end_task を実行してタスクを終了してください。');
@@ -206,28 +247,38 @@ export async function validateGapInternal(state: State, options: ValidateGapOpti
 }
 
 export default tool({
-  description: '仕様とコードの差分を検証（スコープ + テスト + Diagnostics + cc-sdd統合）',
+  description: '仕様とコードの差分を検証（lsp_diagnostics + テスト + スコープ + Kiro統合 + 意味的分析）',
   args: {
     taskId: tool.schema.string().optional().describe('検証するタスクID（省略時は現在アクティブなタスク）'),
     kiroSpec: tool.schema.string().optional().describe('Kiro仕様名（.kiro/specs/配下のディレクトリ名）'),
-    deep: tool.schema.boolean().optional().describe('深度分析を有効にする')
+    deep: tool.schema.boolean().optional().describe('深度分析を有効にする（カバレッジ分析・意味的検証プロンプト生成）')
   },
-  async execute({ taskId, kiroSpec, deep }, context: any) {
-    const readState = context?.__testDeps?.readState ?? defaultReadState;
-    const writeState = context?.__testDeps?.writeState ?? defaultWriteState;
-    const validateGapInternalDeps = context?.__testDeps?.validateGapInternal ?? validateGapInternal;
-
+  async execute({ taskId, kiroSpec, deep }) {
     const stateResult = await readState();
     
     if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
-      return `エラー: アクティブなタスクがありません。sdd_start_task を実行してください。\n\n状態: ${stateResult.status}`;
+      return `エラー: アクティブなタスクがありません。sdd_start_task を実行してください。
+
+状態: ${stateResult.status}`;
     }
     
     const state = stateResult.state;
+    const effectiveTaskId = taskId || state.activeTaskId;
+    
     const currentAttempts = state.validationAttempts + 1;
     
     if (currentAttempts > MAX_VALIDATION_ATTEMPTS) {
-      return `❌ エスカレーション: 検証が ${MAX_VALIDATION_ATTEMPTS} 回連続で失敗しました\n\nタスク: ${taskId || state.activeTaskId}\n\n検証ループを続けるには、sdd_end_task → sdd_start_task でタスクをリセットしてください。`;
+      return `❌ エスカレーション: 検証が ${MAX_VALIDATION_ATTEMPTS} 回連続で失敗しました
+
+タスク: ${effectiveTaskId}
+試行回数: ${currentAttempts}回 / ${MAX_VALIDATION_ATTEMPTS}回上限
+
+**次のアクション**:
+1. 現在の問題を整理してください
+2. 人間にエスカレーションし、追加の指示を待ってください
+3. 自動修正を中断してください
+
+検証ループを続けるには、sdd_end_task → sdd_start_task でタスクをリセットしてください。`;
     }
     
     await writeState({
@@ -235,12 +286,13 @@ export default tool({
       validationAttempts: currentAttempts
     });
     
-    return validateGapInternalDeps(state, {
+    // Call internal logic
+    return validateGapInternal(state, {
       taskId,
       kiroSpec,
       deep,
       currentAttempts,
-      skipTests: false
+      skipTests: false // CLI execution defaults to running tests (unless env var set)
     });
   }
 });
