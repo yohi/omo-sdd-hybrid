@@ -6,6 +6,20 @@
 
 タスク単位のファイルアクセス制御で「Vibe Coding（仕様逸脱）」を物理的に抑止する OpenCode プラグイン。
 
+## Threat Model（脅威モデル）
+
+### 防げること
+- タスク未選択状態でのコード編集（NO_ACTIVE_TASK）
+- タスクスコープ外ファイルへの編集（SCOPE_DENIED）
+- ワークツリー外への書き込み（OUTSIDE_WORKTREE）
+- ガードモード弱体化（block → warn への降格防止）
+
+### 防げないこと
+- LLMがsdd_start_taskを呼ばずに直接編集を試みること（Gatekeeperで検知・ブロックするが、LLMの意図そのものは制御不可）
+- 許可されたスコープ内での不適切な変更
+- OpenCode Permission設定を迂回する攻撃
+- 悪意のあるユーザーによる手動ファイル編集
+
 ## インストール
 
 プロジェクトの `opencode.json` (または `opencode.jsonc`) にプラグイン定義を追加することでインストールできます。
