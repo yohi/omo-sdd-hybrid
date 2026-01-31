@@ -27,6 +27,45 @@ function getSpecsDir() {
   return path.join(getKiroDir(), 'specs');
 }
 
+/**
+ * featureNameをバリデートし、パス・トラバーサル攻撃を防止します。
+ * @param featureName 検証する機能名
+ * @returns 有効な場合はtrue、無効な場合はfalse
+ */
+function isValidFeatureName(featureName: string): boolean {
+  // 空文字列チェック
+  if (!featureName || featureName.trim() === '') {
+    return false;
+  }
+
+  // 絶対パスの拒否
+  if (path.isAbsolute(featureName)) {
+    return false;
+  }
+
+  // 親ディレクトリ参照(..)の拒否
+  if (featureName.includes('..')) {
+    return false;
+  }
+
+  // パス区切り文字で始まる場合を拒否
+  if (featureName.startsWith(path.sep) || featureName.startsWith('/') || featureName.startsWith('\\')) {
+    return false;
+  }
+
+  // 解決後のパスがspecsディレクトリ内にあることを確認
+  const specsDir = path.resolve(getSpecsDir());
+  const specDir = path.resolve(getSpecsDir(), featureName);
+
+  // specDirがspecsDirの子ディレクトリであることを確認
+  // path.sepを追加して、プレフィックスマッチングではなく完全なディレクトリマッチングを保証
+  if (!specDir.startsWith(specsDir + path.sep)) {
+    return false;
+  }
+
+  return true;
+}
+
 export function findKiroSpecs(): string[] {
   const specsDir = getSpecsDir();
   if (!fs.existsSync(specsDir)) {
@@ -44,8 +83,13 @@ export function findKiroSpecs(): string[] {
 }
 
 export function loadKiroSpec(featureName: string): KiroSpec | null {
+  // featureNameのバリデーション
+  if (!isValidFeatureName(featureName)) {
+    return null;
+  }
+
   const specDir = path.join(getSpecsDir(), featureName);
-  
+
   if (!fs.existsSync(specDir)) {
     return null;
   }
@@ -85,7 +129,7 @@ export function loadKiroSpec(featureName: string): KiroSpec | null {
 
 export function analyzeKiroGap(featureName: string, changedFiles: string[]): KiroGapResult {
   const spec = loadKiroSpec(featureName);
-  
+
   if (!spec) {
     return {
       status: 'not_found',
@@ -118,24 +162,24 @@ export function analyzeKiroGap(featureName: string, changedFiles: string[]): Kir
 
   if (spec.tasks && changedFiles.length > 0) {
     // チェックボックス形式のタスクのみを抽出（番号付きリストを除外）
-    const taskLines = spec.tasks.split('\n').filter(line => 
+    const taskLines = spec.tasks.split('\n').filter(line =>
       line.match(/^\s*[-\*]\s*\[[ x]\]/i)
     );
-    
+
     const completedTasks = taskLines.filter(line => line.match(/\[x\]/i)).length;
     const totalTasks = taskLines.length;
-    
+
     if (totalTasks > 0) {
       suggestions.push(`タスク進捗: ${completedTasks}/${totalTasks} 完了`);
-      
+
       if (completedTasks < totalTasks) {
         suggestions.push('未完了のタスクがあります。tasks.md を確認してください');
       }
     }
   }
 
-  const status = gaps.length === 0 ? 'found' : 
-                 (spec.requirements || spec.design || spec.tasks || spec.specJson) ? 'partial' : 'not_found';
+  const status = gaps.length === 0 ? 'found' :
+    (spec.requirements || spec.design || spec.tasks || spec.specJson) ? 'partial' : 'not_found';
 
   return {
     status,
@@ -174,7 +218,7 @@ export function formatKiroGapReport(result: KiroGapResult): string {
   lines.push('- requirements.md: ✅');
   lines.push('- design.md: ✅');
   lines.push('- tasks.md: ✅');
-  
+
   if (result.suggestions.length > 0) {
     lines.push('');
     result.suggestions.forEach(suggestion => { lines.push(`> ${suggestion}`); });
@@ -192,7 +236,7 @@ export interface EnhancedKiroGapResult extends KiroGapResult {
 
 export async function analyzeKiroGapDeep(featureName: string, changedFiles: string[]): Promise<EnhancedKiroGapResult> {
   const baseResult = analyzeKiroGap(featureName, changedFiles);
-  
+
   const enhanced: EnhancedKiroGapResult = {
     ...baseResult,
     gaps: [...baseResult.gaps],
@@ -214,13 +258,13 @@ export async function analyzeKiroGapDeep(featureName: string, changedFiles: stri
   if (baseResult.spec.design) {
     const design = extractDesign(baseResult.spec.design);
     enhanced.coverage = analyzeCoverage(design, changedFiles);
-    
+
     if (enhanced.coverage.missing.length > 0) {
       enhanced.gaps.push(
         `設計で宣言されたファイルのうち ${enhanced.coverage.missing.length} 件が未実装`
       );
     }
-    
+
     if (enhanced.coverage.unexpected.length > 0) {
       enhanced.suggestions.push(
         `設計外の変更が ${enhanced.coverage.unexpected.length} 件あります（design.md の更新を検討してください）`
@@ -257,14 +301,14 @@ export async function analyzeKiroGapDeep(featureName: string, changedFiles: stri
 
 function generateSemanticPrompt(requirements: ExtractedRequirement[], changedFiles: string[]): string {
   const lines: string[] = [];
-  
+
   lines.push('## 要件充足分析依頼');
   lines.push('');
   lines.push('以下の要件と変更ファイルを照合し、実装が要件を満たしているか分析してください。');
   lines.push('');
   lines.push('### 検証対象の要件');
   lines.push('');
-  
+
   for (const req of requirements) {
     lines.push(`#### ${req.id}: ${req.description.split('\n')[0].substring(0, 100)}`);
     if (req.acceptanceCriteria.length > 0) {
@@ -276,7 +320,7 @@ function generateSemanticPrompt(requirements: ExtractedRequirement[], changedFil
     }
     lines.push('');
   }
-  
+
   lines.push('### 変更されたファイル');
   lines.push('');
   for (const file of changedFiles.slice(0, 20)) {
@@ -291,20 +335,20 @@ function generateSemanticPrompt(requirements: ExtractedRequirement[], changedFil
   lines.push('1. 上記のファイル変更は、列挙された要件を充足していますか？');
   lines.push('2. 不足している実装があれば、具体的に指摘してください。');
   lines.push('3. 受入条件のうち、検証が困難なものがあれば指摘してください。');
-  
+
   return lines.join('\n');
 }
 
 export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): string {
   const lines: string[] = [];
-  
+
   lines.push(formatKiroGapReport(result));
-  
+
   if (result.coverage) {
     lines.push('');
     lines.push(formatCoverageReport(result.coverage));
   }
-  
+
   if (result.extractedRequirements.length > 0) {
     lines.push('');
     lines.push(`### 抽出された要件: ${result.extractedRequirements.length} 件`);
@@ -321,7 +365,7 @@ export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): stri
     lines.push('');
     lines.push('---');
     lines.push('');
-    
+
     if (result.semanticAnalysis.gaps.length > 0) {
       lines.push(`### ⚠️ 意味的ギャップ検出: ${result.semanticAnalysis.gaps.length} 件`);
       lines.push('');
@@ -338,7 +382,7 @@ export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): stri
       lines.push('> Embeddingsが無効化されている、ファイルが分析スコープ外、または要件が抽出されなかった可能性があります');
     }
   }
-  
+
   if (result.semanticAnalysisPrompt) {
     lines.push('');
     lines.push('---');
@@ -354,15 +398,20 @@ export function formatEnhancedKiroGapReport(result: EnhancedKiroGapResult): stri
     lines.push('');
     lines.push('</details>');
   }
-  
+
   return lines.join('\n');
 }
 
 export function updateKiroSpecTasks(featureName: string, newContent: string): boolean {
+  // featureNameのバリデーション
+  if (!isValidFeatureName(featureName)) {
+    return false;
+  }
+
   const specsDir = getSpecsDir();
   const specDir = path.join(specsDir, featureName);
   const tasksPath = path.join(specDir, 'tasks.md');
-  
+
   if (!fs.existsSync(tasksPath)) {
     return false;
   }
