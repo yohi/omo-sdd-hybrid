@@ -120,7 +120,12 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
       fs.mkdirSync(lockPath);
 
       // Write owner information
-      writeLockInfo(taskId ?? null);
+      try {
+        writeLockInfo(taskId ?? null);
+      } catch (e) {
+        try { fs.rmdirSync(lockPath); } catch { /* ignore */ }
+        throw e;
+      }
 
       // Lock acquired - return release function
       return async () => {
