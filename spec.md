@@ -408,6 +408,58 @@ function loadState(): State | null {
 }
 ```
 
+#### 5.4.5 ロック安全弁仕様（Normative）
+
+##### Owner 情報の記録（MUST）
+
+ロック取得時、以下のowner情報を `.lock-info.json` に記録すること:
+
+```json
+{
+  "taskId": "Task-1",
+  "pid": 12345,
+  "host": "hostname",
+  "startedAt": "2026-01-20T00:00:00.000Z"
+}
+```
+
+| フィールド | 型 | 説明 |
+|------------|------|------|
+| `taskId` | `string \| null` | 現在のタスクID（タスク外ロックは `null`） |
+| `pid` | `number` | ロックを取得したプロセスID |
+| `host` | `string` | ロックを取得したホスト名 |
+| `startedAt` | `string` | ロック取得時刻（ISO8601形式） |
+
+##### Force Unlock の安全弁（MUST）
+
+強制ロック解除（`sdd_force_unlock --force`）の動作:
+
+| 条件 | 動作 | 理由 |
+|------|------|------|
+| owner一致（同一pid/host） | 即時解除 | 自プロセスのロックなら安全 |
+| owner不一致 | dry-run強制（解除せず警告のみ） | 他プロセスへの干渉を防止 |
+| owner不一致 + `--overrideOwner` | 解除実行（警告付き） | 明示的な承認による例外 |
+
+**実装例:**
+```typescript
+// Owner一致確認
+const isOwnerMatch = lockInfo.pid === process.pid && 
+                     lockInfo.host === os.hostname();
+
+// owner不一致時はdry-run強制
+if (!isOwnerMatch && !overrideOwner) {
+  return '[OWNER MISMATCH] 他プロセスがロック保持中。--overrideOwner で強制解除可能';
+}
+```
+
+##### 推奨運用
+
+1. **通常時:** `sdd_force_unlock`（dry-run）で診断のみ
+2. **自プロセスのロック解除:** `sdd_force_unlock --force true`
+3. **他プロセスのロック強制解除:** 状況確認後 `sdd_force_unlock --force true --overrideOwner true`
+
+> ⚠️ `--overrideOwner` は他プロセスが実行中の場合、データ競合や破損のリスクがあります
+
 ---
 
 ## 6. Custom Tool 仕様
@@ -671,7 +723,7 @@ function validatePathForEdit(
 ### 7.6.4 エッジケース
 
 | ケース | 扱い | 実装 |
-| -------- | ------ | ------ |
+|----------|--------|--------|
 | ルートディレクトリ自体 `/` | worktree外として **拒否** | `relativePath === ''` |
 | Symlink → worktree外 | 実体パスが外なら拒否 | `fs.realpath` で解決後に判定 |
 | 絶対パス（`/etc/passwd`） | worktree外として **拒否** | `relativePath.startsWith('..')` |
@@ -694,7 +746,7 @@ function validatePathForEdit(
 以下の仕様に従う。
 
 | パターン | マッチ対象 | 例 |
-| --------- | ---------- | --- |
+|-----------|------------|-----|
 | `*` | 単一パスセグメント内の0文字以上（`/` を除く） | `src/*.ts` → `src/a.ts`, `src/b.ts` |
 | `**` | 0個以上のディレクトリ（再帰マッチ） | `src/**/*.ts` → `src/a.ts`, `src/auth/b.ts` |
 | `?` | 単一パスセグメント内の1文字（`/` を除く） | `src/?.ts` → `src/a.ts` のみ |
@@ -729,7 +781,7 @@ function validatePathForEdit(
 #### OSによる挙動差異（Normative）
 
 | OS | 挙動 | 例 |
-| ---- | ------ | --- |
+|------|--------|-----|
 | Linux/macOS | 大文字小文字を区別 | `src/Auth.ts` ≠ `src/auth.ts` |
 | Windows | 大文字小文字を区別しない | `src/Auth.ts` = `src/auth.ts` |
 
@@ -821,7 +873,7 @@ Gatekeeperは以下のディレクトリを**自動的に除外しない**。
 明示的にScopeから除外したい場合は、tasks.mdで対象ディレクトリを指定しないことで実現する。
 
 | パターン | 用途 | 備考 |
-| --------- | ------ | ------ |
+|-----------|--------|--------|
 | `node_modules/**` | npm依存関係 | 通常Scopeに含めない |
 | `dist/**`, `build/**` | ビルド生成物 | 編集不要 |
 | `.git/**` | Gitメタデータ | 直接編集禁止 |
@@ -959,7 +1011,7 @@ Gatekeeperだけに頼らず、`opencode.json` の permission で bash を抑制
 ## 10. 受け入れ基準（Acceptance Criteria）
 
 | シナリオ | 事前状態                          | 操作                  | 期待結果（Phase 0）          | 期待結果（Phase 1）           |
-| ---- | ----------------------------- | ------------------- | ---------------------- | ----------------------- |
+|------|-------------------------------|---------------------|------------------------|-------------------------|
 | A    | stateなし                       | `src/a.ts` を編集      | WARNして実行は通す            | BLOCK（NO_ACTIVE_TASK）   |
 | B    | Task-1開始, Scope=`src/auth/**` | `src/auth/x.ts` 編集  | allow                  | allow                   |
 | C    | Task-1開始, Scope=`src/auth/**` | `src/pay/y.ts` 編集   | WARN（SCOPE_DENIED）     | BLOCK（SCOPE_DENIED）     |
