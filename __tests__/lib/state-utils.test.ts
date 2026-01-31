@@ -52,7 +52,7 @@ describe('state-utils', () => {
         allowedScopes: ['src/auth/**'],
         startedAt: new Date().toISOString(),
         startedBy: 'test',
-        validationAttempts: 0
+        validationAttempts: 0, role: null
       };
       
       await writeState(state);
@@ -114,7 +114,7 @@ describe('state-utils', () => {
         allowedScopes: ['src/**'],
         startedAt: new Date().toISOString(),
         startedBy: 'test',
-        validationAttempts: 0
+        validationAttempts: 0, role: null
       };
       
       await writeState(state);
@@ -147,7 +147,7 @@ describe('state-utils', () => {
         allowedScopes: ['src/**'],
         startedAt: new Date().toISOString(),
         startedBy: 'test',
-        validationAttempts: 0
+        validationAttempts: 0, role: null
       };
       
       await writeState(state1);
@@ -177,7 +177,7 @@ describe('state-utils', () => {
         allowedScopes: ['src/**'],
         startedAt: new Date().toISOString(),
         startedBy: 'test',
-        validationAttempts: 0
+        validationAttempts: 0, role: null
       });
       
       await writeState(createState('v1'));
@@ -208,7 +208,7 @@ describe('state-utils', () => {
       allowedScopes: ['src/**'],
       startedAt: new Date().toISOString(),
       startedBy: 'test',
-      validationAttempts: 0
+      validationAttempts: 0, role: null
     };
 
     test('recovers from backup when state is corrupted', async () => {
