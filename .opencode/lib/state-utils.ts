@@ -68,7 +68,13 @@ export function readLockInfo(): LockInfo | null {
   try {
     const content = fs.readFileSync(infoPath, 'utf-8');
     const parsed = JSON.parse(content);
-    if (parsed && typeof parsed.pid === 'number' && typeof parsed.host === 'string') {
+    if (
+      parsed &&
+      typeof parsed.pid === 'number' &&
+      typeof parsed.host === 'string' &&
+      (parsed.taskId === null || typeof parsed.taskId === 'string') &&
+      typeof parsed.startedAt === 'string'
+    ) {
       return parsed as LockInfo;
     }
     return null;
@@ -139,6 +145,7 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
         // Lock exists - check if stale
         if (isLockStale(lockPath, stale)) {
           try {
+            removeLockInfo();
             fs.rmdirSync(lockPath);
             continue; // Retry immediately
           } catch { /* ignore */ }
