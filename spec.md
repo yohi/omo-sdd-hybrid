@@ -723,7 +723,7 @@ function validatePathForEdit(
 ### 7.6.4 エッジケース
 
 | ケース | 扱い | 実装 |
-| -------- | ------ | ------ |
+|----------|--------|--------|
 | ルートディレクトリ自体 `/` | worktree外として **拒否** | `relativePath === ''` |
 | Symlink → worktree外 | 実体パスが外なら拒否 | `fs.realpath` で解決後に判定 |
 | 絶対パス（`/etc/passwd`） | worktree外として **拒否** | `relativePath.startsWith('..')` |
@@ -746,7 +746,7 @@ function validatePathForEdit(
 以下の仕様に従う。
 
 | パターン | マッチ対象 | 例 |
-| --------- | ---------- | --- |
+|-----------|------------|-----|
 | `*` | 単一パスセグメント内の0文字以上（`/` を除く） | `src/*.ts` → `src/a.ts`, `src/b.ts` |
 | `**` | 0個以上のディレクトリ（再帰マッチ） | `src/**/*.ts` → `src/a.ts`, `src/auth/b.ts` |
 | `?` | 単一パスセグメント内の1文字（`/` を除く） | `src/?.ts` → `src/a.ts` のみ |
@@ -781,7 +781,7 @@ function validatePathForEdit(
 #### OSによる挙動差異（Normative）
 
 | OS | 挙動 | 例 |
-| ---- | ------ | --- |
+|------|--------|-----|
 | Linux/macOS | 大文字小文字を区別 | `src/Auth.ts` ≠ `src/auth.ts` |
 | Windows | 大文字小文字を区別しない | `src/Auth.ts` = `src/auth.ts` |
 
@@ -873,7 +873,7 @@ Gatekeeperは以下のディレクトリを**自動的に除外しない**。
 明示的にScopeから除外したい場合は、tasks.mdで対象ディレクトリを指定しないことで実現する。
 
 | パターン | 用途 | 備考 |
-| --------- | ------ | ------ |
+|-----------|--------|--------|
 | `node_modules/**` | npm依存関係 | 通常Scopeに含めない |
 | `dist/**`, `build/**` | ビルド生成物 | 編集不要 |
 | `.git/**` | Gitメタデータ | 直接編集禁止 |
@@ -1011,7 +1011,7 @@ Gatekeeperだけに頼らず、`opencode.json` の permission で bash を抑制
 ## 10. 受け入れ基準（Acceptance Criteria）
 
 | シナリオ | 事前状態                          | 操作                  | 期待結果（Phase 0）          | 期待結果（Phase 1）           |
-| ---- | ----------------------------- | ------------------- | ---------------------- | ----------------------- |
+|------|-------------------------------|---------------------|------------------------|-------------------------|
 | A    | stateなし                       | `src/a.ts` を編集      | WARNして実行は通す            | BLOCK（NO_ACTIVE_TASK）   |
 | B    | Task-1開始, Scope=`src/auth/**` | `src/auth/x.ts` 編集  | allow                  | allow                   |
 | C    | Task-1開始, Scope=`src/auth/**` | `src/pay/y.ts` 編集   | WARN（SCOPE_DENIED）     | BLOCK（SCOPE_DENIED）     |

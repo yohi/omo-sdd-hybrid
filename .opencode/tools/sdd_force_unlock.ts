@@ -105,6 +105,24 @@ export default tool({
       // First, attempt to unlock using the library
       await lockfile.unlock(stateDir);
       statusLines.push(`✅ Unlocked via proper-lockfile`);
+
+      // Clean up internal artifacts even on successful unlock
+      if (hasLockInfo) {
+        try {
+          fs.unlinkSync(lockInfoPath);
+          statusLines.push(`✅ Lock info file removed: ${lockInfoPath}`);
+        } catch (infoError) {
+          statusLines.push(`⚠️ Lock info removal failed: ${(infoError as Error).message}`);
+        }
+      }
+      if (hasInternalLock) {
+        try {
+          fs.rmdirSync(internalLockPath);
+          statusLines.push(`✅ Internal lock dir removed: ${internalLockPath}`);
+        } catch (internalError) {
+          statusLines.push(`⚠️ Internal lock dir removal failed: ${(internalError as Error).message}`);
+        }
+      }
     } catch (e) {
       statusLines.push(`⚠️ proper-lockfile unlock failed: ${(e as Error).message}`);
       statusLines.push(`Attempting manual removal as fallback...`);

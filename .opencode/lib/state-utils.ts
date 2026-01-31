@@ -162,7 +162,7 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
 
 export async function writeState(state: State): Promise<void> {
   const statePath = getStatePath();
-  const release = await lockStateDir();
+  const release = await lockStateDir(state.activeTaskId);
   try {
     rotateBackup(statePath);
     // Use fs.writeFileSync instead of write-file-atomic to avoid potential Bun issues
