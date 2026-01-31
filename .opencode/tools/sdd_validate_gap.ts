@@ -1,5 +1,5 @@
 import { tool } from '../lib/plugin-stub';
-import { readState, writeState, State } from '../lib/state-utils';
+import { readState as defaultReadState, writeState as defaultWriteState, State } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
 import { parseTasksFile, ParsedTask } from '../lib/tasks-parser';
 import { analyzeKiroGap, formatKiroGapReport, findKiroSpecs, analyzeKiroGapDeep, formatEnhancedKiroGapReport } from '../lib/kiro-utils';
@@ -253,7 +253,11 @@ export default tool({
     kiroSpec: tool.schema.string().optional().describe('Kiro仕様名（.kiro/specs/配下のディレクトリ名）'),
     deep: tool.schema.boolean().optional().describe('深度分析を有効にする（カバレッジ分析・意味的検証プロンプト生成）')
   },
-  async execute({ taskId, kiroSpec, deep }) {
+  async execute({ taskId, kiroSpec, deep }, context: any) {
+    const readState = context?.__testDeps?.readState ?? defaultReadState;
+    const writeState = context?.__testDeps?.writeState ?? defaultWriteState;
+    const validateGapInternalDeps = context?.__testDeps?.validateGapInternal ?? validateGapInternal;
+
     const stateResult = await readState();
     
     if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
@@ -287,7 +291,7 @@ export default tool({
     });
     
     // Call internal logic
-    return validateGapInternal(state, {
+    return validateGapInternalDeps(state, {
       taskId,
       kiroSpec,
       deep,

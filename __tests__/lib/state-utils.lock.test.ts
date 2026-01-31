@@ -1,15 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
-import lockfile from 'proper-lockfile';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 import { getStateDir } from '../../.opencode/lib/state-utils';
 
 describe('state-utils lock contention', () => {
   let stateDir: string;
+  let lockPath: string;
 
   beforeEach(() => {
     stateDir = setupTestState();
+    lockPath = path.join(stateDir, '.lock');
     // Reduce retry count for faster tests
     process.env.SDD_LOCK_RETRIES = '2'; 
     process.env.SDD_LOCK_STALE = '1000'; // short stale
@@ -26,7 +27,7 @@ describe('state-utils lock contention', () => {
     const { writeState } = await import('../../.opencode/lib/state-utils');
     
     // Acquire lock manually
-    const release = await lockfile.lock(stateDir);
+    fs.mkdirSync(lockPath);
     
     try {
       // Attempt to write state (should fail after retries)
@@ -37,13 +38,16 @@ describe('state-utils lock contention', () => {
         allowedScopes: ['src/**'],
         startedAt: new Date().toISOString(),
         startedBy: 'test',
-        validationAttempts: 0
+        validationAttempts: 0,
+        role: null
       };
 
       await expect(writeState(state)).rejects.toThrow(/Failed to acquire lock/);
       
     } finally {
-      await release();
+      if (fs.existsSync(lockPath)) {
+        fs.rmdirSync(lockPath);
+      }
     }
   });
 
@@ -51,12 +55,14 @@ describe('state-utils lock contention', () => {
     const { lockStateDir } = await import('../../.opencode/lib/state-utils');
     
     // Acquire lock manually
-    const release = await lockfile.lock(stateDir);
+    fs.mkdirSync(lockPath);
     
     try {
       await expect(lockStateDir()).rejects.toThrow(/sdd_force_unlock/);
     } finally {
-      await release();
+      if (fs.existsSync(lockPath)) {
+        fs.rmdirSync(lockPath);
+      }
     }
   });
 });

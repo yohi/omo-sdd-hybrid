@@ -35,7 +35,7 @@ Test
 `;
     fs.writeFileSync(path.join(specDir, 'requirements.md'), reqContent);
 
-    const result = await sddGenerateTests.execute({ feature });
+    const result = await sddGenerateTests.execute({ feature }, {});
 
     expect(result).toContain('✅ テスト雛形を生成しました');
     expect(result).toContain('抽出された受入条件: 3件');
@@ -45,9 +45,9 @@ Test
 
     const content = fs.readFileSync(expectedOutputPath, 'utf-8');
     expect(content).toContain(`describe('Acceptance: ${feature}'`);
-    expect(content).toContain("test.todo('ログイン成功時にトークンが返る')");
-    expect(content).toContain("test.todo('無効なパスワードで401エラー')");
-    expect(content).toContain("test.todo('パスワードリセット (メール送信)')");
+    expect(content).toContain('test.todo("ログイン成功時にトークンが返る")');
+    expect(content).toContain('test.todo("無効なパスワードで401エラー")');
+    expect(content).toContain('test.todo("パスワードリセット (メール送信)")');
   });
 
   test('受入条件がない場合は単一のTODOを生成する', async () => {
@@ -57,7 +57,7 @@ Test
     
     fs.writeFileSync(path.join(specDir, 'requirements.md'), '# Title\nNo criteria here.');
 
-    const result = await sddGenerateTests.execute({ feature });
+    const result = await sddGenerateTests.execute({ feature }, {});
 
     expect(result).toContain('✅ テスト雛形を生成しました');
     expect(result).toContain('抽出された受入条件: 0件');
@@ -67,7 +67,7 @@ Test
   });
 
   test('機能名が無効な場合はエラー', async () => {
-    const result = await sddGenerateTests.execute({ feature: '../invalid' });
+    const result = await sddGenerateTests.execute({ feature: '../invalid' }, {});
     expect(result).toContain('エラー: 無効な機能名');
   });
 
@@ -76,7 +76,7 @@ Test
     const specDir = path.join(process.env.SDD_KIRO_DIR!, 'specs', feature);
     fs.mkdirSync(specDir, { recursive: true });
 
-    const result = await sddGenerateTests.execute({ feature });
+    const result = await sddGenerateTests.execute({ feature }, {});
     expect(result).toContain('エラー: requirements.md が見つかりません');
   });
 
@@ -90,7 +90,7 @@ Test
     const outputPath = path.join(outputDir, `${feature}.acceptance.test.ts`);
     fs.writeFileSync(outputPath, 'existing content');
 
-    const result = await sddGenerateTests.execute({ feature });
+    const result = await sddGenerateTests.execute({ feature }, {});
     expect(result).toContain('スキップ: テストファイルは既に存在します');
     expect(fs.readFileSync(outputPath, 'utf-8')).toBe('existing content');
   });
@@ -105,10 +105,10 @@ Test
     const outputPath = path.join(outputDir, `${feature}.acceptance.test.ts`);
     fs.writeFileSync(outputPath, 'old content');
 
-    const result = await sddGenerateTests.execute({ feature, overwrite: true });
+    const result = await sddGenerateTests.execute({ feature, overwrite: true }, {});
     expect(result).toContain('✅ テスト雛形を生成しました');
     
     const content = fs.readFileSync(outputPath, 'utf-8');
-    expect(content).toContain("test.todo('New Item')");
+    expect(content).toContain('test.todo("New Item")');
   });
 });
