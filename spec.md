@@ -696,10 +696,10 @@ function validatePathForEdit(
 
 ### 7.5.5 Case Sensitivity
 
-* デフォルト: **OS のデフォルトに従う**
+* デフォルト: **大文字小文字を区別する**（picomatch の `{ nocase: false }` がデフォルト）
   - Linux/macOS: Case-sensitive
-  - Windows: Case-insensitive
-* picomatch オプション: `{ nocase: false }` （OSデフォルト）
+  - Windows: Case-sensitive（⚠️ OSの挙動と異なる）
+* Windows での適切な動作には明示的な設定が必要（下記「実装上の推奨」を参照）
 
 #### OSによる挙動差異（Normative）
 
