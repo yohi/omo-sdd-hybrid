@@ -60,7 +60,7 @@ Kiro統合機能の実装を修正し、仕様 (`20260125_spec.md`) と完全に
 
 ## Task Flow
 
-```
+```text
 Task 1 (Setup E2E) → Task 2 (Fix Sync) → Task 3 (Fix Gap UX)
 ```
 

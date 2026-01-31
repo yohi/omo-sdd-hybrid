@@ -37,7 +37,7 @@ describe('E2E: Kiro Flow', () => {
 
   it('should sync tasks to specs/tasks.md and warn on missing API key', async () => {
     // 1. Sync
-    await syncTool.execute({});
+    await syncTool.execute({}, {});
     
     // VERIFICATION 1: Default path check
     // Expectation: sync tool should write to specs/tasks.md
@@ -53,16 +53,18 @@ describe('E2E: Kiro Flow', () => {
     }
     expect(exists).toBe(true); 
 
-    await startTool.execute({ taskId: 'TEST-1' });
+    await startTool.execute({ taskId: 'TEST-1' }, {});
 
     // 2. Validate Gap (Deep)
     // Mock Fetch for Embeddings
-    global.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({ data: [] }))));
+    global.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({ 
+      data: [{ embedding: Array(1536).fill(0), index: 0 }] 
+    }))));
     
     // Unset API Key just in case
     delete process.env.SDD_EMBEDDINGS_API_KEY;
 
-    const validateOutput = await validateTool.execute({ deep: true, taskId: 'TEST-1', kiroSpec: 'test-feat' });
+    const validateOutput = await validateTool.execute({ deep: true, taskId: 'TEST-1', kiroSpec: 'test-feat' }, {});
     
     // VERIFICATION 2: Warning check
     expect(validateOutput).toContain('警告: 埋め込みAPIキーが見つかりません');
