@@ -529,19 +529,21 @@ Gatekeeper は以下を保証すること:
 * ツールから渡されたパスを絶対パスに変換
 * Node.js: `path.resolve(filePath)`
 
-#### Step 2: Symlink の解決（リンク先を追跡**しない**）
+#### Step 2: Symlink の解決（リンク先の実体パスを検証）
 
-* Symlink 自体のパスを使用（`fs.lstat` で確認）
-* `fs.realpath` で解決**しない**
-* 理由: Symlink でworktree外を指すことで迂回されるリスクを防ぐ
+* Symlink の場合は `fs.realpath` でリンク先を解決する
+* 解決後の実体パスが worktree 外なら **拒否**
+* 理由: worktree 外への迂回を確実に防ぐため
 
 例:
 ```typescript
-// ❌ WRONG: Symlink を解決してしまう
-const realPath = fs.realpathSync(filePath);
-
-// ✅ CORRECT: Symlink は解決しない
+// ✅ CORRECT: Symlink の実体パスを解決して検証
 const absolutePath = path.resolve(filePath);
+const realPath = fs.existsSync(absolutePath) 
+  ? fs.realpathSync(absolutePath) 
+  : absolutePath;
+
+// realPath が worktree 外なら拒否
 ```
 
 #### Step 3: Worktree ルートの取得
@@ -578,9 +580,21 @@ const absolutePath = path.resolve(filePath);
 ```typescript
 function isOutsideWorktree(filePath: string, worktreeRoot: string): boolean {
   const absolutePath = path.resolve(filePath);
-  const relativePath = path.relative(worktreeRoot, absolutePath);
   
-  // `..` で始まる or 空文字列（ルート自体）の場合は外
+  // Symlink の実体パスを解決
+  let realPath: string;
+  try {
+    realPath = fs.existsSync(absolutePath) 
+      ? fs.realpathSync(absolutePath) 
+      : absolutePath;
+  } catch (error) {
+    // Symlink が壊れている場合は元のパスを使用
+    realPath = absolutePath;
+  }
+  
+  const relativePath = path.relative(worktreeRoot, realPath);
+  
+  // `..` で始まる or 空文字列(ルート自体)の場合は外
   return relativePath.startsWith('..') || relativePath === '';
 }
 ```
@@ -604,11 +618,22 @@ function validatePathForEdit(
   worktreeRoot: string
 ): { allowed: boolean; reason?: string } {
   
-  // Step 1-2: 絶対パス化（Symlinkは解決しない）
+  // Step 1: 絶対パス化
   const absolutePath = path.resolve(filePath);
   
-  // Step 3-4: Worktreeルートからの相対パス
-  const relativePath = path.relative(worktreeRoot, absolutePath);
+  // Step 2: Symlink の実体パスを解決
+  let realPath: string;
+  try {
+    realPath = fs.existsSync(absolutePath) 
+      ? fs.realpathSync(absolutePath) 
+      : absolutePath;
+  } catch (error) {
+    // Symlink が壊れている場合は元のパスを使用
+    realPath = absolutePath;
+  }
+  
+  // Step 3-4: Worktreeルートからの相対パス(実体パスで判定)
+  const relativePath = path.relative(worktreeRoot, realPath);
   
   // Step 5: Worktree外チェック（Rule 3）
   if (relativePath.startsWith('..') || relativePath === '') {
@@ -646,9 +671,9 @@ function validatePathForEdit(
 ### 7.6.4 エッジケース
 
 | ケース | 扱い | 実装 |
-|--------|------|------|
+| -------- | ------ | ------ |
 | ルートディレクトリ自体 `/` | worktree外として **拒否** | `relativePath === ''` |
-| Symlink → worktree外 | Symlink自体のパスで判定（worktree内なら許可） | `fs.lstat` 使用 |
+| Symlink → worktree外 | 実体パスが外なら拒否 | `fs.realpath` で解決後に判定 |
 | 絶対パス（`/etc/passwd`） | worktree外として **拒否** | `relativePath.startsWith('..')` |
 | `../` を含むパス | worktree外として **拒否** | Step 5 の判定 |
 | Windows UNC パス `\\server\share` | サポート**しない**（エラー） | 事前チェック推奨 |
@@ -669,7 +694,7 @@ function validatePathForEdit(
 以下の仕様に従う。
 
 | パターン | マッチ対象 | 例 |
-|---------|----------|---|
+| --------- | ---------- | --- |
 | `*` | 単一パスセグメント内の0文字以上（`/` を除く） | `src/*.ts` → `src/a.ts`, `src/b.ts` |
 | `**` | 0個以上のディレクトリ（再帰マッチ） | `src/**/*.ts` → `src/a.ts`, `src/auth/b.ts` |
 | `?` | 単一パスセグメント内の1文字（`/` を除く） | `src/?.ts` → `src/a.ts` のみ |
@@ -704,7 +729,7 @@ function validatePathForEdit(
 #### OSによる挙動差異（Normative）
 
 | OS | 挙動 | 例 |
-|----|------|---|
+| ---- | ------ | --- |
 | Linux/macOS | 大文字小文字を区別 | `src/Auth.ts` ≠ `src/auth.ts` |
 | Windows | 大文字小文字を区別しない | `src/Auth.ts` = `src/auth.ts` |
 
@@ -738,7 +763,7 @@ function validatePathForEdit(
 | 空文字列 glob `""` | マッチしない（E_SCOPE_INVALID） | 意味が不明瞭 |
 | ルートマッチ `**` | 全ファイルにマッチ（警告推奨） | 最小権限原則に反する |
 | 否定パターン `!src/**` | **サポートしない** | tasks.md の文法と衝突 |
-| Symlink | リンク先を **解決しない**（パスそのものでマッチ） | セキュリティ（後述） |
+| Symlink | 実体パスを解決し、worktree外なら拒否 | セキュリティ(7.6.2 Step 2参照) |
 
 ### 7.5.8 Rename/Move 時のスコープ再評価（Normative）
 
