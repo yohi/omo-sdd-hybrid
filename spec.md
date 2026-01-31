@@ -701,6 +701,17 @@ function validatePathForEdit(
   - Windows: Case-insensitive
 * picomatch オプション: `{ nocase: false }` （OSデフォルト）
 
+#### OSによる挙動差異（Normative）
+
+| OS | 挙動 | 例 |
+|----|------|---|
+| Linux/macOS | 大文字小文字を区別 | `src/Auth.ts` ≠ `src/auth.ts` |
+| Windows | 大文字小文字を区別しない | `src/Auth.ts` = `src/auth.ts` |
+
+**実装上の推奨:**
+* SHOULD: 明示的に `{ nocase: process.platform === 'win32' }` を設定することで、OS に応じた挙動を明確化
+* MAY: クロスプラットフォーム一貫性が必要な場合、常に `{ nocase: true }` を使用（文書化必須）
+
 ### 7.5.6 絶対パス vs 相対パス
 
 * Scope glob は **常にリポジトリルート相対**
@@ -728,6 +739,86 @@ function validatePathForEdit(
 | ルートマッチ `**` | 全ファイルにマッチ（警告推奨） | 最小権限原則に反する |
 | 否定パターン `!src/**` | **サポートしない** | tasks.md の文法と衝突 |
 | Symlink | リンク先を **解決しない**（パスそのものでマッチ） | セキュリティ（後述） |
+
+### 7.5.8 Rename/Move 時のスコープ再評価（Normative）
+
+ファイルのリネームまたは移動が発生した場合のスコープ判定ルール。
+
+#### 動作定義
+
+| 操作 | 既存Scope | 新パス | 判定 |
+|------|----------|-------|------|
+| rename (同一ディレクトリ) | `src/auth/**` | `src/auth/login.ts` → `src/auth/signin.ts` | ✅ 許可 |
+| move (異なるディレクトリ) | `src/auth/**` | `src/auth/utils.ts` → `src/shared/utils.ts` | ❌ 拒否（`src/shared/**` がScope外の場合） |
+
+#### ルール
+
+1. **既存Scope維持**: 移動元パスがScopeに含まれていれば、その編集権限は維持される
+2. **移動先もScope必須**: 移動先パスもScopeに含まれている必要がある
+3. **Scope追加の推奨**: 移動先がScope外の場合、先に `tasks.md` を更新してScopeを追加する
+
+#### 実装例
+
+```typescript
+function validateMove(
+  sourcePath: string,
+  destPath: string,
+  allowedScopes: string[]
+): { allowed: boolean; reason?: string } {
+  const sourceMatch = allowedScopes.some(glob => 
+    picomatch.isMatch(sourcePath, glob, { dot: false })
+  );
+  const destMatch = allowedScopes.some(glob => 
+    picomatch.isMatch(destPath, glob, { dot: false })
+  );
+  
+  if (!sourceMatch) {
+    return { 
+      allowed: false, 
+      reason: `移動元 ${sourcePath} がallowedScopesに含まれません` 
+    };
+  }
+  if (!destMatch) {
+    return { 
+      allowed: false, 
+      reason: `移動先 ${destPath} がallowedScopesに含まれません。tasks.mdにScopeを追加してください` 
+    };
+  }
+  return { allowed: true };
+}
+```
+
+### 7.5.9 除外パターンと優先順位（Normative）
+
+#### デフォルト除外パターン（informative）
+
+Gatekeeperは以下のディレクトリを**自動的に除外しない**。
+明示的にScopeから除外したい場合は、tasks.mdで対象ディレクトリを指定しないことで実現する。
+
+| パターン | 用途 | 備考 |
+|---------|------|------|
+| `node_modules/**` | npm依存関係 | 通常Scopeに含めない |
+| `dist/**`, `build/**` | ビルド生成物 | 編集不要 |
+| `.git/**` | Gitメタデータ | 直接編集禁止 |
+| `*.lock` | ロックファイル | 自動生成 |
+
+#### Scope評価の優先順位
+
+1. **Always Allow（Rule 0）**: `specs/**` と `.opencode/**` は常に編集可能
+2. **allowedScopes マッチ**: 指定されたglobパターンにマッチすれば許可
+3. **デフォルト拒否**: 上記以外は拒否
+
+> [!NOTE]
+> 否定パターン（`!src/**`）は**サポートしない**。
+> 除外が必要な場合は、対象ディレクトリを明示的にScopeから外すこと。
+
+#### Dotfilesの扱い
+
+* **デフォルト**: Dotfiles（`.`で始まるファイル/ディレクトリ）はglobにマッチ**しない**
+* **例外**: 
+  - `specs/**` → `specs/.hidden` にはマッチしない
+  - `.opencode/**` → パス自体が`.`で始まるため明示的マッチ
+* **明示的指定**: Dotfileを対象にする場合は `src/.*` や `{ dot: true }` オプションを使用
 
 ---
 
