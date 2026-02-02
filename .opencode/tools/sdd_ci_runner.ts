@@ -1,5 +1,6 @@
 import { tool } from '../lib/plugin-stub';
 import { parseSddTasks } from '../lib/tasks_markdown';
+import { matchesScope } from '../lib/glob-utils';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -9,13 +10,27 @@ import * as path from 'path';
  * scripts/sdd_ci_validate.ts から呼び出されることを想定
  */
 
-// Phase 3 Guard: 変更が許可されるディレクトリプレフィックス
-// Phase 3では src/ 等の変更を禁止し、SDD基盤（specs, .opencode）とCI周辺のみを許可する
-const ALLOWED_DIRS = ['specs/', '.opencode/', 'scripts/', '.github/'];
+const ALWAYS_ALLOW_PREFIXES = ['specs/', '.opencode/'];
+
+type RunnerOptions = {
+  strict: boolean;
+  allowUntracked: boolean;
+};
+
+function parseCliFlags(argv: string[]): RunnerOptions {
+  return {
+    strict: argv.includes('--strict'),
+    allowUntracked: argv.includes('--allow-untracked')
+  };
+}
+
+function isCiMode(): boolean {
+  return process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.SDD_CI_MODE === 'true';
+}
 
 function getChangedFiles(): string[] {
   // CI判定: GitHub Actions または 明示的なフラグ
-  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.SDD_CI_MODE === 'true';
+  const isCI = isCiMode();
 
   let args: string[];
 
@@ -60,27 +75,19 @@ function getChangedFiles(): string[] {
   return result.stdout.split('\n').filter(line => line.trim().length > 0);
 }
 
-function validatePhase3Guard(files: string[]) {
-  const violations = files.filter(file => {
-    // specs/ または .opencode/ で始まるファイルはOK
-    // .github/ workflows も許可
-    // scripts/ も許可
-    return !ALLOWED_DIRS.some(dir => file.startsWith(dir));
+function getUntrackedFiles(): string[] {
+  const result = spawnSync('git', ['-C', '..', 'ls-files', '--others', '--exclude-standard'], {
+    encoding: 'utf-8'
   });
 
-  if (violations.length > 0) {
-    const errorMsg = [
-      '\n❌ Phase 3 Guard Violation:',
-      '以下のファイルは現在のフェーズで変更が許可されていません（ALLOWED_DIRS に含まれるパスのみ変更可能）:',
-      ...violations.map(f => `  - ${f}`)
-    ].join('\n');
-    throw new Error(errorMsg);
+  if (result.error || result.status !== 0) {
+    throw new Error(`Git command failed: ${result.error?.message || result.stderr}`);
   }
 
-  console.log('✅ Phase 3 Guard: OK (変更範囲は適切です)');
+  return result.stdout.split('\n').filter(line => line.trim().length > 0);
 }
 
-function validateTasksMarkdown() {
+function loadTaskScopes(): string[] {
   const tasksPath = path.resolve('..', 'specs', 'tasks.md');
 
   if (!fs.existsSync(tasksPath)) {
@@ -88,7 +95,7 @@ function validateTasksMarkdown() {
   }
 
   const content = fs.readFileSync(tasksPath, 'utf-8');
-  const { errors } = parseSddTasks(content);
+  const { tasks, errors } = parseSddTasks(content);
 
   if (errors.length > 0) {
     const errorMsg = [
@@ -99,6 +106,41 @@ function validateTasksMarkdown() {
   }
 
   console.log('✅ tasks.md Validation: OK');
+
+  const scopes = tasks.flatMap(task => task.scopes).map(scope => scope.trim()).filter(scope => scope.length > 0);
+  if (scopes.length === 0) {
+    throw new Error('❌ tasks.md に有効な Scope が定義されていません');
+  }
+
+  return scopes;
+}
+
+function validateScopeGuard(files: string[], scopes: string[], options: RunnerOptions, untrackedFiles: string[]) {
+  const scopeViolations: string[] = [];
+
+  for (const file of files) {
+    if (!options.strict && ALWAYS_ALLOW_PREFIXES.some(prefix => file.startsWith(prefix))) {
+      continue;
+    }
+    if (!matchesScope(file, scopes)) {
+      scopeViolations.push(file);
+    }
+  }
+
+  const untrackedViolations = options.allowUntracked ? [] : untrackedFiles;
+
+  if (scopeViolations.length > 0 || untrackedViolations.length > 0) {
+    const errorMsg = [
+      '\n❌ SDD Scope Guard Violation:',
+      scopeViolations.length > 0 ? '以下のファイルはタスクScopeに含まれていません:' : null,
+      ...scopeViolations.map(file => `  - ${file}`),
+      untrackedViolations.length > 0 ? '未追跡ファイルが検出されました（--allow-untracked で許可できます）:' : null,
+      ...untrackedViolations.map(file => `  - ${file}`)
+    ].filter(line => line !== null).join('\n');
+    throw new Error(errorMsg);
+  }
+
+  console.log('✅ Scope Guard: OK (変更範囲は適切です)');
 }
 
 const sddCiRunnerTool = tool({
@@ -107,16 +149,24 @@ const sddCiRunnerTool = tool({
   async execute() {
     console.log('--- SDD CI Runner ---');
 
-    // 1. tasks.md の構文チェック
-    validateTasksMarkdown();
+    const options = parseCliFlags(process.argv.slice(2));
 
-    // 2. 変更ファイルのスコープチェック (Phase 3 Guard)
+    // 1. tasks.md の構文チェック
+    const scopes = loadTaskScopes();
+
+    // 2. 変更ファイルのスコープチェック
     const changedFiles = getChangedFiles();
-    if (changedFiles.length > 0) {
-      validatePhase3Guard(changedFiles);
-    } else {
+    const isCI = isCiMode();
+    const untrackedFiles = isCI ? getUntrackedFiles() : [];
+    if (changedFiles.length === 0) {
       console.log('ℹ️ No changed files detected.');
     }
+
+    if (untrackedFiles.length > 0 && options.allowUntracked) {
+      console.log('ℹ️ 未追跡ファイルを許可しました（--allow-untracked）');
+    }
+
+    validateScopeGuard(changedFiles, scopes, options, untrackedFiles);
 
     return 'CI Validation Passed';
   }

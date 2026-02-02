@@ -359,6 +359,35 @@ EOF
 chmod +x .git/hooks/pre-commit
 ```
 
+### CIでの変更範囲検証（Scope Guard / Issue #87）
+
+`bun run scripts/sdd_ci_validate.ts` は内部で `.opencode/tools/sdd_ci_runner.ts` を実行し、
+**`specs/tasks.md` の Scope（glob）と、git差分で検出した変更ファイルを突合**して検証します。
+Scope外の変更が含まれている場合は **Fail-Closed（CIを失敗）** します。
+
+#### デフォルト挙動
+
+- `specs/**`, `.opencode/**` は Always Allow（Scope突合をスキップして許可）
+- それ以外の変更は、`specs/tasks.md` に定義された Scope のいずれかに一致する必要があります
+
+#### フラグ
+
+`scripts/sdd_ci_validate.ts` は引数を runner に転送できるため、以下のように指定できます。
+
+```bash
+# Always Allow を無効化し、すべての変更が tasks.md の Scope に含まれることを必須化
+bun run scripts/sdd_ci_validate.ts -- --strict
+
+# CIで未追跡ファイル（git管理外）が存在しても失敗しない
+bun run scripts/sdd_ci_validate.ts -- --allow-untracked
+```
+
+- `--strict`:
+  - Always Allow（`specs/**`, `.opencode/**`）を無効化し、これらのパスも Scope に含まれない場合は失敗します。
+- `--allow-untracked`:
+  - CIモードで未追跡ファイル（`git ls-files --others --exclude-standard`）が存在しても失敗しません。
+  - ローカルの pre-commit（staged files 検証）では未追跡ファイル検出は行いません。
+
 ## トラブルシューティング
 
 ### ロック残留（ゾンビロック）の対処
