@@ -460,6 +460,14 @@ if (!isOwnerMatch && !overrideOwner) {
 
 > ⚠️ `--overrideOwner` は他プロセスが実行中の場合、データ競合や破損のリスクがあります
 
+#### 5.4.6 Guard Mode State 破損時のフォールバック（Fail-Closed）
+
+ガードモード設定ファイル (`.opencode/state/guard-mode.json`) の読み込みに失敗した場合（欠損、破損、パースエラー等）の動作:
+
+- **動作**: 強制的に `block` モードとして扱う。
+- **監査ログ**: `.opencode/state/guard-mode.log` に `FAIL_CLOSED` イベントを記録する。
+- **環境変数**: `SDD_GUARD_MODE=warn` が設定されていても無視し、`block` を優先する（Fail-Openの防止）。
+
 ---
 
 ## 6. Custom Tool 仕様
