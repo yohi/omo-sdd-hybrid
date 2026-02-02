@@ -22,7 +22,7 @@ function loadSecrets() {
   const heuristicPattern = /TOKEN|KEY|SECRET|PASSWORD/i;
 
   for (const [key, value] of Object.entries(process.env)) {
-    if (!value || value.length < 4) continue;
+    if (!value) continue;
     
     if (IGNORED_KEYS.has(key)) continue;
 

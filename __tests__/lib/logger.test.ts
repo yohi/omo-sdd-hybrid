@@ -61,14 +61,23 @@ describe('Logger Utility', () => {
     expect(consoleInfoSpy).toHaveBeenCalledWith('User is y_ohi in test env');
   });
 
-  it('ignores short values (< 4 chars)', async () => {
+  it('masks short values if they match heuristic', async () => {
     process.env.SHORT_SECRET = '123';
     
     const { logger, _reloadSecrets } = await import('../../.opencode/lib/logger');
     if (_reloadSecrets) _reloadSecrets();
 
     logger.info('Short secret is 123');
-    expect(consoleInfoSpy).toHaveBeenCalledWith('Short secret is 123');
+    expect(consoleInfoSpy).toHaveBeenCalledWith('Short secret is [REDACTED]');
+  });
+
+  it('ignores short values if they DO NOT match heuristic', async () => {
+    process.env.SHORT_SAFE = '123';
+    const { logger, _reloadSecrets } = await import('../../.opencode/lib/logger');
+    if (_reloadSecrets) _reloadSecrets();
+
+    logger.info('Short safe is 123');
+    expect(consoleInfoSpy).toHaveBeenCalledWith('Short safe is 123');
   });
 
   it('recursively masks objects', async () => {

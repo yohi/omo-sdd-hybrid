@@ -13,6 +13,8 @@
 * [x] Task-3-4: Pre-commit Hook / CI Integration（検証強制） (Scope: `.github/workflows/ci.yml`, `.github/workflows/ci.yaml`, `scripts/sdd_ci_validate.ts`, `.opencode/tools/sdd_ci_runner.ts`, `README.md`)
 * [ ] Task-3-5: Issue #87 対応: CIでのScope検証機能の実装 (Scope: `.opencode/tools/sdd_ci_runner.ts`, `scripts/sdd_ci_validate.ts`, `__tests__/tools/sdd_ci_runner.test.ts`, `README.md`)
 * [x] Task-3-6: Loggerの循環参照修正 (Scope: `.opencode/lib/logger.ts`, `__tests__/lib/logger_circular.test.ts`)
+* [x] Task-3-7: Loggerの短いシークレットのマスキング漏れ再現テスト (Scope: `__tests__/lib/logger_short_secret.test.ts`)
+
 
 ## Completed Tasks
 
