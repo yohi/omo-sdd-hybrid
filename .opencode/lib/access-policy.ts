@@ -31,8 +31,15 @@ export function determineEffectiveGuardMode(
   envMode: string | undefined,
   fileState: GuardModeState | null
 ): GuardMode {
+  if (fileState === null) {
+    if (envMode !== 'block') {
+      appendAuditLog(`FAIL_CLOSED: Guard mode state is missing or invalid. Enforcing 'block'.`);
+    }
+    return 'block';
+  }
+
   const envBlock = envMode === 'block';
-  const fileBlock = fileState?.mode === 'block';
+  const fileBlock = fileState.mode === 'block';
 
   if (fileBlock) {
     if (!envBlock && envMode === 'warn') {
