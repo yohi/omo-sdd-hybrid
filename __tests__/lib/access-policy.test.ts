@@ -186,10 +186,10 @@ describe('access-policy', () => {
   });
 
   describe('determineEffectiveGuardMode', () => {
-    test('defaults to warn', async () => {
+    test('fail-closed (block) when state is missing', async () => {
       const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
-      expect(determineEffectiveGuardMode(undefined, null)).toBe('warn');
-      expect(determineEffectiveGuardMode('warn', null)).toBe('warn');
+      expect(determineEffectiveGuardMode(undefined, null)).toBe('block');
+      expect(determineEffectiveGuardMode('warn', null)).toBe('block');
     });
 
     test('returns block if env is block', async () => {

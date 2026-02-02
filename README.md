@@ -439,6 +439,7 @@ bun .opencode/tools/sdd_set_guard_mode.ts block
 - 設定は `.opencode/state/guard-mode.json` に保存されます。
 - 保存された設定が `block` の場合、環境変数で `SDD_GUARD_MODE=warn` と指定しても **強制的に block されます**（弱体化の防止）。
 - 弱体化の試行は `.opencode/state/guard-mode.log` に監査ログとして記録されます。
+- **Fail-Closed**: 設定ファイルが欠損または破損している場合、自動的に `block` モードが適用されます（環境変数が `warn` であっても無視されます）。
 
 ## ファイル構成
 
