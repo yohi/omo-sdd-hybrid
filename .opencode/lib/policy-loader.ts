@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { logger } from './logger.js';
 
 export interface PolicyConfig {
   alwaysAllow: string[];
@@ -33,7 +34,7 @@ export function loadPolicyConfig(): PolicyConfig {
       destructiveBash: Array.isArray(userConfig.destructiveBash) ? userConfig.destructiveBash : DEFAULT_POLICY.destructiveBash
     };
   } catch (error) {
-    console.warn(`[SDD] Failed to load policy config from ${configPath}: ${(error as Error).message}. Using defaults.`);
+    logger.warn(`[SDD] Failed to load policy config from ${configPath}: ${(error as Error).message}. Using defaults.`);
     return DEFAULT_POLICY;
   }
 }

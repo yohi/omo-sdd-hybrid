@@ -2,10 +2,7 @@ import { tool } from '../lib/plugin-stub';
 import { writeState } from '../lib/state-utils';
 import fs from 'fs';
 import { parseSddTasks } from '../lib/tasks_markdown';
-
-const processLogger = {
-  error: (...args: any[]) => console.error(...args),
-};
+import { logger } from '../lib/logger.js';
 
 function getTasksPath() {
   return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
@@ -36,7 +33,7 @@ export default tool({
 
     const result = parseSddTasks(content, { validateScopes: false });
     if (result.errors.length > 0) {
-      processLogger.error('[SDD] tasks.md のパースに失敗しました', {
+      logger.error('[SDD] tasks.md のパースに失敗しました', {
         tasksPath,
         errors: result.errors,
       });

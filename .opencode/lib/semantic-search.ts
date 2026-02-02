@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getEmbeddings, isEmbeddingsEnabled } from './embeddings-provider';
+import { logger } from './logger.js';
 
 // spec-parser.ts から移動した型定義
 export interface ExtractedRequirement {
@@ -110,7 +111,7 @@ export async function findSemanticGaps(
         }
       }
     } catch (e) {
-      console.warn(`[SDD-SEMANTIC] Failed to read ${file}:`, e);
+      logger.warn(`[SDD-SEMANTIC] Failed to read ${file}:`, e);
     }
   }
 
@@ -128,24 +129,24 @@ export async function findSemanticGaps(
       const batchEmbeddings = await getEmbeddings(batch);
       
       if (!batchEmbeddings) {
-        console.warn(`[SDD-SEMANTIC] Failed to get embeddings for batch (index ${i} to ${i + batch.length - 1})`);
+        logger.warn(`[SDD-SEMANTIC] Failed to get embeddings for batch (index ${i} to ${i + batch.length - 1})`);
         return result; // エラー時は分析スキップ
       }
 
       if (batchEmbeddings.length !== batch.length) {
-        console.warn(`[SDD-SEMANTIC] Embeddings count mismatch in batch (expected ${batch.length}, got ${batchEmbeddings.length})`);
+        logger.warn(`[SDD-SEMANTIC] Embeddings count mismatch in batch (expected ${batch.length}, got ${batchEmbeddings.length})`);
         return result;
       }
 
       allEmbeddings.push(...batchEmbeddings);
     } catch (e) {
-      console.warn(`[SDD-SEMANTIC] Error processing batch (index ${i}):`, e);
+      logger.warn(`[SDD-SEMANTIC] Error processing batch (index ${i}):`, e);
       return result;
     }
   }
 
   if (allEmbeddings.length !== allTexts.length) {
-    console.warn(`[SDD-SEMANTIC] Total embeddings count mismatch (expected ${allTexts.length}, got ${allEmbeddings.length})`);
+    logger.warn(`[SDD-SEMANTIC] Total embeddings count mismatch (expected ${allTexts.length}, got ${allEmbeddings.length})`);
     return result; 
   }
 

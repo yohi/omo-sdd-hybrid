@@ -3,6 +3,7 @@ import path from 'path';
 import { extractRequirements, extractDesign, type ExtractedRequirement } from './spec-parser';
 import { analyzeCoverage, formatCoverageReport, type CoverageResult } from './coverage-analyzer';
 import { findSemanticGaps, type SemanticAnalysisResult } from './semantic-search';
+import { logger } from './logger.js';
 
 export interface KiroSpec {
   featureName: string;
@@ -420,7 +421,7 @@ export function updateKiroSpecTasks(featureName: string, newContent: string): bo
     fs.writeFileSync(tasksPath, newContent, 'utf-8');
     return true;
   } catch (e) {
-    console.error(`Failed to update tasks for ${featureName}:`, e);
+    logger.error(`Failed to update tasks for ${featureName}:`, e);
     return false;
   }
 }

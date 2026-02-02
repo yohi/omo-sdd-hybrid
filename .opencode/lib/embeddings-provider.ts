@@ -7,6 +7,8 @@
 const API_BASE = process.env.SDD_EMBEDDINGS_API_BASE || 'https://api.openai.com/v1';
 const MODEL = process.env.SDD_EMBEDDINGS_MODEL || 'text-embedding-3-small';
 
+import { logger } from './logger.js';
+
 export function isEmbeddingsEnabled(): boolean {
   return !!process.env.SDD_EMBEDDINGS_API_KEY;
 }
@@ -14,7 +16,7 @@ export function isEmbeddingsEnabled(): boolean {
 export async function getEmbeddings(texts: string[]): Promise<number[][] | null> {
   const apiKey = process.env.SDD_EMBEDDINGS_API_KEY;
   if (!apiKey) {
-    console.warn('[SDD-EMBEDDINGS] Skipped: SDD_EMBEDDINGS_API_KEY is not set');
+    logger.warn('[SDD-EMBEDDINGS] Skipped: SDD_EMBEDDINGS_API_KEY is not set');
     return null;
   }
 
@@ -42,19 +44,19 @@ export async function getEmbeddings(texts: string[]): Promise<number[][] | null>
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[SDD-EMBEDDINGS] Error ${response.status}: ${errorText}`);
+      logger.error(`[SDD-EMBEDDINGS] Error ${response.status}: ${errorText}`);
       return null;
     }
 
     const json = await response.json() as any;
     
     if (!json.data || !Array.isArray(json.data)) {
-      console.error('[SDD-EMBEDDINGS] Invalid response format', json);
+      logger.error('[SDD-EMBEDDINGS] Invalid response format', json);
       return null;
     }
 
     if (json.data.length !== texts.length) {
-      console.error('[SDD-EMBEDDINGS] Mismatched embeddings count', { expected: texts.length, received: json.data.length, json });
+      logger.error('[SDD-EMBEDDINGS] Mismatched embeddings count', { expected: texts.length, received: json.data.length, json });
       return null;
     }
 
@@ -66,10 +68,10 @@ export async function getEmbeddings(texts: string[]): Promise<number[][] | null>
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      console.error('[SDD-EMBEDDINGS] Request timed out after 10s');
+      logger.error('[SDD-EMBEDDINGS] Request timed out after 10s');
       return null;
     }
-    console.error('[SDD-EMBEDDINGS] Network error:', error);
+    logger.error('[SDD-EMBEDDINGS] Network error:', error);
     return null;
   }
 }
