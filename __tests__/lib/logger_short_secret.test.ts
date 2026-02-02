@@ -19,7 +19,6 @@ describe('Logger Short Secret', () => {
     const spy = spyOn(console, 'info').mockImplementation(() => {});
     logger.info('The code is 123');
     
-    // Currently fails because length 3 is skipped
     expect(spy).toHaveBeenCalledWith('The code is [REDACTED]');
     
     spy.mockRestore();
