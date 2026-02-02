@@ -14,7 +14,8 @@ if (!fs.existsSync(opencodeDir)) {
 console.log('Running SDD CI Validation...');
 
 // Execute the runner inside .opencode context to resolve dependencies
-const result = spawnSync('bun', ['run', 'tools/sdd_ci_runner.ts'], {
+const runnerArgs = process.argv.slice(2);
+const result = spawnSync('bun', ['run', 'tools/sdd_ci_runner.ts', ...runnerArgs], {
   cwd: opencodeDir,
   stdio: 'inherit',
   env: { 
