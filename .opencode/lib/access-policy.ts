@@ -3,6 +3,7 @@ import { type StateResult, type State, type GuardMode, type GuardModeState, getS
 import { normalizeToRepoRelative, isOutsideWorktree } from './path-utils';
 import { matchesScope } from './glob-utils';
 import { loadPolicyConfig } from './policy-loader';
+import { logger } from './logger.js';
 
 export const WRITE_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
 
@@ -23,7 +24,7 @@ function appendAuditLog(message: string) {
   try {
     fs.appendFileSync(logPath, entry);
   } catch (e) {
-    console.error('Failed to write audit log:', e);
+    logger.error('Failed to write audit log:', e);
   }
 }
 

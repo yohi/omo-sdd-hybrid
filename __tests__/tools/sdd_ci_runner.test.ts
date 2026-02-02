@@ -65,6 +65,10 @@ describe('sdd_ci_runner', () => {
     const globUtilsDst = path.join(targetDir, '.opencode', 'lib', 'glob-utils.ts');
     fs.copyFileSync(globUtilsSrc, globUtilsDst);
 
+    const loggerSrc = path.join(realOpenCodeDir, 'lib', 'logger.ts');
+    const loggerDst = path.join(targetDir, '.opencode', 'lib', 'logger.ts');
+    fs.copyFileSync(loggerSrc, loggerDst);
+
     const realNodeModules = path.join(origCwd, 'node_modules');
     const nodeModulesLink = path.join(targetDir, 'node_modules');
     if (!fs.existsSync(nodeModulesLink)) {
@@ -218,6 +222,9 @@ describe('sdd_ci_runner', () => {
     fs.copyFileSync(tasksMdSrc, path.join(newTmpDir, '.opencode', 'lib', 'tasks_markdown.ts'));
     const globUtilsSrc = path.join(realOpenCodeDir, 'lib', 'glob-utils.ts');
     fs.copyFileSync(globUtilsSrc, path.join(newTmpDir, '.opencode', 'lib', 'glob-utils.ts'));
+
+    const loggerSrc = path.join(realOpenCodeDir, 'lib', 'logger.ts');
+    fs.copyFileSync(loggerSrc, path.join(newTmpDir, '.opencode', 'lib', 'logger.ts'));
 
     fs.writeFileSync(path.join(newTmpDir, 'specs', 'tasks.md'), '* [ ] Task-1: Auth (Scope: `src/auth/**`, `.opencode/**`, `specs/**`)');
     fs.writeFileSync(path.join(newTmpDir, 'src', 'auth', 'login.ts'), 'export {}');

@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { rotateBackup, getBackupPaths } from './backup-utils';
+import { logger } from './logger.js';
 
 const DEFAULT_STATE_DIR = '.opencode/state';
 const LOCK_DIR_NAME = '.lock';
@@ -238,7 +239,7 @@ export async function readState(): Promise<StateResult> {
     return { status: 'ok', state: result.state };
   }
 
-  console.warn(`[SDD] State corrupted: ${result.error}. Attempting recovery from backup...`);
+  logger.warn(`[SDD] State corrupted: ${result.error}. Attempting recovery from backup...`);
 
   const backupPaths = getBackupPaths(statePath);
   for (const backupPath of backupPaths) {
@@ -255,7 +256,7 @@ export async function readState(): Promise<StateResult> {
         }
 
         fs.copyFileSync(backupPath, statePath);
-        console.warn(`[SDD] State recovered from ${backupPath}`);
+        logger.warn(`[SDD] State recovered from ${backupPath}`);
         return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
       } finally {
         await release();
@@ -263,7 +264,7 @@ export async function readState(): Promise<StateResult> {
     }
   }
 
-  console.warn('[SDD] No valid backup found. State is corrupted.');
+  logger.warn('[SDD] No valid backup found. State is corrupted.');
   return { status: 'corrupted', error: result.error };
 }
 
@@ -280,7 +281,7 @@ export async function clearState(): Promise<void> {
   try {
     release = await lockStateDir();
   } catch (e) {
-    console.warn(`[SDD] Failed to lock state dir during clearState: ${(e as Error).message}`);
+    logger.warn(`[SDD] Failed to lock state dir during clearState: ${(e as Error).message}`);
     throw e;
   }
 

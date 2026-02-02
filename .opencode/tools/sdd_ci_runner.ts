@@ -4,6 +4,7 @@ import { matchesScope } from '../lib/glob-utils';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '../lib/logger.js';
 
 /**
  * CI環境での検証を行うランナー
@@ -38,7 +39,7 @@ function getChangedFiles(): string[] {
     if (process.env.GITHUB_BASE_REF) {
       // PR: Baseブランチとの差分 (3点リーダーでmerge-baseからの差分をとる)
       const baseRef = process.env.GITHUB_BASE_REF;
-      console.log(`🔍 CI Mode (PR): Checking diff between origin/${baseRef} and HEAD`);
+      logger.info(`🔍 CI Mode (PR): Checking diff between origin/${baseRef} and HEAD`);
       args = ['diff', '--name-only', `origin/${baseRef}...HEAD`];
     } else {
       // Push: 直前のコミットとの差分
@@ -49,17 +50,17 @@ function getChangedFiles(): string[] {
 
       if (verifyResult.status === 0) {
         // HEAD~1 が存在する場合: 通常の差分
-        console.log('🔍 CI Mode (Push): Checking diff for HEAD');
+        logger.info('🔍 CI Mode (Push): Checking diff for HEAD');
         args = ['diff', '--name-only', 'HEAD~1...HEAD'];
       } else {
         // HEAD~1 が存在しない場合: 初回コミットのファイル一覧
-        console.log('🔍 CI Mode (Push, initial commit): Listing files in HEAD');
+        logger.info('🔍 CI Mode (Push, initial commit): Listing files in HEAD');
         args = ['show', '--name-only', '--pretty=', 'HEAD'];
       }
     }
   } else {
     // Local: Staged files (pre-commit)
-    console.log('🔍 Local Mode: Checking staged files (pre-commit)');
+    logger.info('🔍 Local Mode: Checking staged files (pre-commit)');
     args = ['diff', '--cached', '--name-only'];
   }
 
@@ -105,7 +106,7 @@ function loadTaskScopes(): string[] {
     throw new Error(errorMsg);
   }
 
-  console.log('✅ tasks.md Validation: OK');
+  logger.info('✅ tasks.md Validation: OK');
 
   const scopes = tasks.flatMap(task => task.scopes).map(scope => scope.trim()).filter(scope => scope.length > 0);
   if (scopes.length === 0) {
@@ -140,14 +141,14 @@ function validateScopeGuard(files: string[], scopes: string[], options: RunnerOp
     throw new Error(errorMsg);
   }
 
-  console.log('✅ Scope Guard: OK (変更範囲は適切です)');
+  logger.info('✅ Scope Guard: OK (変更範囲は適切です)');
 }
 
 const sddCiRunnerTool = tool({
   description: 'CI検証ランナー（tasks.md整合性チェックおよび変更範囲ガード）',
   args: {},
   async execute() {
-    console.log('--- SDD CI Runner ---');
+    logger.info('--- SDD CI Runner ---');
 
     const options = parseCliFlags(process.argv.slice(2));
 
@@ -159,11 +160,11 @@ const sddCiRunnerTool = tool({
     const isCI = isCiMode();
     const untrackedFiles = isCI ? getUntrackedFiles() : [];
     if (changedFiles.length === 0) {
-      console.log('ℹ️ No changed files detected.');
+      logger.info('ℹ️ No changed files detected.');
     }
 
     if (untrackedFiles.length > 0 && options.allowUntracked) {
-      console.log('ℹ️ 未追跡ファイルを許可しました（--allow-untracked）');
+      logger.info('ℹ️ 未追跡ファイルを許可しました（--allow-untracked）');
     }
 
     validateScopeGuard(changedFiles, scopes, options, untrackedFiles);
@@ -178,10 +179,10 @@ export default sddCiRunnerTool;
 if (import.meta.main) {
   // @ts-ignore
   sddCiRunnerTool.execute({}, {} as any).then((res: string) => {
-    console.log(`\n${res}`);
+    logger.info(`\n${res}`);
     process.exit(0);
   }).catch((err: any) => {
-    console.error(err);
+    logger.error(err);
     process.exit(1);
   });
 }
