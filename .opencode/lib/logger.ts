@@ -54,7 +54,7 @@ function maskString(str: string): string {
   return result;
 }
 
-function maskValue(value: any): any {
+function maskValue(value: any, seen = new WeakSet<object>()): any {
   if (typeof value === 'string') {
     return maskString(value);
   }
@@ -65,14 +65,21 @@ function maskValue(value: any): any {
     return maskedError;
   }
 
+  if (value && typeof value === 'object') {
+    if (seen.has(value)) {
+      return '[Circular]';
+    }
+    seen.add(value);
+  }
+
   if (Array.isArray(value)) {
-    return value.map(maskValue);
+    return value.map(v => maskValue(v, seen));
   }
 
   if (value && typeof value === 'object') {
     const maskedObj: any = {};
     for (const key in value) {
-      maskedObj[key] = maskValue(value[key]);
+      maskedObj[key] = maskValue(value[key], seen);
     }
     return maskedObj;
   }
@@ -82,20 +89,20 @@ function maskValue(value: any): any {
 
 const logger = {
   info: (message: string, ...args: any[]) => {
-    console.info(maskValue(message), ...args.map(maskValue));
+    console.info(maskValue(message), ...args.map(v => maskValue(v)));
   },
   
   warn: (message: string, ...args: any[]) => {
-    console.warn(maskValue(message), ...args.map(maskValue));
+    console.warn(maskValue(message), ...args.map(v => maskValue(v)));
   },
   
   error: (message: string | Error, ...args: any[]) => {
-    console.error(maskValue(message), ...args.map(maskValue));
+    console.error(maskValue(message), ...args.map(v => maskValue(v)));
   },
   
   debug: (message: string, ...args: any[]) => {
     if (process.env.SDD_DEBUG === 'true') {
-      console.debug(maskValue(message), ...args.map(maskValue));
+      console.debug(maskValue(message), ...args.map(v => maskValue(v)));
     }
   }
 };

@@ -12,6 +12,7 @@
 * [x] Task-3-3: `sdd_report_bug` ツールとテストの実装（QAがバグ票を起票する） (Scope: `.opencode/tools/sdd_report_bug.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_report_bug.test.ts`, `.opencode/skills/sdd-qa-engineer/SKILL.md`, `README.md`, `.opencode/plugins/sdd-feedback-loop.ts`, `__tests__/plugins/sdd-feedback-loop.test.ts`)
 * [x] Task-3-4: Pre-commit Hook / CI Integration（検証強制） (Scope: `.github/workflows/ci.yml`, `.github/workflows/ci.yaml`, `scripts/sdd_ci_validate.ts`, `.opencode/tools/sdd_ci_runner.ts`, `README.md`)
 * [ ] Task-3-5: Issue #87 対応: CIでのScope検証機能の実装 (Scope: `.opencode/tools/sdd_ci_runner.ts`, `scripts/sdd_ci_validate.ts`, `__tests__/tools/sdd_ci_runner.test.ts`, `README.md`)
+* [x] Task-3-6: Loggerの循環参照修正 (Scope: `.opencode/lib/logger.ts`, `__tests__/lib/logger_circular.test.ts`)
 
 ## Completed Tasks
 
