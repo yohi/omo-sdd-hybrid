@@ -10,7 +10,7 @@
 - [x] P0-1 調査: 現状実装とテスト観点を確認する
 - [x] P0-2 実装: `determineEffectiveGuardMode` を fail-closed 化し、監査ログを追加する
 - [x] P0-3 テスト: `__tests__/lib/access-policy.test.ts` の期待値を更新し、欠損/破損ケースを追加する
-- [ ] P0-4 テスト: Gatekeeper で `readGuardModeState()` が `null` の時に `block` が適用されることを追加検証する
+- [x] P0-4 テスト: Gatekeeper で `readGuardModeState()` が `null` の時に `block` が適用されることを追加検証する
 - [ ] P0-5 ドキュメント: `README.md` と `spec.md` の guard-mode 欠損/破損時の挙動を更新する
 - [ ] P0-6 検証: `bun test` / `bun test:seq` / `bun run build` / `lsp_diagnostics` を通す
 
