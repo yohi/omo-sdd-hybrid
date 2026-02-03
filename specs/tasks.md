@@ -14,6 +14,7 @@
 * [ ] Task-3-5: Issue #87 対応: CIでのScope検証機能の実装 (Scope: `.opencode/tools/sdd_ci_runner.ts`, `scripts/sdd_ci_validate.ts`, `__tests__/tools/sdd_ci_runner.test.ts`, `README.md`)
 * [x] Task-3-6: Loggerの循環参照修正 (Scope: `.opencode/lib/logger.ts`, `__tests__/lib/logger_circular.test.ts`)
 * [x] Task-3-7: Loggerの短いシークレットのマスキング漏れ再現テスト (Scope: `__tests__/lib/logger_short_secret.test.ts`)
+* [ ] Task-90: Issue #90 対応: テストマトリクスの拡充（symlink・rename・Windows対応） (Scope: `__tests__/lib/**`, `__tests__/plugins/**`, `.opencode/lib/**`, `.sisyphus/notepads/issue-90/**`)
 
 
 ## Completed Tasks
