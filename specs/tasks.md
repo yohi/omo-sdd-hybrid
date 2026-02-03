@@ -18,6 +18,7 @@
 * [ ] Task-95: Issue #95 対応: worktree外判定で realpath 失敗時(新規作成)の symlink 迂回を防ぐ (Scope: `.opencode/lib/path-utils.ts`, `__tests__/lib/path-utils.symlink.test.ts`)
 * [ ] Task-96: Issue #96 対応: isOutsideWorktree の realpath フォールバック強化 (Scope: `.opencode/lib/path-utils.ts`, `__tests__/lib/path-utils.symlink.test.ts`, `__tests__/lib/path-utils.test.ts`)
 * [ ] Task-97: Issue #97 作業用タスク (Scope: `.opencode/lib/path-utils.ts`, `__tests__/lib/path-utils.symlink.test.ts`, `__tests__/lib/path-utils.test.ts`, `.sisyphus/notepads/issue-97/**`, `specs/tasks.md`)
+* [x] Task-98: Issue #98 対応: 危険なポリシーパスの拒否と fail-closed 実装 (Scope: `.opencode/lib/policy-loader.ts`, `.opencode/lib/access-policy.ts`, `__tests__/lib/policy-loader.test.ts`, `.sisyphus/notepads/issue-98/**`, `specs/tasks.md`)
 
 
 ## Completed Tasks
