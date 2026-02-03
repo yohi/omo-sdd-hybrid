@@ -60,8 +60,8 @@ export function loadPolicyConfig(): PolicyConfig {
       }
 
       // Validation: Root check
-      // Matches: "/", ".", "./"
-      if (trimmed === '/' || trimmed === '.' || trimmed === './') {
+      // Matches: "/", ".", "./", and patterns starting with "./"
+      if (trimmed === '/' || trimmed === '.' || trimmed.startsWith('./')) {
         throw new Error(`E_POLICY_DANGEROUS_VALUE: alwaysAllow includes root directory match ('${entry}'). This effectively disables SDD.`);
       }
 
@@ -87,7 +87,15 @@ export function loadPolicyConfig(): PolicyConfig {
 
     return policy;
   } catch (error) {
-    const msg = (error as Error).message;
+    let msg: string;
+    if (typeof error === 'string') {
+      msg = error;
+    } else if (error !== null && typeof error === 'object' && 'message' in error) {
+      msg = String((error as any).message);
+    } else {
+      msg = String(error);
+    }
+
     // Rethrow explicit policy validation errors (Fail-Closed)
     if (msg.startsWith('E_POLICY_')) {
       throw error;
