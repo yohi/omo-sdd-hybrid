@@ -140,4 +140,22 @@ describe('path-utils symlink security', () => {
     expect(result.rule).toBe('Rule3'); // Rule3 is OUTSIDE_WORKTREE
     expect(result.message).toContain('OUTSIDE_WORKTREE');
   });
+
+  test('symlink directory inside -> outside (new file creation)', () => {
+    if (!OUTSIDE_DIR) return;
+
+    const linkPath = path.join(INSIDE_DIR, 'link-to-outside-dir');
+    const targetPath = OUTSIDE_DIR; // The directory itself
+
+    if (!createSymlinkSafe(targetPath, linkPath)) {
+      console.warn('Skipping symlink test due to permission/fs issues');
+      return;
+    }
+
+    // path inside the symlinked directory, file does not exist yet
+    const newFilePath = path.join(linkPath, 'new-file.txt');
+
+    // Should be considered OUTSIDE worktree
+    expect(isOutsideWorktree(newFilePath, WORKTREE_ROOT)).toBe(true);
+  });
 });
