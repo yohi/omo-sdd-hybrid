@@ -158,4 +158,36 @@ describe('path-utils symlink security', () => {
     // Should be considered OUTSIDE worktree
     expect(isOutsideWorktree(newFilePath, WORKTREE_ROOT)).toBe(true);
   });
+
+  test('symlink directory inside -> outside (deep non-existent path)', () => {
+    if (!OUTSIDE_DIR) return;
+
+    const linkPath = path.join(INSIDE_DIR, 'link-to-outside-dir-deep');
+    const targetPath = OUTSIDE_DIR;
+
+    if (!createSymlinkSafe(targetPath, linkPath)) {
+      console.warn('Skipping symlink test due to permission/fs issues');
+      return;
+    }
+
+    const deepFilePath = path.join(linkPath, 'nested', 'deep', 'new-file.txt');
+
+    // Should be considered OUTSIDE worktree
+    expect(isOutsideWorktree(deepFilePath, WORKTREE_ROOT)).toBe(true);
+  });
+
+  test('symlink directory inside -> outside (deep non-existent directory path)', () => {
+    if (!OUTSIDE_DIR) return;
+
+    const linkPath = path.join(INSIDE_DIR, 'link-to-outside-dir-deep-2');
+    const targetPath = OUTSIDE_DIR;
+
+    if (!createSymlinkSafe(targetPath, linkPath)) {
+      return;
+    }
+
+    const deepDirPath = path.join(linkPath, 'nested', 'deep', 'dir');
+    
+    expect(isOutsideWorktree(deepDirPath, WORKTREE_ROOT)).toBe(true);
+  });
 });
