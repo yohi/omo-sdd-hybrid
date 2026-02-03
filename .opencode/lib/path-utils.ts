@@ -35,7 +35,42 @@ export function isSymlink(filePath: string): boolean {
 function resolveRealPath(targetPath: string): string {
   try {
     return fs.realpathSync(targetPath);
-  } catch {
+  } catch (error: any) {
+    // Only attempt manual resolution for non-existent files
+    if (error?.code === 'ENOENT') {
+      try {
+        // Iterate up directory tree to find the first existing ancestor
+        let currentPath = targetPath;
+        let remainder = '';
+        
+        // Prevent infinite loops with a reasonable depth limit
+        for (let i = 0; i < 50; i++) {
+          const parent = path.dirname(currentPath);
+          if (parent === currentPath) break; // Reached root
+
+          const basename = path.basename(currentPath);
+          remainder = remainder ? path.join(basename, remainder) : basename;
+          currentPath = parent;
+
+          try {
+            // Check if parent exists. lstatSync throws if not found.
+            fs.lstatSync(currentPath);
+            
+            // If we are here, currentPath exists. Resolve it.
+            const realParent = fs.realpathSync(currentPath);
+            return path.join(realParent, remainder);
+          } catch (e: any) {
+            if (e.code === 'ENOENT') {
+              continue; // Parent doesn't exist, keep going up
+            }
+            // Other error (EACCES etc), stop trying and fallback
+            break;
+          }
+        }
+      } catch {
+        // Ignore any errors during manual resolution
+      }
+    }
     return path.resolve(targetPath);
   }
 }
