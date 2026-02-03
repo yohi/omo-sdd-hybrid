@@ -17,6 +17,7 @@
 * [ ] Task-90: Issue #90 対応: テストマトリクスの拡充（symlink・rename・Windows対応） (Scope: `__tests__/lib/**`, `__tests__/plugins/**`, `.opencode/lib/**`, `.sisyphus/notepads/issue-90/**`)
 * [ ] Task-95: Issue #95 対応: worktree外判定で realpath 失敗時(新規作成)の symlink 迂回を防ぐ (Scope: `.opencode/lib/path-utils.ts`, `__tests__/lib/path-utils.symlink.test.ts`)
 * [ ] Task-96: Issue #96 対応: isOutsideWorktree の realpath フォールバック強化 (Scope: `.opencode/lib/path-utils.ts`, `__tests__/lib/path-utils.symlink.test.ts`, `__tests__/lib/path-utils.test.ts`)
+* [ ] Task-97: Issue #97 作業用タスク (Scope: `.opencode/lib/path-utils.ts`, `__tests__/lib/path-utils.symlink.test.ts`, `__tests__/lib/path-utils.test.ts`, `.sisyphus/notepads/issue-97/**`, `specs/tasks.md`)
 
 
 ## Completed Tasks
