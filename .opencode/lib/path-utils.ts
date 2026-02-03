@@ -43,8 +43,8 @@ function resolveRealPath(targetPath: string): string {
         let currentPath = targetPath;
         let remainder = '';
         
-        // Prevent infinite loops with a reasonable depth limit
-        for (let i = 0; i < 50; i++) {
+        // Iterate up until we reach the root or find an existing path
+        while (true) {
           const parent = path.dirname(currentPath);
           if (parent === currentPath) break; // Reached root
 
