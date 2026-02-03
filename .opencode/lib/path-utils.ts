@@ -32,7 +32,7 @@ export function isSymlink(filePath: string): boolean {
 /**
  * Resolve real path (follow symlinks), fallback to resolved path on error
  */
-function resolveRealPath(targetPath: string): string {
+function resolveRealPath(targetPath: string, throwOnFailure: boolean = false): string {
   try {
     return fs.realpathSync(targetPath);
   } catch (error: any) {
@@ -71,6 +71,10 @@ function resolveRealPath(targetPath: string): string {
         // Ignore any errors during manual resolution
       }
     }
+    
+    if (throwOnFailure) {
+      throw new Error(`Failed to resolve real path for: ${targetPath}`);
+    }
     return path.resolve(targetPath);
   }
 }
@@ -79,9 +83,19 @@ export function isOutsideWorktree(filePath: string, worktreeRoot: string): boole
   const absolutePath = path.resolve(filePath);
   const worktreeRootResolved = path.resolve(worktreeRoot);
   
-  // Resolve real paths to prevent symlink bypass
-  const realFilePath = resolveRealPath(absolutePath);
-  const realWorktreeRoot = resolveRealPath(worktreeRootResolved);
+  let realFilePath: string;
+  let realWorktreeRoot: string;
+
+  try {
+    // Resolve real paths to prevent symlink bypass.
+    // If resolution fails (e.g. cannot trace parents due to EACCES), 
+    // we must treat it as potentially outside for safety (Fail Closed).
+    realFilePath = resolveRealPath(absolutePath, true);
+    realWorktreeRoot = resolveRealPath(worktreeRootResolved, false);
+  } catch (e) {
+    // If we cannot resolve the real path, we cannot guarantee it's inside.
+    return true;
+  }
   
   const fileRoot = path.parse(realFilePath).root;
   const worktreeRootParsed = path.parse(realWorktreeRoot).root;

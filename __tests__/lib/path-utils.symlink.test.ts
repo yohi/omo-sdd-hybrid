@@ -11,6 +11,7 @@ let OUTSIDE_DIR: string;
 describe('path-utils symlink security', () => {
   let isOutsideWorktree: typeof import('../../.opencode/lib/path-utils').isOutsideWorktree;
   let evaluateAccess: typeof import('../../.opencode/lib/access-policy').evaluateAccess;
+  let evaluateMultiEdit: typeof import('../../.opencode/lib/access-policy').evaluateMultiEdit;
 
   beforeAll(async () => {
     // Load modules
@@ -19,6 +20,7 @@ describe('path-utils symlink security', () => {
     
     const accessPolicyModule = await import('../../.opencode/lib/access-policy');
     evaluateAccess = accessPolicyModule.evaluateAccess;
+    evaluateMultiEdit = accessPolicyModule.evaluateMultiEdit;
 
     // Setup directories
     try {
@@ -189,5 +191,147 @@ describe('path-utils symlink security', () => {
     const deepDirPath = path.join(linkPath, 'nested', 'deep', 'dir');
     
     expect(isOutsideWorktree(deepDirPath, WORKTREE_ROOT)).toBe(true);
+  });
+
+  test('fail closed (outside) when path resolution fails due to permission', () => {
+    if (process.platform === 'win32') return; // Windows permissions differ
+    if (!OUTSIDE_DIR) return;
+
+    const lockedDir = path.join(OUTSIDE_DIR, 'locked-dir');
+    if (!fs.existsSync(lockedDir)) {
+      fs.mkdirSync(lockedDir);
+    }
+    fs.chmodSync(lockedDir, 0o000); // No access
+
+    try {
+      // Create a symlink inside worktree pointing to the locked directory
+      const linkPath = path.join(INSIDE_DIR, 'link-to-locked');
+      
+      // If symlink already exists from previous run or retry, remove it
+      try {
+        fs.unlinkSync(linkPath);
+      } catch {
+        // Ignore error if file doesn't exist
+      }
+
+      try {
+        fs.symlinkSync(lockedDir, linkPath);
+      } catch (e) {
+        console.warn('Skipping locked dir test due to symlink creation failure', e);
+        return;
+      }
+
+      const filePath = path.join(linkPath, 'file.txt');
+
+      // resolveRealPath should fail to trace parents inside lockedDir (EACCES)
+      // and isOutsideWorktree should catch the error and return true (Fail Closed)
+      expect(isOutsideWorktree(filePath, WORKTREE_ROOT)).toBe(true);
+
+    } finally {
+      // Restore permissions for cleanup
+      if (fs.existsSync(lockedDir)) {
+        fs.chmodSync(lockedDir, 0o777);
+      }
+    }
+  });
+
+  test('evaluateAccess denies write to new file in symlinked dir resolving outside', () => {
+    if (!OUTSIDE_DIR) return;
+
+    const linkPath = path.join(INSIDE_DIR, 'link-to-outside-dir-write');
+    const targetPath = OUTSIDE_DIR;
+    
+    if (!createSymlinkSafe(targetPath, linkPath)) return;
+
+    const newFilePath = path.join(linkPath, 'attack-write.txt');
+
+    const mockState = {
+      status: 'ok' as const,
+      state: {
+        activeTaskId: 'task-1',
+        allowedScopes: ['__tests__/lib/**'], 
+        role: 'implementer' as const,
+        lastActive: Date.now()
+      }
+    };
+
+    const result = evaluateAccess(
+      'write', 
+      newFilePath, 
+      undefined, 
+      mockState, 
+      WORKTREE_ROOT, 
+      'block'
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.rule).toBe('Rule3');
+    expect(result.message).toContain('OUTSIDE_WORKTREE');
+  });
+
+  test('evaluateAccess denies edit to new file in symlinked dir resolving outside', () => {
+    if (!OUTSIDE_DIR) return;
+
+    const linkPath = path.join(INSIDE_DIR, 'link-to-outside-dir-edit');
+    const targetPath = OUTSIDE_DIR;
+    
+    if (!createSymlinkSafe(targetPath, linkPath)) return;
+
+    const newFilePath = path.join(linkPath, 'attack-edit.txt');
+
+    const mockState = {
+      status: 'ok' as const,
+      state: {
+        activeTaskId: 'task-1',
+        allowedScopes: ['__tests__/lib/**'], 
+        role: 'implementer' as const,
+        lastActive: Date.now()
+      }
+    };
+
+    const result = evaluateAccess(
+      'edit', 
+      newFilePath, 
+      undefined, 
+      mockState, 
+      WORKTREE_ROOT, 
+      'block'
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.rule).toBe('Rule3');
+  });
+
+  test('evaluateMultiEdit denies if any file resolves outside', () => {
+    if (!OUTSIDE_DIR) return;
+
+    const linkPath = path.join(INSIDE_DIR, 'link-to-outside-dir-multi');
+    const targetPath = OUTSIDE_DIR;
+    
+    if (!createSymlinkSafe(targetPath, linkPath)) return;
+
+    const safeFile = path.join(INSIDE_DIR, 'normal.txt');
+    const attackFile = path.join(linkPath, 'attack-multi.txt');
+
+    const mockState = {
+      status: 'ok' as const,
+      state: {
+        activeTaskId: 'task-1',
+        allowedScopes: ['__tests__/lib/**'], 
+        role: 'implementer' as const,
+        lastActive: Date.now()
+      }
+    };
+
+    const result = evaluateMultiEdit(
+      [{ filePath: safeFile }, { filePath: attackFile }],
+      mockState,
+      WORKTREE_ROOT,
+      'block'
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.warned).toBe(true);
+    expect(result.message).toContain('OUTSIDE_WORKTREE');
   });
 });
