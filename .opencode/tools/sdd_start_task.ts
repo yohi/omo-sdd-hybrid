@@ -1,12 +1,8 @@
 import { tool } from '../lib/plugin-stub';
-import { writeState } from '../lib/state-utils';
+import { writeState, getTasksPath } from '../lib/state-utils';
 import fs from 'fs';
 import { parseSddTasks } from '../lib/tasks_markdown';
 import { logger } from '../lib/logger.js';
-
-function getTasksPath() {
-  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
-}
 
 export class ScopeFormatError extends Error {
   taskId?: string;
