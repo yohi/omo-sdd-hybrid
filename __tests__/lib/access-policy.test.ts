@@ -159,6 +159,38 @@ describe('access-policy', () => {
       expect(result.warned).toBe(true);
       expect(result.rule).toBe('Rule4');
     });
+
+    test('does not split on command substitution separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo $(printf "rm -rf /; echo ok")', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('does not split on backtick substitution separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo `printf "rm -rf /; echo ok"`', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('does not split on subshell separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, '(rm -rf /; echo ok)', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('does not split on brace expansion separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo {rm;-rf}', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
   });
 
   describe('evaluateMultiEdit', () => {

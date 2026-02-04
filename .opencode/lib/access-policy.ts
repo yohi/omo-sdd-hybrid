@@ -159,6 +159,10 @@ function splitBashSegments(command: string): string[] {
   let inSingle = false;
   let inDouble = false;
   let escaped = false;
+  let inBacktick = false;
+  let commandSubstDepth = 0;
+  let subshellDepth = 0;
+  let braceDepth = 0;
 
   const pushSegment = () => {
     const trimmed = current.trim();
@@ -183,19 +187,71 @@ function splitBashSegments(command: string): string[] {
       continue;
     }
 
-    if (!inDouble && ch === "'") {
+    if (!inSingle && ch === '`') {
+      inBacktick = !inBacktick;
+      current += ch;
+      continue;
+    }
+
+    if (!inSingle && !inBacktick && ch === '$' && command[i + 1] === '(') {
+      commandSubstDepth += 1;
+      current += '$(';
+      i += 1;
+      continue;
+    }
+
+    if (!inSingle && !inBacktick && ch === ')' && commandSubstDepth > 0) {
+      commandSubstDepth -= 1;
+      current += ch;
+      continue;
+    }
+
+    if (!inBacktick && !inDouble && ch === "'") {
       inSingle = !inSingle;
       current += ch;
       continue;
     }
 
-    if (!inSingle && ch === '"') {
+    if (!inBacktick && !inSingle && ch === '"') {
       inDouble = !inDouble;
       current += ch;
       continue;
     }
 
-    if (!inSingle && !inDouble) {
+    if (!inSingle && !inDouble && !inBacktick && commandSubstDepth === 0) {
+      if (ch === '(') {
+        subshellDepth += 1;
+        current += ch;
+        continue;
+      }
+
+      if (ch === ')' && subshellDepth > 0) {
+        subshellDepth -= 1;
+        current += ch;
+        continue;
+      }
+
+      if (ch === '{') {
+        braceDepth += 1;
+        current += ch;
+        continue;
+      }
+
+      if (ch === '}' && braceDepth > 0) {
+        braceDepth -= 1;
+        current += ch;
+        continue;
+      }
+    }
+
+    if (
+      !inSingle
+      && !inDouble
+      && !inBacktick
+      && commandSubstDepth === 0
+      && subshellDepth === 0
+      && braceDepth === 0
+    ) {
       if (ch === ';') {
         pushSegment();
         continue;
