@@ -259,7 +259,7 @@ function splitBashSegments(command: string): string[] {
       && subshellDepth === 0
       && braceDepth === 0
     ) {
-      if (ch === ';') {
+      if (ch === ';' || ch === '\n' || ch === '\r') {
         pushSegment();
         continue;
       }
