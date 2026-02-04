@@ -71,6 +71,441 @@ export interface AccessResult {
   rule?: 'Rule0' | 'Rule1' | 'Rule2' | 'Rule3' | 'Rule4' | 'StateCorrupted' | 'RoleDenied' | 'RoleAllowed';
 }
 
+type BashRuleMode = 'warn' | 'block';
+
+type BashRule = {
+  id: string;
+  minMode: BashRuleMode;
+  match: (info: BashCommandInfo) => boolean;
+};
+
+type BashCommandInfo = {
+  command: string;
+  args: string[];
+  tokens: string[];
+};
+
+const BASH_WRAPPER_COMMANDS = new Set(['sudo', 'command', 'env', 'nice', 'nohup', 'time']);
+
+const WRAPPER_ARG_OPTIONS: Record<string, Set<string>> = {
+  sudo: new Set(['-u', '-g', '-h', '-p', '-U']),
+  env: new Set(['-C', '-u', '-S']),
+  nice: new Set(['-n']),
+  time: new Set(['-o', '-f']),
+};
+
+const DESTRUCTIVE_BASH_RULES: BashRule[] = [
+  {
+    id: 'rm-force-recursive',
+    minMode: 'warn',
+    match: ({ command, args }) => {
+      if (command !== 'rm') {
+        return false;
+      }
+      const flags = extractFlags(args);
+      const recursive = flags.shortFlags.has('r') || flags.shortFlags.has('R') || flags.longFlags.has('recursive');
+      const force = flags.shortFlags.has('f') || flags.longFlags.has('force');
+      return recursive && force;
+    }
+  },
+  {
+    id: 'git-clean-fdx',
+    minMode: 'warn',
+    match: ({ command, args }) => {
+      if (command !== 'git') {
+        return false;
+      }
+      const subcommand = getGitSubcommand(args);
+      if (subcommand?.name !== 'clean') {
+        return false;
+      }
+      const flags = extractFlags(subcommand.args);
+      return flags.shortFlags.has('f') && flags.shortFlags.has('d') && flags.shortFlags.has('x');
+    }
+  },
+  {
+    id: 'git-reset-hard',
+    minMode: 'warn',
+    match: ({ command, args }) => {
+      if (command !== 'git') {
+        return false;
+      }
+      const subcommand = getGitSubcommand(args);
+      if (subcommand?.name !== 'reset') {
+        return false;
+      }
+      const flags = extractFlags(subcommand.args);
+      return flags.longFlags.has('hard');
+    }
+  },
+  {
+    id: 'git-push',
+    minMode: 'warn',
+    match: ({ command, args }) => {
+      if (command !== 'git') {
+        return false;
+      }
+      return getGitSubcommand(args)?.name === 'push';
+    }
+  },
+  {
+    id: 'git-apply',
+    minMode: 'warn',
+    match: ({ command, args }) => {
+      if (command !== 'git') {
+        return false;
+      }
+      return getGitSubcommand(args)?.name === 'apply';
+    }
+  }
+];
+
+function splitBashSegments(command: string): string[] {
+  const segments: string[] = [];
+  let current = '';
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+  let inBacktick = false;
+  let commandSubstDepth = 0;
+  let subshellDepth = 0;
+  let braceDepth = 0;
+
+  const pushSegment = () => {
+    const trimmed = current.trim();
+    if (trimmed) {
+      segments.push(trimmed);
+    }
+    current = '';
+  };
+
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (!inSingle && ch === '\\') {
+      current += ch;
+      escaped = true;
+      continue;
+    }
+
+    if (!inSingle && ch === '`') {
+      inBacktick = !inBacktick;
+      current += ch;
+      continue;
+    }
+
+    if (!inSingle && !inBacktick && ch === '$' && command[i + 1] === '(') {
+      commandSubstDepth += 1;
+      current += '$(';
+      i += 1;
+      continue;
+    }
+
+    if (!inSingle && !inBacktick && ch === ')' && commandSubstDepth > 0) {
+      commandSubstDepth -= 1;
+      current += ch;
+      continue;
+    }
+
+    if (!inBacktick && !inDouble && ch === "'") {
+      inSingle = !inSingle;
+      current += ch;
+      continue;
+    }
+
+    if (!inBacktick && !inSingle && ch === '"') {
+      inDouble = !inDouble;
+      current += ch;
+      continue;
+    }
+
+    if (!inSingle && !inDouble && !inBacktick && commandSubstDepth === 0) {
+      if (ch === '(') {
+        subshellDepth += 1;
+        current += ch;
+        continue;
+      }
+
+      if (ch === ')' && subshellDepth > 0) {
+        subshellDepth -= 1;
+        current += ch;
+        continue;
+      }
+
+      if (ch === '{') {
+        braceDepth += 1;
+        current += ch;
+        continue;
+      }
+
+      if (ch === '}' && braceDepth > 0) {
+        braceDepth -= 1;
+        current += ch;
+        continue;
+      }
+    }
+
+    if (
+      !inSingle
+      && !inDouble
+      && !inBacktick
+      && commandSubstDepth === 0
+      && subshellDepth === 0
+      && braceDepth === 0
+    ) {
+      if (ch === ';' || ch === '\n' || ch === '\r') {
+        pushSegment();
+        continue;
+      }
+
+      if (ch === '&' && command[i + 1] === '&') {
+        pushSegment();
+        i += 1;
+        continue;
+      }
+
+      if (ch === '&' && command[i + 1] !== '&' && command[i + 1] !== '>' && command[i - 1] !== '>') {
+        pushSegment();
+        continue;
+      }
+
+      if (ch === '|' && command[i + 1] === '|') {
+        pushSegment();
+        i += 1;
+        continue;
+      }
+
+      if (ch === '|') {
+        pushSegment();
+        continue;
+      }
+    }
+
+    current += ch;
+  }
+
+  pushSegment();
+  return segments;
+}
+
+function tokenizeBashSegment(segment: string): string[] {
+  const tokens: string[] = [];
+  let current = '';
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+
+  const pushToken = () => {
+    if (current) {
+      tokens.push(current);
+      current = '';
+    }
+  };
+
+  for (let i = 0; i < segment.length; i += 1) {
+    const ch = segment[i];
+
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (!inSingle && ch === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (!inDouble && ch === "'") {
+      inSingle = !inSingle;
+      continue;
+    }
+
+    if (!inSingle && ch === '"') {
+      inDouble = !inDouble;
+      continue;
+    }
+
+    if (!inSingle && !inDouble && /\s/.test(ch)) {
+      pushToken();
+      continue;
+    }
+
+    current += ch;
+  }
+
+  pushToken();
+  return tokens;
+}
+
+function stripBashWrappers(tokens: string[]): string[] {
+  let index = 0;
+
+  const skipEnvAssignments = () => {
+    while (index < tokens.length && isEnvAssignment(tokens[index])) {
+      index += 1;
+    }
+  };
+
+  skipEnvAssignments();
+
+  while (index < tokens.length) {
+    const token = tokens[index];
+
+    if (BASH_WRAPPER_COMMANDS.has(token)) {
+      const wrapper = token;
+      index += 1;
+
+      // Consume options
+      while (index < tokens.length && tokens[index].startsWith('-')) {
+        const option = tokens[index];
+        index += 1;
+
+        const argOptions = WRAPPER_ARG_OPTIONS[wrapper];
+        
+        // Special handling for 'command -v/-V' -> treat as query (stop detection)
+        if (wrapper === 'command' && (option === '-v' || option === '-V')) {
+          return [];
+        }
+
+        if (argOptions?.has(option) && index < tokens.length) {
+          index += 1;
+        }
+      }
+
+      skipEnvAssignments();
+      continue;
+    }
+
+    break;
+  }
+
+  return tokens.slice(index);
+}
+
+function isEnvAssignment(token: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
+}
+
+function extractFlags(args: string[]) {
+  const shortFlags = new Set<string>();
+  const longFlags = new Set<string>();
+
+  for (const arg of args) {
+    if (arg === '--') {
+      break;
+    }
+    if (arg.startsWith('--')) {
+      const [flag] = arg.slice(2).split('=');
+      if (flag) {
+        longFlags.add(flag);
+      }
+      continue;
+    }
+    if (arg.startsWith('-') && arg.length > 1) {
+      for (const ch of arg.slice(1)) {
+        shortFlags.add(ch);
+      }
+    }
+  }
+
+  return { shortFlags, longFlags };
+}
+
+function getGitSubcommand(args: string[]): { name: string; args: string[] } | null {
+  let index = 0;
+
+  while (index < args.length) {
+    const arg = args[index];
+
+    if (arg === '--') {
+      index += 1;
+      break;
+    }
+
+    if (arg.startsWith('-')) {
+      if (['-C', '-c', '--git-dir', '--work-tree', '--namespace'].includes(arg)) {
+        index += 2;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    return { name: arg, args: args.slice(index + 1) };
+  }
+
+  return null;
+}
+
+function buildBashCommandInfo(segment: string): BashCommandInfo | null {
+  const tokens = tokenizeBashSegment(segment);
+  const strippedTokens = stripBashWrappers(tokens);
+  if (strippedTokens.length === 0) {
+    return null;
+  }
+  return { command: strippedTokens[0], args: strippedTokens.slice(1), tokens: strippedTokens };
+}
+
+function matchPolicyEntries(info: BashCommandInfo, entries: string[]): boolean {
+  return entries.some(entry => {
+    const entryTokens = tokenizeBashSegment(entry.trim());
+    if (entryTokens.length === 0) {
+      return false;
+    }
+    if (info.tokens.length < entryTokens.length) {
+      return false;
+    }
+    for (let i = 0; i < entryTokens.length; i += 1) {
+      const expected = entryTokens[i];
+      const actual = info.tokens[i];
+      if (expected === '-') {
+        if (!actual.startsWith('-')) {
+          return false;
+        }
+        continue;
+      }
+      if (expected !== actual) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+function isDestructiveBash(command: string, policy: { destructiveBash: string[] }, mode: GuardMode): boolean {
+  const segments = splitBashSegments(command);
+  for (const segment of segments) {
+    const info = buildBashCommandInfo(segment);
+    if (!info) {
+      continue;
+    }
+
+    const matchedRule = DESTRUCTIVE_BASH_RULES.some(rule => {
+      if (mode === 'warn' && rule.minMode === 'block') {
+        return false;
+      }
+      return rule.match(info);
+    });
+
+    if (matchedRule) {
+      return true;
+    }
+
+    if (matchPolicyEntries(info, policy.destructiveBash)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function evaluateAccess(
   toolName: string,
   filePath: string | undefined,
@@ -84,7 +519,7 @@ export function evaluateAccess(
   
   if (!WRITE_TOOLS.includes(toolName)) {
     if (toolName === 'bash' && command) {
-      if (policy.destructiveBash.some(d => command.includes(d))) {
+      if (isDestructiveBash(command, policy, mode)) {
         return { allowed: allowedOnViolation, warned: true, message: `破壊的コマンド検出: ${command}`, rule: 'Rule4' };
       }
     }

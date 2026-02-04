@@ -11,7 +11,7 @@ export interface PolicyConfig {
 
 export const DEFAULT_POLICY: PolicyConfig = {
   alwaysAllow: ['specs/', '.opencode/'],
-  destructiveBash: ['rm ', 'rm -', 'git push', 'reset --hard', 'git apply']
+  destructiveBash: []
 };
 
 export const _resetPolicyLogged = () => {

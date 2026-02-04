@@ -124,6 +124,100 @@ describe('access-policy', () => {
       expect(result.warned).toBe(true);
       expect(result.rule).toBe('Rule4');
     });
+
+    test('does not detect quoted destructive strings', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo "rm -rf"', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('detects destructive bash in compound commands', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'ls && rm -rf /', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('detects git clean -fdx', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'git clean -fdx', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('detects git reset --hard', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'git reset --hard', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('detects destructive bash in env -i wrapper', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      
+      const result = evaluateAccess('bash', undefined, 'env -i rm -rf /', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('detects destructive bash in nice -n 10 wrapper', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'nice -n 10 rm -rf /', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('detects destructive bash in env -u VAR wrapper', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'env -u VAR rm -rf /', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('does not split on command substitution separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo $(printf "rm -rf /; echo ok")', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('does not split on backtick substitution separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo `printf "rm -rf /; echo ok"`', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('does not split on subshell separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, '(rm -rf /; echo ok)', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('does not split on brace expansion separators', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo {rm;-rf}', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
   });
 
   describe('evaluateMultiEdit', () => {

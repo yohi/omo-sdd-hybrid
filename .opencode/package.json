@@ -2,7 +2,7 @@
   "name": "omo-sdd-hybrid-plugin",
   "type": "module",
   "dependencies": {
-    "@opencode-ai/plugin": "1.1.49",
+    "@opencode-ai/plugin": "1.1.50",
     "cc-sdd": "^2.0.5",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
