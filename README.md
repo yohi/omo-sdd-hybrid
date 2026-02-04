@@ -223,7 +223,7 @@ sdd_validate_gap
 - Kiro 仕様書との整合性チェック（後述）
 
 > **Note (Smart Strategy):**
-> 現在のロールが **Architect** の場合、自動的に `--deep` オプション（意味的検証）が有効になります。
+> 現在のロールが **Architect** の場合、`--deep` オプション（意味的検証）の使用が推奨されます。
 > Implementer の場合は、標準の検証（テスト + Diagnostics）が優先されます。
 
 #### Step 4: タスクを終了する
@@ -430,7 +430,7 @@ sdd_validate_gap --kiroSpec <feature-name> --deep
 
 ### 意味的検証 (Semantic Verification)
 
-`sdd_validate_gap --deep` コマンド実行時、環境変数が設定されていれば Embeddings（ベクトル検索）を用いた意味的ギャップ検出が自動的に行われます。
+`sdd_validate_gap` に `--deep` オプションを明示的に指定し、かつ環境変数が設定されている場合のみ、Embeddings（ベクトル検索）を用いた意味的ギャップ検出が行われます（オプトイン方式）。
 
 #### 必要な設定
 以下の環境変数を設定してください（`.env` ファイル対応）。
@@ -456,10 +456,10 @@ sdd_validate_gap --kiroSpec <feature-name> --deep
 - **コード**: 関数/クラス単位のテキスト断片
 - **ファイルパス**: 相対パス形式
 
-#### オプトアウト
+#### 検証の有効化 (Opt-in)
 
-- `SDD_EMBEDDINGS_API_KEY` を **設定しなければ**、意味的分析はスキップされます
-- ローカルのみで動作させたい場合は、環境変数からAPIキーを削除してください
+- 意味的分析（外部送信を含む）を実行するには、`--deep` オプションの指定が **必須** です。
+- 環境変数が設定されていても、`--deep` を指定しない限りデータは送信されません。
 
 #### 注意
 
