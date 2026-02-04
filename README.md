@@ -473,6 +473,19 @@ omo-sdd-hybrid/
 └── package.json         # 開発用設定
 ```
 
+## 開発 (Development)
+
+本プロジェクトの開発には **Bun** を使用します。
+詳細なコーディング規約やテスト方法は [AGENTS.md](./AGENTS.md) を参照してください。
+
+### 主な開発コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `bun test` | 全テストを実行します。 |
+| `bun test:seq` | テストを直列実行します（推奨）。StateやLockの競合を防ぐため、CI等ではこちらを使用してください。 |
+| `bun run scripts/sdd_ci_validate.ts` | CI用バリデーションスクリプトを実行します。 |
+
 ## ライセンス
 
 MIT

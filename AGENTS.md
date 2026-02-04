@@ -1,66 +1,141 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-27
 **Context:** OmO-SDD-Hybrid (OpenCode Plugin)
 **Stack:** TypeScript, Bun, OpenCode API
+**Language:** Code=English, Comments/Docs=Japanese
 
-## OVERVIEW
+## 1. OVERVIEW & STRUCTURE
 OpenCode環境における「仕様逸脱（Vibe Coding）」を物理的に抑止するプラグイン。
-タスクベースのファイルアクセス制御（Gatekeeper）を提供し、仕様駆動開発（SDD）を強制する。
+ソースコードが `.opencode/` に隠蔽される "Hybrid" 構成を採用している。
 
-## STRUCTURE
-ソースコードが `.opencode/` に隠蔽される "Hybrid" 構成。
-
+### Directory Structure
 ```
 omo-sdd-hybrid/
-├── .opencode/           # [CORE] プラグインの実体
-│   ├── plugins/         # Gatekeeper, Context Injector
-│   ├── tools/           # CLIコマンド実装 (sdd_start_task等)
-│   ├── lib/             # 共通ロジック & 状態管理
-│   └── state/           # 実行時状態 (lock, active-task)
+├── .opencode/           # [CORE] プラグインの実体 (Hidden Source)
+│   ├── plugins/         # Event Hooks (Gatekeeper, etc.)
+│   ├── tools/           # CLI Tools (sdd_start_task, etc.)
+│   ├── lib/             # Shared Logic & State Manager
+│   └── state/           # Runtime State (Gitignored)
 ├── src/                 # [USER] SDD管理対象のコード領域
-├── specs/               # [USER] タスク・仕様定義
-├── __tests__/           # [DEV] テスト (.opencodeと鏡像)
-└── package.json         # 開発用 (テスト, ビルド)
+├── specs/               # [USER] タスク・仕様定義 (Source of Truth)
+├── __tests__/           # [DEV] テスト (.opencodeと鏡像構成)
+└── package.json         # 開発用 (Bun, Test, DevDeps)
 ```
 
-## WHERE TO LOOK
+## 2. COMMANDS (Build & Test)
 
-| Task | Location | Notes |
-|------|----------|-------|
-| **Core Logic** | `.opencode/` | プラグインの全機能はこの中にある |
-| **Task Defs** | `specs/tasks.md` | ユーザーが編集する唯一のエントリーポイント |
-| **Gatekeeper** | `.opencode/plugins/sdd-gatekeeper.ts` | ファイル書き込み監視・ブロックロジック |
-| **State Mgr** | `.opencode/lib/state-utils.ts` | 排他制御付き状態管理 (Manual edit禁止) |
-| **CLI Tools** | `.opencode/tools/*.ts` | 各コマンドの実装 |
+このプロジェクトは **Bun** を使用しています。`npm` や `yarn` ではなく `bun` コマンドを使用してください。
 
-## CONVENTIONS
-
-### Hybrid Package Structure
-| File | Role |
-|------|------|
-| `./package.json` | プロジェクト開発用 (Bun, Test, DevDeps) |
-| `.opencode/package.json` | プラグイン実行用 (Runtime Deps) |
-
-### SDD Cycle
-1. **Define**: `specs/tasks.md` にタスクとScopeを記述
-2. **Start**: `sdd_start_task <ID>` で権限取得
-3. **Code**: Scope内のみ編集可能
-4. **Validate**: `sdd_validate_gap` で整合性確認
-5. **End**: `sdd_end_task` で完了
-
-## ANTI-PATTERNS (THIS PROJECT)
-- **[FORBIDDEN] Vibe Coding**: `sdd_start_task` なしでのコード編集（Gatekeeperがブロック）。
-- **[FORBIDDEN] Manual State Edit**: `.opencode/state/` 内のJSONを直接編集しない。
-- **[FORBIDDEN] Destructive Bash**: `rm`, `git push` 等は物理的に禁止。
-
-## UNIQUE STYLES
-- **Hidden Source**: コアロジックは `.opencode/` に配置。`src/` は管理対象。
-- **Mirror Testing**: `__tests__` は `.opencode` の構造を厳密に反映。
-- **Japanese Only**: コミットメッセージ、ドキュメント、コメントは全て日本語。
-
-## COMMANDS
+### Test Execution
 ```bash
-bun test         # 全テスト実行
-bun test:seq     # 直列実行（ステート依存テスト用）
+# 全テスト実行
+bun test
+
+# 特定ファイルのテスト実行
+bun test __tests__/tools/sdd_start_task.test.ts
+
+# ステート依存テストの直列実行 (推奨)
+# ファイルロックやシングルトン状態に依存するテストが含まれるため
+bun test:seq
 ```
+
+### Lint / Format
+明示的なLintコマンドはありませんが、既存コードのスタイル（Prettier準拠）に従ってください。
+
+## 3. CODE STYLE GUIDELINES
+
+### Language & naming
+- **Code**: TypeScript (Strict mode)
+- **Comments/Docs**: **ALL JAPANESE** (必須)。
+  - 理由: 開発チームおよびユーザー（日本国内想定）の可読性最大化のため。
+  - 例外: 変数名、関数名は英語 (camelCase)。
+- **File Names**: kebab-case (例: `state-utils.ts`, `sdd-gatekeeper.ts`)。
+
+### Imports
+- **Relative Paths**: 内部モジュールは相対パスでインポートする (`../lib/state-utils` 等)。
+- **Extensions**: `.ts` は省略するが、ESM互換性のため `.js` を付ける場合がある（既存コードに合わせる）。
+- **Grouping**: 標準ライブラリ (`fs`, `path`) -> 外部ライブラリ -> 内部モジュールの順。
+
+### Error Handling
+- **Fail Fast**: 無効な状態や引数は即座に例外を投げる。
+- **Messages**: エラーメッセージは **日本語** で記述する。ユーザーに表示されるため、明確な理由を含めること。
+  - Bad: `throw new Error("Error")`
+  - Good: `throw new Error("E_TASK_NOT_FOUND: 指定されたタスクIDが見つかりません")`
+- **Prefix**: エラーコード風のプレフィックス（`E_XXX:`）を推奨。
+
+### State Management (Critical)
+- **Stateless Logic**: ツールやプラグインはステートレスに保つ。
+- **Persistence**: 状態は `.opencode/state/*.json` に保存される。
+- **Atomic Writes**: 状態の保存は必ず「一時ファイル書き込み -> リネーム」の順で行うこと（`writeState` 関数を利用すれば自動的に処理される）。
+- **Locking**: 競合を防ぐため、`lockStateDir` を使用して排他制御を行う。
+
+## 4. IMPLEMENTATION RULES
+
+### Tool Implementation (`.opencode/tools/`)
+- **Dynamic Load**: 起動時に動的に読み込まれるため、トップレベルでの副作用（即時実行コード）は禁止。
+- **No Binaries**: バイナリ依存を含めない。純粋な TypeScript/JavaScript で完結させる。
+- **Idempotency**: 可能な限り冪等性を保つ。
+
+### Plugin Implementation (`.opencode/plugins/`)
+- **Performance**: すべてのツール実行にフックされるため、処理は軽量に保つ。
+- **Fail Closed**: セキュリティ（Gatekeeper）関連のチェックは、失敗した場合に「許可」ではなく「拒否（例外）」すること。
+
+### SDD Cycle Integration
+1. **Scope Check**: ファイル操作を行う際は必ず `activeTask` と `allowedScopes` を確認する。
+2. **Kiro Support**: `specs/` 以下のファイル構造は Kiro (cc-sdd) との互換性を考慮する。
+
+## 5. TESTING GUIDELINES
+- **Mirror Testing**: テストファイルは `__tests__` 内に、ソースコードと同じディレクトリ構造で配置する。
+  - `.opencode/tools/foo.ts` -> `__tests__/tools/foo.test.ts`
+- **Mocking**: ファイルシステム操作 (`fs`) や状態管理 (`state-utils`) は必要に応じてモック化するが、結合テストでは実際のファイル生成を行う場合がある。
+- **Cleanup**: テスト内で生成した一時ファイル（`.opencode/state` 等）は必ずクリーンアップする。
+
+## 6. ANTI-PATTERNS
+- **[FORBIDDEN]** `src/` 以下のコードロジックにプラグインのコア機能を実装すること（逆依存）。
+- **[FORBIDDEN]** `console.log` をライブラリ層 (`lib/`) に残すこと。`logger` モジュールを使用するか、呼び出し元（ツール層）に任せる。
+- **[FORBIDDEN]** 英語でのコミットメッセージ。必ず日本語で記述する。
+- **[FORBIDDEN]** `as any` の乱用。型安全性は厳密に維持する。
+
+## 7. AI AGENT BEHAVIOR
+- **Response Language**: ユーザーへの回答は **日本語** で行う。
+- **Thinking**: 思考プロセスは英語でも良いが、最終的な出力は日本語。
+- **Proactive Fix**: 既存コードのスタイル違反（英語コメントなど）を見つけた場合は、修正時に日本語化する。
+- **Check AGENTS.md**: 各サブディレクトリ（`.opencode/tools` 等）にも `AGENTS.md` がある場合、そちらの特化したルールも参照する。
+
+## 8. ARCHITECTURE DEEP DIVE
+
+### State Schema (`.opencode/state/current_context.json`)
+The state file acts as the single source of truth for the current session.
+- `activeTaskId`: 現在進行中のタスクID。
+- `allowedScopes`: 書き込み許可されたGlobパターンの配列。
+- `role`: 'architect' または 'implementer'。権限レベルを制御する。
+- `stateHash`: 手動改ざん検知用のHMAC-SHA256署名。
+
+### Gatekeeper Logic (`sdd-gatekeeper.ts`)
+Gatekeeperはツール実行 (`tool.execute.before`) をインターセプトし、以下のロジックでアクセスを制御する。
+1.  **Read State**: 現在のコンテキストとガードモード設定をロード。
+2.  **Check Tool**: `write`, `edit`, `multiedit` などの変更系ツールのみ対象。
+3.  **Validate Path**: 対象ファイルパスが `allowedScopes` (picomatch) にマッチするか検証。
+4.  **Enforce**: マッチしない場合、`E_SCOPE_DENIED` 例外を投げて実行をブロックする。
+
+### Glob Patterns
+`picomatch` ライブラリを使用。
+- `**`: 0個以上のディレクトリにマッチ。
+- `src/**`: `src` 以下の全ファイルを許可。
+- `specs/tasks.md`: 特定ファイルのみ許可。
+
+## 9. TROUBLESHOOTING FOR AGENTS
+
+### "ELOCKED" Error
+- **状況**: テストやツール実行時に `Failed to acquire lock` エラーが発生する。
+- **原因**: 前のプロセスがクラッシュし、ロックファイル (`.opencode/state/.lock`) が残留している。
+- **対処**:
+  1.  `sdd_force_unlock` を実行してロックを解除する。
+  2.  テストコード内の `afterEach` でクリーンアップ漏れがないか確認する。
+
+### "Scope Denied" Error
+- **状況**: コード編集時に Gatekeeper にブロックされる。
+- **対処**:
+  1.  `sdd_show_context` で現在のスコープを確認。
+  2.  必要であれば `specs/tasks.md` の Scope 定義を修正。
+  3.  変更を反映するため、一度 `sdd_end_task` してから再度 `sdd_start_task` する。
