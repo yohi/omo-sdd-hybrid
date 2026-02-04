@@ -1,0 +1,8 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "./.opencode/plugins/sdd-gatekeeper.ts",
+    "./.opencode/plugins/sdd-context-injector.ts",
+    "./.opencode/plugins/sdd-feedback-loop.ts"
+  ]
+}
