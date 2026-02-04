@@ -120,6 +120,35 @@ describe('state-utils', () => {
       const result = await readState();
       expect(result.status).toBe('corrupted');
     });
+
+    test('migrates legacy state (missing hashes) on read', async () => {
+      cleanupStateFiles();
+      const { readState, getStateDir, getStatePath } = await import('../../.opencode/lib/state-utils');
+      
+      const legacyState = {
+        version: 1,
+        activeTaskId: 'Task-Legacy',
+        activeTaskTitle: 'Legacy Task',
+        allowedScopes: ['src/**'],
+        startedAt: new Date().toISOString(),
+        startedBy: 'test',
+        validationAttempts: 0,
+        role: null
+      };
+      
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
+      }
+      fs.writeFileSync(getStatePath(), JSON.stringify(legacyState));
+      
+      const result = await readState();
+      expect(result.status).toBe('ok');
+      if (result.status === 'ok') {
+        expect(result.state.activeTaskId).toBe('Task-Legacy');
+        expect(result.state.tasksMdHash).toBeDefined();
+        expect(result.state.stateHash).toBeDefined();
+      }
+    });
   });
 
   describe('clearState', () => {
@@ -274,7 +303,6 @@ describe('state-utils', () => {
     test('returns corrupted when all backups are invalid', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
-      const validState = createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });
