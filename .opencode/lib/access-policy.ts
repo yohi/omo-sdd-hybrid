@@ -133,7 +133,7 @@ const DESTRUCTIVE_BASH_RULES: BashRule[] = [
   },
   {
     id: 'git-push',
-    minMode: 'block',
+    minMode: 'warn',
     match: ({ command, args }) => {
       if (command !== 'git') {
         return false;
@@ -143,7 +143,7 @@ const DESTRUCTIVE_BASH_RULES: BashRule[] = [
   },
   {
     id: 'git-apply',
-    minMode: 'block',
+    minMode: 'warn',
     match: ({ command, args }) => {
       if (command !== 'git') {
         return false;
