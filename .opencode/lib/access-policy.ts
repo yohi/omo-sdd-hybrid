@@ -270,6 +270,11 @@ function splitBashSegments(command: string): string[] {
         continue;
       }
 
+      if (ch === '&' && command[i + 1] !== '&' && command[i + 1] !== '>' && command[i - 1] !== '>') {
+        pushSegment();
+        continue;
+      }
+
       if (ch === '|' && command[i + 1] === '|') {
         pushSegment();
         i += 1;
@@ -363,6 +368,12 @@ function stripBashWrappers(tokens: string[]): string[] {
         index += 1;
 
         const argOptions = WRAPPER_ARG_OPTIONS[wrapper];
+        
+        // Special handling for 'command -v/-V' -> treat as query (stop detection)
+        if (wrapper === 'command' && (option === '-v' || option === '-V')) {
+          return [];
+        }
+
         if (argOptions?.has(option) && index < tokens.length) {
           index += 1;
         }
