@@ -112,7 +112,7 @@ export function evaluateAccess(
   
   if (stateResult.status === 'corrupted') {
     return { 
-      allowed: allowedOnViolation,
+      allowed: false,
       warned: true, 
       message: `STATE_CORRUPTED: current_context.json が破損しています。再作成が必要です。(${stateResult.error})`,
       rule: 'StateCorrupted'
