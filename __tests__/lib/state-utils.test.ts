@@ -6,11 +6,15 @@ import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 const cleanupStateFiles = () => {
   const statePath = getStatePath();
+  const stateDir = getStateDir();
+  const auditLogPath = path.join(stateDir, 'state-audit.log');
   const filesToClean = [
     statePath,
     `${statePath}.bak`,
     `${statePath}.bak.1`,
     `${statePath}.bak.2`,
+    auditLogPath,
+    `${auditLogPath}.bak`,
   ];
   filesToClean.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
