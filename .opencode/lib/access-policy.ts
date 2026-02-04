@@ -87,6 +87,13 @@ type BashCommandInfo = {
 
 const BASH_WRAPPER_COMMANDS = new Set(['sudo', 'command', 'env', 'nice', 'nohup', 'time']);
 
+const WRAPPER_ARG_OPTIONS: Record<string, Set<string>> = {
+  sudo: new Set(['-u', '-g', '-h', '-p', '-U']),
+  env: new Set(['-C', '-u', '-S']),
+  nice: new Set(['-n']),
+  time: new Set(['-o', '-f']),
+};
+
 const DESTRUCTIVE_BASH_RULES: BashRule[] = [
   {
     id: 'rm-force-recursive',
@@ -346,27 +353,21 @@ function stripBashWrappers(tokens: string[]): string[] {
   while (index < tokens.length) {
     const token = tokens[index];
 
-    if (token === 'sudo') {
+    if (BASH_WRAPPER_COMMANDS.has(token)) {
+      const wrapper = token;
       index += 1;
+
+      // Consume options
       while (index < tokens.length && tokens[index].startsWith('-')) {
         const option = tokens[index];
         index += 1;
-        if (['-u', '-g', '-h', '-p', '-U'].includes(option) && index < tokens.length) {
+
+        const argOptions = WRAPPER_ARG_OPTIONS[wrapper];
+        if (argOptions?.has(option) && index < tokens.length) {
           index += 1;
         }
       }
-      skipEnvAssignments();
-      continue;
-    }
 
-    if (token === 'env') {
-      index += 1;
-      skipEnvAssignments();
-      continue;
-    }
-
-    if (BASH_WRAPPER_COMMANDS.has(token)) {
-      index += 1;
       skipEnvAssignments();
       continue;
     }
