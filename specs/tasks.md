@@ -23,6 +23,8 @@
 * [x] Task-98: Issue #98 対応: 危険なポリシーパスの拒否と fail-closed 実装 (Scope: `.opencode/lib/policy-loader.ts`, `.opencode/lib/access-policy.ts`, `__tests__/lib/policy-loader.test.ts`, `.sisyphus/notepads/issue-98/**`, `specs/tasks.md`)
 * [ ] Task-99: Issue #99 対応: state改ざん検知/監査ログの追加 (Scope: `.opencode/lib/state-utils.ts`, `.opencode/lib/access-policy.ts`, `.opencode/tools/sdd_start_task.ts`, `__tests__/helpers/test-harness.ts`, `__tests__/lib/state-utils*.test.ts`, `__tests__/lib/access-policy.test.ts`, `__tests__/plugins/sdd-gatekeeper*.test.ts`, `__tests__/tools/sdd_start_task.test.ts`, `__tests__/tools/sdd_show_context.test.ts`, `__tests__/tools/sdd_project_status.test.ts`, `__tests__/tools/sdd_validate_gap*.test.ts`, `__tests__/e2e/acceptance.test.ts`, `README.md`, `specs/tasks.md`)
 * [ ] Task-100: Issue #100 対応: 破壊的bash検知の精度改善 (Scope: `.opencode/lib/access-policy.ts`, `.opencode/lib/policy-loader.ts`, `__tests__/lib/access-policy.test.ts`, `specs/tasks.md`)
+* [ ] Task-104: sdd_lint_tasks の lint 対象パス拡張 (Scope: `.opencode/tools/sdd_lint_tasks.ts`, `__tests__/tools/sdd_lint_tasks.test.ts`)
+* [ ] Task-103: パッケージ配布時のOpenCode起動不具合修正（依存/設定ファイルの整理） (Scope: `package.json`, `opencode.jsonc`)
 
 
 ## Completed Tasks

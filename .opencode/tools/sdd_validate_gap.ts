@@ -59,7 +59,7 @@ function runScopedTests(allowedScopes: string[], skipTests: boolean = false): st
   
   const testPatterns = allowedScopes
     .filter(s => s.includes('__tests__') || s.includes('test'))
-    .map(s => s.replaceAll('**', ''));
+    .map(s => s.replace(/\*\*/g, ''));
   
   if (testPatterns.length === 0) {
     return 'SKIP: テストスコープが定義されていません';
@@ -236,8 +236,9 @@ export async function validateGapInternal(state: State, options: ValidateGapOpti
   // Smart Strategy: Architect ロールの場合はデフォルトで Deep Analysis を有効にする
   let useDeepAnalysis = options.deep === true;
   if (options.deep === undefined && state.role === 'architect') {
-    useDeepAnalysis = true;
-    sections.push('> Smart Strategy: Architect ロールのため、Deep Analysis が自動的に有効化されました。');
+    // プライバシー保護のため、自動有効化は廃止しました (Issue #SemanticPrivacy)
+    // useDeepAnalysis = true; 
+    sections.push('> Tip: Architect ロールです。より詳細な意味的検証を行うには --deep オプションを指定してください。');
   }
   
   if (changedFiles === null) {
