@@ -3,6 +3,18 @@ import { evaluateAccess, type AccessResult } from '../../.opencode/lib/access-po
 import { StateResult } from '../../.opencode/lib/state-utils';
 
 const worktreeRoot = process.cwd();
+const baseState = {
+  version: 1,
+  activeTaskId: 'Task-1',
+  activeTaskTitle: 'Test',
+  allowedScopes: ['**'],
+  startedAt: '',
+  startedBy: '',
+  validationAttempts: 0,
+  role: null,
+  tasksMdHash: 'test-hash',
+  stateHash: 'state-hash',
+};
 
 describe('sdd-gatekeeper block mode', () => {
   
@@ -20,8 +32,7 @@ describe('sdd-gatekeeper block mode', () => {
       const stateResult: StateResult = { 
         status: 'ok', 
         state: { 
-          version: 1, 
-          activeTaskId: 'Task-1', 
+          ...baseState,
           activeTaskTitle: 'Test',
           allowedScopes: [], 
           startedAt: new Date().toISOString(),
@@ -39,8 +50,7 @@ describe('sdd-gatekeeper block mode', () => {
     const validState: StateResult = { 
       status: 'ok', 
       state: { 
-        version: 1, 
-        activeTaskId: 'Task-1', 
+        ...baseState,
         activeTaskTitle: 'Auth Implementation',
         allowedScopes: ['src/auth/**'], 
         startedAt: new Date().toISOString(),
@@ -69,8 +79,7 @@ describe('sdd-gatekeeper block mode', () => {
       const stateResult: StateResult = { 
         status: 'ok', 
         state: { 
-          version: 1, 
-          activeTaskId: 'Task-1', 
+          ...baseState,
           activeTaskTitle: 'Test',
           allowedScopes: ['**'], 
           startedAt: new Date().toISOString(),
@@ -89,8 +98,7 @@ describe('sdd-gatekeeper block mode', () => {
     const stateResult: StateResult = { 
       status: 'ok', 
       state: { 
-        version: 1, 
-        activeTaskId: 'Task-1', 
+        ...baseState,
         activeTaskTitle: 'Test', 
         allowedScopes: ['**'], 
         startedAt: '', 
