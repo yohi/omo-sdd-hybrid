@@ -314,4 +314,55 @@ describe('state-utils', () => {
       warnSpy.mockRestore();
     });
   });
+
+  describe('audit logging', () => {
+    test('logs parse errors to audit log', async () => {
+      cleanupStateFiles();
+      const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
+      
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
+      }
+      
+      // Create corrupted state file
+      const statePath = getStatePath();
+      fs.writeFileSync(statePath, '{ invalid json');
+      
+      // Ensure no backups exist to avoid recovery
+      deleteAllBackups();
+      
+      await readState();
+      
+      const auditLogPath = path.join(getStateDir(), 'state-audit.log');
+      expect(fs.existsSync(auditLogPath)).toBe(true);
+      
+      const logContent = fs.readFileSync(auditLogPath, 'utf-8');
+      expect(logContent).toContain('STATE_CORRUPTED_PARSE');
+      expect(logContent).toContain('JSON Parse error'); // Or specific error message
+    });
+
+    test('logs backup parse errors to audit log', async () => {
+      cleanupStateFiles();
+      const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
+      
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
+      }
+      
+      const statePath = getStatePath();
+      fs.writeFileSync(statePath, '{ invalid json');
+      // Invalid backup
+      fs.writeFileSync(`${statePath}.bak`, '{ invalid backup json');
+      
+      await readState();
+      
+      const auditLogPath = path.join(getStateDir(), 'state-audit.log');
+      expect(fs.existsSync(auditLogPath)).toBe(true);
+      
+      const logContent = fs.readFileSync(auditLogPath, 'utf-8');
+      expect(logContent).toContain('STATE_CORRUPTED_PARSE');
+      expect(logContent).toContain('STATE_CORRUPTED_PARSE_BACKUP');
+      expect(logContent).toContain('current_context.json.bak');
+    });
+  });
 });

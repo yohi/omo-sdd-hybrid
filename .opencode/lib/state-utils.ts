@@ -374,6 +374,7 @@ export async function readState(): Promise<StateResult> {
     logger.warn(`[SDD] State corrupted: ${integrity.error}. Attempting recovery from backup...`);
   } else {
     corruptionReason = result.error;
+    appendStateAuditLog(`STATE_CORRUPTED_PARSE: ${result.error}`);
     logger.warn(`[SDD] State corrupted: ${result.error}. Attempting recovery from backup...`);
   }
 
@@ -404,6 +405,8 @@ export async function readState(): Promise<StateResult> {
       } finally {
         await release();
       }
+    } else {
+      appendStateAuditLog(`STATE_CORRUPTED_PARSE_BACKUP: file=${path.basename(backupPath)} error=${backupResult.error}`);
     }
   }
 
