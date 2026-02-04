@@ -15,6 +15,8 @@ const cleanupStateFiles = () => {
     `${statePath}.bak.2`,
     auditLogPath,
     `${auditLogPath}.bak`,
+    `${auditLogPath}.bak.1`,
+    `${auditLogPath}.bak.2`,
   ];
   filesToClean.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
