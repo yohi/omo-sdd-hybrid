@@ -109,7 +109,24 @@ export default tool({
     const criteria = extractAcceptanceCriteria(reqContent);
     const hasCriteria = criteria.length > 0;
 
-    const testContent = `import { describe, test } from "bun:test";
+    // package.json からテストフレームワークを検出
+    let testFramework = 'bun:test';
+    try {
+      const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+        const deps = { ...(packageJson.dependencies || {}), ...(packageJson.devDependencies || {}) };
+        if (deps['vitest']) {
+          testFramework = 'vitest';
+        } else if (deps['jest']) {
+          testFramework = '@jest/globals';
+        }
+      }
+    } catch (e) {
+      // 読み込み失敗時はデフォルト (bun:test) を使用
+    }
+
+    const testContent = `import { describe, test } from "${testFramework}";
 
 describe('Acceptance: ${JSON.stringify(feature).slice(1, -1)}', () => {
 ${hasCriteria

@@ -2,6 +2,7 @@ import { tool } from '../lib/plugin-stub';
 import { writeState, getTasksPath } from '../lib/state-utils';
 import fs from 'fs';
 import { parseSddTasks } from '../lib/tasks_markdown';
+import { selectRoleForTask } from '../lib/agent-selector';
 import { logger } from '../lib/logger.js';
 
 export class ScopeFormatError extends Error {
@@ -87,11 +88,7 @@ export default tool({
       }
       determinedRole = role as 'architect' | 'implementer';
     } else {
-      if (/^KIRO-\d+$/.test(taskId)) {
-        determinedRole = 'architect';
-      } else {
-        determinedRole = 'implementer';
-      }
+      determinedRole = await selectRoleForTask(task);
     }
     
     await writeState({

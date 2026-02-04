@@ -51,6 +51,50 @@ export default tool({
       }
     }
 
+    const searchStr = `${feature} ${prompt || ''}`.toLowerCase();
+    let designContent = `# Design: ${feature}
+
+## アーキテクチャ概要
+この機能の技術的な実現方針を記述します。
+
+## コンポーネント設計
+### Mermaid Diagram
+\`\`\`mermaid
+graph TD
+    User -->|Action| ComponentA
+    ComponentA -->|Call| ServiceB
+\`\`\`
+`;
+
+    if (['api', 'endpoint', 'backend'].some(k => searchStr.includes(k))) {
+      designContent += `
+## API Endpoints
+- エンドポイントの定義とリクエスト/レスポンス形式
+`;
+    }
+
+    if (['ui', 'frontend', 'component', 'page'].some(k => searchStr.includes(k))) {
+      designContent += `
+## Component Structure
+- UIコンポーネントの構成と階層構造
+`;
+    }
+
+    if (['db', 'database', 'schema', 'model'].some(k => searchStr.includes(k))) {
+      designContent += `
+## Database Schema
+- データモデル定義と永続化戦略
+`;
+    }
+
+    designContent += `
+## データ構造
+- 主要なインターフェースや型定義
+
+## 依存関係
+- 外部APIやライブラリへの依存
+`;
+
     const files = [
       {
         name: 'requirements.md',
@@ -72,25 +116,7 @@ ${prompt || 'この機能の目的と概要を記述してください。'}
       },
       {
         name: 'design.md',
-        content: `# Design: ${feature}
-
-## アーキテクチャ概要
-この機能の技術的な実現方針を記述します。
-
-## コンポーネント設計
-### Mermaid Diagram
-\`\`\`mermaid
-graph TD
-    User -->|Action| ComponentA
-    ComponentA -->|Call| ServiceB
-\`\`\`
-
-## データ構造
-- 主要なインターフェースや型定義
-
-## 依存関係
-- 外部APIやライブラリへの依存
-`
+        content: designContent
       },
       {
         name: 'tasks.md',
