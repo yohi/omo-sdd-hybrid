@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import path from 'path';
 import fs from 'fs';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
-import { writeState, type State } from '../../.opencode/lib/state-utils';
+import { writeState, type StateInput } from '../../.opencode/lib/state-utils';
 import sddMergeChange from '../../.opencode/tools/sdd_merge_change';
 
 const mockContext: any = {
@@ -20,7 +20,7 @@ describe('sdd_merge_change', () => {
   beforeEach(async () => {
     tmpDir = setupTestState();
 
-    const initialState: State = {
+    const initialState: StateInput = {
       version: 1,
       activeTaskId: 'Task-1',
       activeTaskTitle: 'Test Task',
