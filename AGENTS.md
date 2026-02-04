@@ -104,8 +104,8 @@ bun test:seq
 
 ## 8. ARCHITECTURE DEEP DIVE
 
-### State Schema (`.opencode/state/current_context.json`)
-The state file acts as the single source of truth for the current session.
+### 状態スキーマ（`.opencode/state/current_context.json`）
+この状態ファイルは現在のセッションの単一の真実の情報源です。
 - `activeTaskId`: 現在進行中のタスクID。
 - `allowedScopes`: 書き込み許可されたGlobパターンの配列。
 - `role`: 'architect' または 'implementer'。権限レベルを制御する。
