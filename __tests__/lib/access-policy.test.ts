@@ -124,6 +124,41 @@ describe('access-policy', () => {
       expect(result.warned).toBe(true);
       expect(result.rule).toBe('Rule4');
     });
+
+    test('does not detect quoted destructive strings', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'echo "rm -rf"', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('detects destructive bash in compound commands', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'ls && rm -rf /', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('detects git clean -fdx', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'git clean -fdx', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
+    test('detects git reset --hard', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('bash', undefined, 'git reset --hard', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
   });
 
   describe('evaluateMultiEdit', () => {
