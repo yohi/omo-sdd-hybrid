@@ -202,7 +202,7 @@ sdd_end_task
 | `sdd_scaffold_specs` | Kiro形式の仕様書（Requirements/Design/Tasks）の雛形（テンプレート）を生成・初期化します。 |
 | `sdd_generate_tasks` | 要件・設計ファイルに基づき、タスク定義ファイル（tasks.md）の雛形を生成します。 |
 | `sdd_generate_tests` | requirements.md の受入条件からテストコードの雛形を生成します。 |
-| `sdd_lint_tasks` | tasks.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）。 |
+| `sdd_lint_tasks` | .kiro/specs/*/tasks.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）。 |
 | `sdd_sync_kiro` | Kiro仕様とRoot tasks.md を同期します。 |
 | `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block）を切り替えます。 |
 | `sdd_force_unlock` | 【非常用】ロック状態を強制解除します。 |
@@ -298,6 +298,38 @@ sdd_generate_tasks --feature <name> [--overwrite true]
   sdd_generate_tasks --feature auth-flow --overwrite true
   ```
 
+### 統合コマンド (sdd_kiro)
+
+Kiro（cc-sdd）互換のコマンドエントリーポイントです。実行するサブコマンドに応じて、適切なロール（Architect または Implementer）へ自動的に切り替えて実行します。
+
+```bash
+sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
+```
+
+- **command** (必須): 実行するKiroコマンドを指定します。
+  - `init`: 仕様書（Requirements/Design/Tasks）の雛形を生成します。内部的に `sdd_scaffold_specs` を呼び出します。
+  - `requirements`: 要件定義ファイル (`requirements.md`) を生成・更新します。
+  - `design`: 基本設計ファイル (`design.md`) を生成・更新します。
+  - `tasks`: 要件・設計に基づきタスク定義 (`tasks.md`) を生成します。内部的に `sdd_generate_tasks` を呼び出します。
+  - `impl`: 実装フェーズに移行します（ロールを Implementer に切り替えます）。
+
+- **引数**:
+  - `--feature` (必須): 対象の機能名。
+  - `--prompt` (任意): `init`, `requirements`, `design` 時の追加指示や詳細内容。
+  - `--overwrite` (任意): 既存ファイルを上書きする場合 `true` を指定。
+
+- **使用例**:
+  ```bash
+  # プロジェクトの初期化（Architectロールへ自動切替）
+  sdd_kiro init --feature auth-flow
+
+  # 要件定義の作成
+  sdd_kiro requirements --feature auth-flow --prompt "JWTを使用した認証フロー"
+
+  # 実装フェーズへ移行（Implementerロールへ自動切替）
+  sdd_kiro impl --feature auth-flow
+  ```
+
 ### 仕様駆動ワークフロー
 
 #### Step 1: 仕様の作成
@@ -309,6 +341,10 @@ sdd_generate_tasks --feature <name> [--overwrite true]
 ```bash
 # プロジェクト初期化 (Architectロールへ自動切替)
 sdd_kiro init --feature <feature-name>
+
+# 要件定義・設計の作成
+sdd_kiro requirements --feature <feature-name>
+sdd_kiro design --feature <feature-name>
 
 # タスク生成 (Architectロールへ自動切替)
 sdd_kiro tasks --feature <feature-name>
@@ -496,6 +532,10 @@ sdd_force_unlock --force true
 | `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外ファイル編集時の動作。`block` 推奨。環境変数より設定ファイル (`.opencode/state/guard-mode.json`) が優先されます（弱体化不可）。 |
 | `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | `validate_gap` 実行時のテスト自動実行をスキップします。 |
 | `SDD_STATE_HMAC_KEY` | (自動生成) | state改ざん検知用のHMACキー。未設定の場合は `.opencode/state/state-hmac.key` を自動生成します。 |
+| `SDD_SCOPE_FORMAT` | `lenient` | `strict` に設定すると、Scope定義のバッククォート囲み（Scope: \`path/**\`）を強制します。 |
+| `SDD_TASKS_PATH` | `specs/tasks.md` | タスク定義ファイルのパスを変更する場合に使用します。 |
+| `SDD_KIRO_DIR` | `.kiro` | Kiro仕様書の格納ディレクトリを変更する場合に使用します。 |
+| `SDD_TESTS_OUTPUT_DIR` | `__tests__/generated` | `sdd_generate_tests` で生成されるテストファイルの出力先を指定します。 |
 
 ### `SDD_STATE_HMAC_KEY` の固定化（推奨）
 ローカルとCIで同一のキーを使用し、キー再生成による意図しない `STATE_CORRUPTED` を防ぎます。
