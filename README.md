@@ -207,7 +207,19 @@ sdd_start_task Task-1
 > sdd_start_task Task-1 --role architect
 > ```
 
-#### Step 2: 実装する
+#### Step 2: 実装 (Implementation)
+Gatekeeperが有効化された状態で実装を行います。
+
+> **Note (sdd_start_task vs sdd_kiro impl):**
+> - **`sdd_start_task <id>`**: **必須**。タスクコンテキストを初期化し、Gatekeeper（ファイル監視）を有効化します。
+> - **`sdd_kiro impl`**: **任意**。既存のタスクコンテキスト内で、ロールを `Implementer` に切り替えます。
+>
+> **推奨フロー:**
+> ```bash
+> sdd_start_task <feature-name> && sdd_kiro impl --feature <feature-name>
+> ```
+> ※ `sdd_start_task` 単体でもタスクは開始されますが、フェーズを明示したい場合に `impl` を併用します。
+
 `allowedScopes` に含まれるファイルのみを編集してください。
 - **Scope外の編集**: `SDD_GUARD_MODE` が `block` の場合、保存時にエラーとなり拒否されます。`warn` の場合は警告が表示されます。
 
@@ -364,6 +376,9 @@ sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
   - `design`: 基本設計ファイル (`design.md`) を生成・更新します。
   - `tasks`: 要件・設計に基づきタスク定義 (`tasks.md`) を生成します。内部的に `sdd_generate_tasks` を呼び出します。
   - `impl`: 実装フェーズに移行します（ロールを Implementer に切り替えます）。
+    - **注意**: このコマンドは `sdd_start_task` を内部で呼び出し **ません**。
+    - Gatekeeperを有効にするには、先に `sdd_start_task` を実行する必要があります。
+    - タスク未開始状態で実行しても、状態（State）は変更されません。
 
 - **引数**:
   - `--feature` (必須): 対象の機能名。
