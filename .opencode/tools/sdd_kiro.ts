@@ -12,6 +12,25 @@ function getKiroSpecsDir() {
   return path.resolve(kiroDir, 'specs');
 }
 
+function validateFeatureName(feature: string, baseDir: string) {
+  if (!feature || feature.trim() === '') {
+    throw new Error('無効な機能名: feature は必須です');
+  }
+
+  const validPattern = /^[A-Za-z][A-Za-z0-9._-]*$/;
+  if (!validPattern.test(feature)) {
+    throw new Error('無効な機能名: 半角英字で始まり、英数字・ドット・アンダースコア・ハイフンのみ使用可能です');
+  }
+
+  const resolvedPath = path.resolve(baseDir, feature);
+  
+  if (!resolvedPath.startsWith(baseDir)) {
+    throw new Error('無効な機能名: パストラバーサルが検出されました');
+  }
+
+  return resolvedPath;
+}
+
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
@@ -52,7 +71,13 @@ export default tool({
       case 'requirements':
       case 'design': {
         const baseDir = getKiroSpecsDir();
-        const targetDir = path.resolve(baseDir, feature);
+        let targetDir: string;
+        try {
+          targetDir = validateFeatureName(feature, baseDir);
+        } catch (error: any) {
+          return `エラー: ${error.message}`;
+        }
+
         if (!fs.existsSync(targetDir)) {
           fs.mkdirSync(targetDir, { recursive: true });
         }

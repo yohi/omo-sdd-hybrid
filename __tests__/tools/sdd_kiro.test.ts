@@ -100,4 +100,18 @@ describe('sdd_kiro', () => {
     await runTool({ command: 'design', feature, prompt: 'Test Design' });
     expect(fs.existsSync(path.join(kiroDir, 'specs', feature, 'design.md'))).toBe(true);
   });
+
+  it('無効な機能名を拒否する', async () => {
+    const invalidInputs = [
+      { feature: '', expected: 'feature は必須です' },
+      { feature: 'Invalid Name', expected: '無効な機能名' },
+      { feature: '../traversal', expected: '無効な機能名' },
+    ];
+
+    for (const { feature, expected } of invalidInputs) {
+      const result = await runTool({ command: 'requirements', feature });
+      expect(result).toContain(`エラー`);
+      expect(result).toContain(expected);
+    }
+  });
 });
