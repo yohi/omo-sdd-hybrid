@@ -1,7 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
-import { getStatePath } from '../../.opencode/lib/state-utils';
+import { getStatePath, getStateDir } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
+import path from 'path';
 
 const WORKTREE_ROOT = process.cwd();
 const baseState = {
@@ -19,11 +20,16 @@ const baseState = {
 
 const cleanupStateFiles = () => {
   const statePath = getStatePath();
+  const guardLogPath = path.join(getStateDir(), 'guard-mode.log');
   const filesToClean = [
     statePath,
     `${statePath}.bak`,
     `${statePath}.bak.1`,
     `${statePath}.bak.2`,
+    guardLogPath,
+    `${guardLogPath}.bak`,
+    `${guardLogPath}.bak.1`,
+    `${guardLogPath}.bak.2`,
   ];
   filesToClean.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
@@ -287,6 +293,61 @@ describe('access-policy', () => {
       // Env warn is ignored if file is block
       expect(determineEffectiveGuardMode('warn', { mode: 'block', updatedAt: '', updatedBy: '' })).toBe('block');
       expect(determineEffectiveGuardMode(undefined, { mode: 'block', updatedAt: '', updatedBy: '' })).toBe('block');
+    });
+  });
+
+  describe('guard-mode audit log', () => {
+    test('writes structured fail-closed entry', async () => {
+      const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+
+      determineEffectiveGuardMode('warn', null);
+
+      const guardLogPath = path.join(getStateDir(), 'guard-mode.log');
+      expect(fs.existsSync(guardLogPath)).toBe(true);
+      const logContent = fs.readFileSync(guardLogPath, 'utf-8').trim();
+      const [firstLine] = logContent.split('\n');
+      const entry = JSON.parse(firstLine);
+      expect(entry.event).toBe('FAIL_CLOSED');
+      expect(entry.message).toContain('Guard mode state is missing');
+      expect(entry.timestamp).toBeDefined();
+    });
+
+    test('rotates audit log when size exceeds limit', async () => {
+      const originalMaxBytes = process.env.SDD_GUARD_AUDIT_MAX_BYTES;
+      const originalMaxBackups = process.env.SDD_GUARD_AUDIT_MAX_BACKUPS;
+      process.env.SDD_GUARD_AUDIT_MAX_BYTES = '200';
+      process.env.SDD_GUARD_AUDIT_MAX_BACKUPS = '2';
+
+      try {
+        const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+        for (let i = 0; i < 20; i += 1) {
+          determineEffectiveGuardMode('warn', null);
+        }
+
+        const guardLogPath = path.join(getStateDir(), 'guard-mode.log');
+        const backupPath = `${guardLogPath}.bak`;
+        const backupPath2 = `${guardLogPath}.bak.1`;
+        const backupPath3 = `${guardLogPath}.bak.2`;
+
+        expect(fs.existsSync(guardLogPath)).toBe(true);
+        expect(fs.existsSync(backupPath)).toBe(true);
+        expect(fs.existsSync(backupPath3)).toBe(false);
+
+        if (fs.existsSync(backupPath2)) {
+          expect(fs.existsSync(backupPath3)).toBe(false);
+        }
+      } finally {
+        if (originalMaxBytes === undefined) {
+          delete process.env.SDD_GUARD_AUDIT_MAX_BYTES;
+        } else {
+          process.env.SDD_GUARD_AUDIT_MAX_BYTES = originalMaxBytes;
+        }
+        if (originalMaxBackups === undefined) {
+          delete process.env.SDD_GUARD_AUDIT_MAX_BACKUPS;
+        } else {
+          process.env.SDD_GUARD_AUDIT_MAX_BACKUPS = originalMaxBackups;
+        }
+      }
     });
   });
 });

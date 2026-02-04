@@ -9,7 +9,57 @@ export const WRITE_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
 
 export { type GuardMode };
 
-function appendAuditLog(message: string) {
+const DEFAULT_GUARD_AUDIT_MAX_BYTES = 5 * 1024 * 1024;
+const DEFAULT_GUARD_AUDIT_MAX_BACKUPS = 3;
+
+type GuardAuditLogEntry = {
+  event: string;
+  message: string;
+  meta?: Record<string, unknown>;
+};
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+}
+
+function getGuardAuditMaxBytes(): number {
+  return parsePositiveInt(process.env.SDD_GUARD_AUDIT_MAX_BYTES, DEFAULT_GUARD_AUDIT_MAX_BYTES);
+}
+
+function getGuardAuditMaxBackups(): number {
+  return parsePositiveInt(process.env.SDD_GUARD_AUDIT_MAX_BACKUPS, DEFAULT_GUARD_AUDIT_MAX_BACKUPS);
+}
+
+function getGuardAuditBackupPath(logPath: string, index: number): string {
+  if (index <= 1) return `${logPath}.bak`;
+  return `${logPath}.bak.${index - 1}`;
+}
+
+function rotateGuardAuditLog(logPath: string, maxBackups: number): void {
+  if (maxBackups <= 0) return;
+
+  const oldestPath = getGuardAuditBackupPath(logPath, maxBackups);
+  if (fs.existsSync(oldestPath)) {
+    fs.unlinkSync(oldestPath);
+  }
+
+  for (let i = maxBackups - 1; i >= 1; i -= 1) {
+    const fromPath = getGuardAuditBackupPath(logPath, i);
+    const toPath = getGuardAuditBackupPath(logPath, i + 1);
+    if (fs.existsSync(fromPath)) {
+      fs.renameSync(fromPath, toPath);
+    }
+  }
+
+  if (fs.existsSync(logPath)) {
+    fs.renameSync(logPath, getGuardAuditBackupPath(logPath, 1));
+  }
+}
+
+function appendAuditLog(entry: string | GuardAuditLogEntry) {
   const stateDir = getStateDir();
   const logPath = `${stateDir}/guard-mode.log`;
   
@@ -20,9 +70,20 @@ function appendAuditLog(message: string) {
   }
 
   const timestamp = new Date().toISOString();
-  const entry = `[${timestamp}] ${message}\n`;
+  const payload: GuardAuditLogEntry = typeof entry === 'string'
+    ? { event: 'INFO', message: entry }
+    : entry;
+  const logEntry = JSON.stringify({ timestamp, ...payload });
   try {
-    fs.appendFileSync(logPath, entry);
+    const maxBytes = getGuardAuditMaxBytes();
+    const maxBackups = getGuardAuditMaxBackups();
+    if (fs.existsSync(logPath)) {
+      const stat = fs.statSync(logPath);
+      if (stat.size >= maxBytes) {
+        rotateGuardAuditLog(logPath, maxBackups);
+      }
+    }
+    fs.appendFileSync(logPath, `${logEntry}\n`);
   } catch (e) {
     logger.error('Failed to write audit log:', e);
   }
@@ -34,7 +95,11 @@ export function determineEffectiveGuardMode(
 ): GuardMode {
   if (fileState === null) {
     if (envMode !== 'block') {
-      appendAuditLog(`FAIL_CLOSED: Guard mode state is missing or invalid. Enforcing 'block'.`);
+      appendAuditLog({
+        event: 'FAIL_CLOSED',
+        message: `Guard mode state is missing or invalid. Enforcing 'block'.`,
+        meta: { envMode: envMode ?? null }
+      });
     }
     return 'block';
   }
@@ -44,7 +109,11 @@ export function determineEffectiveGuardMode(
 
   if (fileBlock) {
     if (!envBlock && envMode === 'warn') {
-       appendAuditLog(`DENIED_WEAKENING: Guard mode file is 'block', but env SDD_GUARD_MODE is '${envMode}'. Enforcing 'block'.`);
+       appendAuditLog({
+         event: 'DENIED_WEAKENING',
+         message: `Guard mode file is 'block', but env SDD_GUARD_MODE is '${envMode}'. Enforcing 'block'.`,
+         meta: { envMode, fileMode: fileState.mode }
+       });
     }
     return 'block';
   }
