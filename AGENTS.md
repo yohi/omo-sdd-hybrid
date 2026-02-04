@@ -9,7 +9,7 @@ OpenCode環境における「仕様逸脱（Vibe Coding）」を物理的に抑�
 ソースコードが `.opencode/` に隠蔽される "Hybrid" 構成を採用している。
 
 ### Directory Structure
-```
+```text
 omo-sdd-hybrid/
 ├── .opencode/           # [CORE] プラグインの実体 (Hidden Source)
 │   ├── plugins/         # Event Hooks (Gatekeeper, etc.)
