@@ -73,6 +73,10 @@ describe('sdd_project_status', () => {
   });
 
   test('Stateなし、ファイルなしの場合', async () => {
+    const tasksPath = process.env.SDD_TASKS_PATH;
+    if (tasksPath && fs.existsSync(tasksPath)) {
+      fs.unlinkSync(tasksPath);
+    }
     const context = {
         ...baseMockContext,
         __testDeps: {

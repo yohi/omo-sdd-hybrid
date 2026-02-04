@@ -9,7 +9,11 @@ const mockStateResult = {
     activeTaskTitle: 'Test',
     allowedScopes: ['**'],
     startedAt: new Date().toISOString(),
-    startedBy: 'test'
+    startedBy: 'test',
+    validationAttempts: 0,
+    role: null,
+    tasksMdHash: 'test-hash',
+    stateHash: 'state-hash'
   }
 };
 
@@ -81,7 +85,9 @@ describe('SddGatekeeper Entry Point', () => {
         startedAt: new Date().toISOString(),
         startedBy: 'implementer',
         validationAttempts: 0,
-        role: 'implementer'
+        role: 'implementer',
+        tasksMdHash: 'test-hash',
+        stateHash: 'state-hash'
       }
     };
     const mockReadState = mock(() => Promise.resolve(implementerState as any));

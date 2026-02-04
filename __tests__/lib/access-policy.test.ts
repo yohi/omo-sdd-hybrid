@@ -4,6 +4,18 @@ import { getStatePath } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 
 const WORKTREE_ROOT = process.cwd();
+const baseState = {
+  version: 1,
+  activeTaskId: 'Task-1',
+  activeTaskTitle: 'Test',
+  allowedScopes: ['src/**'],
+  startedAt: new Date().toISOString(),
+  startedBy: 'test',
+  validationAttempts: 0,
+  role: null,
+  tasksMdHash: 'test-hash',
+  stateHash: 'state-hash',
+};
 
 const cleanupStateFiles = () => {
   const statePath = getStatePath();
@@ -74,18 +86,19 @@ describe('access-policy', () => {
       expect(result.rule).toBe('Rule1');
     });
 
+    test('blocks when state is corrupted even in warn mode', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+
+      const result = evaluateAccess('edit', 'src/app.ts', undefined, { status: 'corrupted', error: 'STATE_HASH_MISMATCH' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(false);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('StateCorrupted');
+    });
+
     test('allows file within allowed scope', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       
-      const state = {
-        version: 1,
-        activeTaskId: 'Task-1',
-        activeTaskTitle: 'Test',
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0
-      };
+      const state = { ...baseState };
       
       const result = evaluateAccess('edit', 'src/app.ts', undefined, { status: 'ok', state }, WORKTREE_ROOT);
       expect(result.allowed).toBe(true);
@@ -95,15 +108,7 @@ describe('access-policy', () => {
     test('denies file outside allowed scope', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       
-      const state = {
-        version: 1,
-        activeTaskId: 'Task-1',
-        activeTaskTitle: 'Test',
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0
-      };
+      const state = { ...baseState };
       
       const result = evaluateAccess('edit', 'tests/app.test.ts', undefined, { status: 'ok', state }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
@@ -125,15 +130,7 @@ describe('access-policy', () => {
     test('allows when all files are in scope', async () => {
       const { evaluateMultiEdit } = await import('../../.opencode/lib/access-policy');
       
-      const state = {
-        version: 1,
-        activeTaskId: 'Task-1',
-        activeTaskTitle: 'Test',
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0
-      };
+      const state = { ...baseState };
       
       const files = [
         { filePath: 'src/a.ts' },
@@ -148,15 +145,7 @@ describe('access-policy', () => {
     test('warns when some files are out of scope', async () => {
       const { evaluateMultiEdit } = await import('../../.opencode/lib/access-policy');
       
-      const state = {
-        version: 1,
-        activeTaskId: 'Task-1',
-        activeTaskTitle: 'Test',
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0
-      };
+      const state = { ...baseState };
       
       const files = [
         { filePath: 'src/a.ts' },

@@ -5,6 +5,18 @@ import { evaluateAccess, evaluateRoleAccess, evaluateMultiEdit, type AccessResul
 import { StateResult } from '../../.opencode/lib/state-utils';
 
 const worktreeRoot = process.cwd();
+const baseState = {
+  version: 1,
+  activeTaskId: 'Task-1',
+  activeTaskTitle: 'Test',
+  allowedScopes: ['**'],
+  startedAt: '',
+  startedBy: '',
+  validationAttempts: 0,
+  role: null,
+  tasksMdHash: 'test-hash',
+  stateHash: 'state-hash',
+};
 
 describe('sdd-gatekeeper evaluateAccess', () => {
   describe('Rule 0: Always Allow specs/** and .opencode/**', () => {
@@ -113,7 +125,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
 
   describe('Rule 4: Destructive Bash', () => {
     test('warns for rm command', () => {
-      const stateResult: StateResult = { status: 'ok', state: { version: 1, activeTaskId: 'Task-1', activeTaskTitle: 'Test', allowedScopes: ['**'], startedAt: '', startedBy: '' } };
+      const stateResult: StateResult = { status: 'ok', state: { ...baseState } };
       const result = evaluateAccess('bash', undefined, 'rm -rf /tmp', stateResult, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
@@ -122,7 +134,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
     });
 
     test('warns for git push', () => {
-      const stateResult: StateResult = { status: 'ok', state: { version: 1, activeTaskId: 'Task-1', activeTaskTitle: 'Test', allowedScopes: ['**'], startedAt: '', startedBy: '' } };
+      const stateResult: StateResult = { status: 'ok', state: { ...baseState } };
       const result = evaluateAccess('bash', undefined, 'git push origin main', stateResult, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
@@ -130,7 +142,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
     });
 
     test('allows safe bash commands', () => {
-      const stateResult: StateResult = { status: 'ok', state: { version: 1, activeTaskId: 'Task-1', activeTaskTitle: 'Test', allowedScopes: ['**'], startedAt: '', startedBy: '' } };
+      const stateResult: StateResult = { status: 'ok', state: { ...baseState } };
       const result = evaluateAccess('bash', undefined, 'ls -la', stateResult, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
@@ -141,7 +153,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
     test('warns for corrupted state on non-spec file', () => {
       const stateResult: StateResult = { status: 'corrupted', error: 'JSON parse error' };
       const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot);
-      expect(result.allowed).toBe(true);
+      expect(result.allowed).toBe(false);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('STATE_CORRUPTED');
       expect(result.rule).toBe('StateCorrupted');
@@ -163,8 +175,7 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
     const stateResult: StateResult = { 
       status: 'ok', 
       state: { 
-        version: 1, 
-        activeTaskId: 'Task-1', 
+        ...baseState,
         activeTaskTitle: 'Auth',
         allowedScopes: ['src/auth/**'], 
         startedAt: new Date().toISOString(),
@@ -186,8 +197,7 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
     const stateResult: StateResult = { 
       status: 'ok', 
       state: { 
-        version: 1, 
-        activeTaskId: 'Task-1', 
+        ...baseState,
         activeTaskTitle: 'Auth',
         allowedScopes: ['src/auth/**'], 
         startedAt: new Date().toISOString(),
@@ -207,8 +217,7 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
     const stateResult: StateResult = { 
       status: 'ok', 
       state: { 
-        version: 1, 
-        activeTaskId: 'Task-1', 
+        ...baseState,
         activeTaskTitle: 'Test',
         allowedScopes: ['**'], 
         startedAt: new Date().toISOString(),
@@ -227,28 +236,24 @@ describe('Role-based Access Control', () => {
   const architectState: StateResult = {
     status: 'ok',
     state: {
-      version: 1,
-      activeTaskId: 'Task-1',
+      ...baseState,
       activeTaskTitle: 'Design',
       allowedScopes: ['src/**'],
       startedAt: new Date().toISOString(),
       startedBy: 'architect',
-      role: 'architect',
-      validationAttempts: 0
+      role: 'architect'
     }
   };
 
   const implementerState: StateResult = {
     status: 'ok',
     state: {
-      version: 1,
-      activeTaskId: 'Task-1',
+      ...baseState,
       activeTaskTitle: 'Impl',
       allowedScopes: ['src/auth/**'],
       startedAt: new Date().toISOString(),
       startedBy: 'implementer',
-      role: 'implementer',
-      validationAttempts: 0
+      role: 'implementer'
     }
   };
 

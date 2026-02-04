@@ -5,7 +5,7 @@ import {
   getGuardModePath, 
   writeState, 
   writeGuardModeState, 
-  State, 
+  StateInput, 
   GuardModeState 
 } from '../../.opencode/lib/state-utils';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
@@ -26,7 +26,7 @@ describe('state-utils concurrent writes', () => {
     process.env = { ...originalEnv };
   });
 
-  const createSampleState = (id: string): State => ({
+  const createSampleState = (id: string): StateInput => ({
     version: 1,
     activeTaskId: id,
     activeTaskTitle: `Title for ${id}`,

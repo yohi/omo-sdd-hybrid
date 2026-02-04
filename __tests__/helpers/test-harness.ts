@@ -10,6 +10,10 @@ export function setupTestState(): string {
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
   process.env.SDD_TEST_MODE = 'true'; // Enable fast locks
+  const tasksPath = process.env.SDD_TASKS_PATH;
+  if (tasksPath) {
+    fs.writeFileSync(tasksPath, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
+  }
   return tmpDir;
 }
 

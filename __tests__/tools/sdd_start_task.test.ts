@@ -30,7 +30,9 @@ describe('sdd_start_task', () => {
   });
 
   test('throws E_TASKS_NOT_FOUND when tasks.md missing', async () => {
-    
+    if (fs.existsSync(tasksPath)) {
+      fs.unlinkSync(tasksPath);
+    }
     const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
     
     await expect(sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any))

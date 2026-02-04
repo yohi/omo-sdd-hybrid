@@ -19,7 +19,10 @@ describe('validateGapInternal', () => {
     allowedScopes: ['src/**'],
     startedAt: new Date().toISOString(),
     startedBy: 'test-user',
-    validationAttempts: 0
+    validationAttempts: 0,
+    role: null,
+    tasksMdHash: 'test-hash',
+    stateHash: 'state-hash'
   };
 
   test('skipTests: true should return skip message', async () => {

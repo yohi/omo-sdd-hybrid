@@ -2,12 +2,15 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 import { rotateBackup, getBackupPaths } from './backup-utils';
 import { logger } from './logger.js';
 
 const DEFAULT_STATE_DIR = '.opencode/state';
 const LOCK_DIR_NAME = '.lock';
 const LOCK_INFO_NAME = '.lock-info.json';
+const STATE_HMAC_KEY_NAME = 'state-hmac.key';
+const STATE_AUDIT_LOG_NAME = 'state-audit.log';
 
 export function getStateDir(): string {
   return process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
@@ -15,6 +18,10 @@ export function getStateDir(): string {
 
 export function getStatePath(): string {
   return `${getStateDir()}/current_context.json`;
+}
+
+export function getTasksPath(): string {
+  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
 }
 
 export interface State {
@@ -26,7 +33,15 @@ export interface State {
   startedBy: string;
   validationAttempts: number;
   role: 'architect' | 'implementer' | null;
+  tasksMdHash: string;
+  stateHash: string;
 }
+
+export type StateInput = Omit<State, 'stateHash' | 'tasksMdHash' | 'role'> & {
+  tasksMdHash?: string;
+  stateHash?: string;
+  role?: 'architect' | 'implementer' | null;
+};
 
 export interface LockInfo {
   taskId: string | null;
@@ -52,6 +67,106 @@ function getLockInfoPath(): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function appendStateAuditLog(message: string): void {
+  const stateDir = getStateDir();
+  const logPath = path.join(stateDir, STATE_AUDIT_LOG_NAME);
+
+  if (!fs.existsSync(stateDir)) {
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+    } catch {
+      return;
+    }
+  }
+
+  const timestamp = new Date().toISOString();
+  const entry = `[${timestamp}] ${message}\n`;
+  try {
+    fs.appendFileSync(logPath, entry);
+  } catch (e) {
+    logger.error('Failed to write state audit log:', e);
+  }
+}
+
+function computeSha256(content: string): string {
+  return crypto.createHash('sha256').update(content, 'utf-8').digest('hex');
+}
+
+export function computeTasksMdHashFromContent(content: string): string {
+  return computeSha256(content);
+}
+
+function readTasksMdHash(): string {
+  const tasksPath = getTasksPath();
+  if (!fs.existsSync(tasksPath)) {
+    throw new Error(`E_TASKS_NOT_FOUND: ${tasksPath} が見つかりません`);
+  }
+  const content = fs.readFileSync(tasksPath, 'utf-8');
+  return computeTasksMdHashFromContent(content);
+}
+
+function getStateHmacKey(): string {
+  const envKey = process.env.SDD_STATE_HMAC_KEY;
+  if (envKey && envKey.trim() !== '') return envKey.trim();
+
+  const stateDir = getStateDir();
+  const keyPath = path.join(stateDir, STATE_HMAC_KEY_NAME);
+
+  // If file exists and has content, use it.
+  // Note: There's still a small race if file is empty (being written), handled by retry below.
+  if (fs.existsSync(keyPath)) {
+    const content = fs.readFileSync(keyPath, 'utf-8').trim();
+    if (content) return content;
+  }
+
+  if (!fs.existsSync(stateDir)) {
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+    } catch { /* ignore if already exists */ }
+  }
+
+  const generated = crypto.randomBytes(32).toString('hex');
+  
+  try {
+    // Atomic creation: fails if file exists
+    fs.writeFileSync(keyPath, generated, { mode: 0o600, flag: 'wx' });
+    return generated;
+  } catch (error: any) {
+    if (error.code === 'EEXIST') {
+      // Race condition: another process created it. Read it.
+      // Retry a few times in case the other process is still writing (empty file)
+      for (let i = 0; i < 5; i++) {
+        try {
+          const content = fs.readFileSync(keyPath, 'utf-8').trim();
+          if (content) return content;
+        } catch { /* ignore read errors temporarily */ }
+        // Busy wait (synchronous sleep)
+        const start = Date.now();
+        while (Date.now() - start < 10); 
+      }
+      throw new Error(`Failed to read HMAC key after atomic creation race: ${keyPath}`);
+    }
+    throw error;
+  }
+}
+
+export function computeStateHash(state: StateInput): string {
+  const payload = {
+    version: state.version,
+    activeTaskId: state.activeTaskId,
+    activeTaskTitle: state.activeTaskTitle,
+    allowedScopes: state.allowedScopes,
+    startedAt: state.startedAt,
+    startedBy: state.startedBy,
+    validationAttempts: state.validationAttempts,
+    role: state.role ?? null,
+    tasksMdHash: state.tasksMdHash ?? '',
+  };
+
+  const key = getStateHmacKey();
+  return crypto.createHmac('sha256', key).update(JSON.stringify(payload)).digest('hex');
 }
 
 function isLockStale(lockPath: string, staleMs: number): boolean {
@@ -173,15 +288,28 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
   throw new Error('[SDD] Failed to acquire lock: max retries exceeded');
 }
 
-export async function writeState(state: State): Promise<void> {
+export async function writeState(state: StateInput): Promise<void> {
   const statePath = getStatePath();
   const release = await lockStateDir(state.activeTaskId);
   try {
+    const tasksMdHash = state.tasksMdHash && state.tasksMdHash.trim() !== ''
+      ? state.tasksMdHash
+      : readTasksMdHash();
+    const role = state.role ?? null;
+    const stateHash = computeStateHash({ ...state, tasksMdHash, role });
+    const stateToWrite: State = {
+      ...state,
+      role,
+      tasksMdHash,
+      stateHash,
+    };
+
     rotateBackup(statePath);
     // Use fs.writeFileSync instead of write-file-atomic to avoid potential Bun issues
     const tmpPath = `${statePath}.${process.pid}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
+    fs.writeFileSync(tmpPath, JSON.stringify(stateToWrite, null, 2));
     fs.renameSync(tmpPath, statePath);
+    appendStateAuditLog(`STATE_WRITE: taskId=${stateToWrite.activeTaskId} by=${stateToWrite.startedBy}`);
   } finally {
     await release();
   }
@@ -205,7 +333,9 @@ function validateState(state: unknown): state is State {
     Array.isArray(s.allowedScopes) &&
     typeof s.startedAt === 'string' && s.startedAt.trim() !== '' &&
     typeof s.startedBy === 'string' && s.startedBy.trim() !== '' &&
-    typeof s.validationAttempts === 'number' && Number.isFinite(s.validationAttempts)
+    typeof s.validationAttempts === 'number' && Number.isFinite(s.validationAttempts) &&
+    typeof s.tasksMdHash === 'string' && s.tasksMdHash.trim() !== '' &&
+    typeof s.stateHash === 'string' && s.stateHash.trim() !== ''
   );
 }
 
@@ -213,12 +343,39 @@ function tryParseState(filePath: string): { ok: true; state: State } | { ok: fal
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(content);
-    if (validateState(parsed)) {
-      // Migration: Inject default role if missing
-      if (!('role' in parsed)) {
-        (parsed as any).role = null;
+
+    // Migration: validateStateを通過させるために、不足しているハッシュを注入する。
+    // これにより、ハッシュを持たないレガシーなstateファイルを読み込み時に移行できる。
+    // ここでハッシュを計算するため、verifyStateIntegrityを通過するようになる。
+    const mutable = parsed as Record<string, unknown>;
+    if (!mutable.tasksMdHash || !mutable.stateHash) {
+      try {
+        if (!mutable.tasksMdHash) {
+          mutable.tasksMdHash = readTasksMdHash();
+        }
+        // stateハッシュを計算する前にroleが正規化されていることを確認する
+        if (!('role' in mutable)) {
+          mutable.role = null;
+        }
+        if (!mutable.stateHash) {
+          // 注入されたtasksMdHashとその他のフィールド（欠損や無効な可能性があってもcomputeStateHashは処理する）
+          // を使用してstateハッシュの計算を試みる
+          mutable.stateHash = computeStateHash(mutable as StateInput);
+        }
+      } catch (e) {
+        // readTasksMdHashが失敗した場合（例: tasks.mdが見つからない）、移行はできない。
+        // エラーは無視し、validateStateを失敗させる。
       }
-      return { ok: true, state: parsed as State };
+    }
+
+    if (validateState(parsed)) {
+      // Migration: roleが不足している場合にデフォルト値を注入（上記でも処理しているが、安全策/フォールバックとして保持）
+      if (!('role' in parsed)) {
+        const mutable = parsed as Record<string, unknown>;
+        mutable.role = null;
+      }
+      const state = parsed as State;
+      return { ok: true, state };
     }
     return { ok: false, error: 'Invalid state schema' };
   } catch (error) {
@@ -226,20 +383,49 @@ function tryParseState(filePath: string): { ok: true; state: State } | { ok: fal
   }
 }
 
+function verifyStateIntegrity(state: State): { ok: true } | { ok: false; error: string } {
+  let currentTasksHash: string;
+  try {
+    currentTasksHash = readTasksMdHash();
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
+  }
+
+  if (state.tasksMdHash !== currentTasksHash) {
+    return { ok: false, error: 'TASKS_HASH_MISMATCH' };
+  }
+
+  const expected = computeStateHash(state);
+  if (state.stateHash !== expected) {
+    return { ok: false, error: 'STATE_HASH_MISMATCH' };
+  }
+
+  return { ok: true };
+}
+
 export async function readState(): Promise<StateResult> {
-  const stateDir = getStateDir();
   const statePath = getStatePath();
 
   if (!fs.existsSync(statePath)) {
     return { status: 'not_found' };
   }
 
+  let corruptionReason: string | null = null;
+
   const result = tryParseState(statePath);
   if (result.ok) {
-    return { status: 'ok', state: result.state };
+    const integrity = verifyStateIntegrity(result.state);
+    if (integrity.ok) {
+      return { status: 'ok', state: result.state };
+    }
+    corruptionReason = integrity.error;
+    appendStateAuditLog(`STATE_CORRUPTED: ${integrity.error}`);
+    logger.warn(`[SDD] State corrupted: ${integrity.error}. Attempting recovery from backup...`);
+  } else {
+    corruptionReason = result.error;
+    appendStateAuditLog(`STATE_CORRUPTED_PARSE: ${result.error}`);
+    logger.warn(`[SDD] State corrupted: ${result.error}. Attempting recovery from backup...`);
   }
-
-  logger.warn(`[SDD] State corrupted: ${result.error}. Attempting recovery from backup...`);
 
   const backupPaths = getBackupPaths(statePath);
   for (const backupPath of backupPaths) {
@@ -247,25 +433,34 @@ export async function readState(): Promise<StateResult> {
 
     const backupResult = tryParseState(backupPath);
     if (backupResult.ok) {
+      const integrity = verifyStateIntegrity(backupResult.state);
+      if (!integrity.ok) {
+        continue;
+      }
       const release = await lockStateDir();
       try {
         // Check current state again after acquiring lock (avoid TOCTOU)
         const current = tryParseState(statePath);
         if (current.ok) {
-          return { status: 'ok', state: current.state };
+          const currentIntegrity = verifyStateIntegrity(current.state);
+          if (currentIntegrity.ok) {
+            return { status: 'ok', state: current.state };
+          }
         }
-
         fs.copyFileSync(backupPath, statePath);
         logger.warn(`[SDD] State recovered from ${backupPath}`);
+        appendStateAuditLog(`STATE_RECOVERED: from=${backupPath}`);
         return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
       } finally {
         await release();
       }
+    } else {
+      appendStateAuditLog(`STATE_CORRUPTED_PARSE_BACKUP: file=${path.basename(backupPath)} error=${backupResult.error}`);
     }
   }
 
   logger.warn('[SDD] No valid backup found. State is corrupted.');
-  return { status: 'corrupted', error: result.error };
+  return { status: 'corrupted', error: corruptionReason ?? 'UNKNOWN' };
 }
 
 export async function clearState(): Promise<void> {

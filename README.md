@@ -426,6 +426,18 @@ sdd_force_unlock --force true
 |------|-----|------|
 | `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外ファイル編集時の動作。`block` 推奨。環境変数より設定ファイル (`.opencode/state/guard-mode.json`) が優先されます（弱体化不可）。 |
 | `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | `validate_gap` 実行時のテスト自動実行をスキップします。 |
+| `SDD_STATE_HMAC_KEY` | (自動生成) | state改ざん検知用のHMACキー。未設定の場合は `.opencode/state/state-hmac.key` を自動生成します。 |
+
+### `SDD_STATE_HMAC_KEY` の固定化（推奨）
+ローカルとCIで同一のキーを使用し、キー再生成による意図しない `STATE_CORRUPTED` を防ぎます。
+
+**ローカル（例）**
+```bash
+export SDD_STATE_HMAC_KEY="your-32bytes-hex-or-base64"
+```
+
+**CI（GitHub Actions）**
+リポジトリの Secrets に `SDD_STATE_HMAC_KEY` を登録し、環境変数として注入してください。
 
 ### ガードモードの設定 (Security)
 

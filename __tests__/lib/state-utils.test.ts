@@ -1,16 +1,22 @@
 import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
-import { getStateDir, getStatePath } from '../../.opencode/lib/state-utils';
+import { getStateDir, getStatePath, getTasksPath, computeTasksMdHashFromContent, computeStateHash, type StateInput } from '../../.opencode/lib/state-utils';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 const cleanupStateFiles = () => {
   const statePath = getStatePath();
+  const stateDir = getStateDir();
+  const auditLogPath = path.join(stateDir, 'state-audit.log');
   const filesToClean = [
     statePath,
     `${statePath}.bak`,
     `${statePath}.bak.1`,
     `${statePath}.bak.2`,
+    auditLogPath,
+    `${auditLogPath}.bak`,
+    `${auditLogPath}.bak.1`,
+    `${auditLogPath}.bak.2`,
   ];
   filesToClean.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
@@ -27,6 +33,26 @@ const deleteAllBackups = () => {
   backups.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
   });
+};
+
+const createValidState = (overrides: Partial<StateInput> = {}) => {
+  const tasksPath = getTasksPath();
+  const tasksContent = fs.readFileSync(tasksPath, 'utf-8');
+  const tasksMdHash = computeTasksMdHashFromContent(tasksContent);
+  const base = {
+    version: 1,
+    activeTaskId: 'Task-Backup',
+    activeTaskTitle: 'Backup Task',
+    allowedScopes: ['src/**'],
+    startedAt: new Date().toISOString(),
+    startedBy: 'test',
+    validationAttempts: 0,
+    role: null,
+    tasksMdHash,
+  };
+  const merged = { ...base, ...overrides, tasksMdHash };
+  const stateHash = computeStateHash(merged);
+  return { ...merged, stateHash };
 };
 
 describe('state-utils', () => {
@@ -99,6 +125,35 @@ describe('state-utils', () => {
       
       const result = await readState();
       expect(result.status).toBe('corrupted');
+    });
+
+    test('migrates legacy state (missing hashes) on read', async () => {
+      cleanupStateFiles();
+      const { readState, getStateDir, getStatePath } = await import('../../.opencode/lib/state-utils');
+      
+      const legacyState = {
+        version: 1,
+        activeTaskId: 'Task-Legacy',
+        activeTaskTitle: 'Legacy Task',
+        allowedScopes: ['src/**'],
+        startedAt: new Date().toISOString(),
+        startedBy: 'test',
+        validationAttempts: 0,
+        role: null
+      };
+      
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
+      }
+      fs.writeFileSync(getStatePath(), JSON.stringify(legacyState));
+      
+      const result = await readState();
+      expect(result.status).toBe('ok');
+      if (result.status === 'ok') {
+        expect(result.state.activeTaskId).toBe('Task-Legacy');
+        expect(result.state.tasksMdHash).toBeDefined();
+        expect(result.state.stateHash).toBeDefined();
+      }
     });
   });
 
@@ -201,19 +256,10 @@ describe('state-utils', () => {
   });
 
   describe('auto recovery', () => {
-    const validState = {
-      version: 1,
-      activeTaskId: 'Task-Backup',
-      activeTaskTitle: 'Backup Task',
-      allowedScopes: ['src/**'],
-      startedAt: new Date().toISOString(),
-      startedBy: 'test',
-      validationAttempts: 0, role: null
-    };
-
     test('recovers from backup when state is corrupted', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
+      const validState = createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });
@@ -238,6 +284,7 @@ describe('state-utils', () => {
     test('tries older backups if primary backup is also corrupted', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
+      const validState = createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });
@@ -299,6 +346,58 @@ describe('state-utils', () => {
       expect(result.status).toBe('corrupted');
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
+    });
+  });
+
+  describe('audit logging', () => {
+    test('logs parse errors to audit log', async () => {
+      cleanupStateFiles();
+      const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
+      
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
+      }
+      
+      // Create corrupted state file
+      const statePath = getStatePath();
+      fs.writeFileSync(statePath, '{ invalid json');
+      
+      // Ensure no backups exist to avoid recovery
+      deleteAllBackups();
+      
+      await readState();
+      
+      const auditLogPath = path.join(getStateDir(), 'state-audit.log');
+      expect(fs.existsSync(auditLogPath)).toBe(true);
+      
+      const logContent = fs.readFileSync(auditLogPath, 'utf-8');
+      expect(logContent).toContain('STATE_CORRUPTED_PARSE');
+      // Assert generic parsing error instead of runtime-specific message
+      expect(logContent).toMatch(/parse|error|unexpected/i);
+    });
+
+    test('logs backup parse errors to audit log', async () => {
+      cleanupStateFiles();
+      const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
+      
+      if (!fs.existsSync(getStateDir())) {
+        fs.mkdirSync(getStateDir(), { recursive: true });
+      }
+      
+      const statePath = getStatePath();
+      fs.writeFileSync(statePath, '{ invalid json');
+      // Invalid backup
+      fs.writeFileSync(`${statePath}.bak`, '{ invalid backup json');
+      
+      await readState();
+      
+      const auditLogPath = path.join(getStateDir(), 'state-audit.log');
+      expect(fs.existsSync(auditLogPath)).toBe(true);
+      
+      const logContent = fs.readFileSync(auditLogPath, 'utf-8');
+      expect(logContent).toContain('STATE_CORRUPTED_PARSE');
+      expect(logContent).toContain('STATE_CORRUPTED_PARSE_BACKUP');
+      expect(logContent).toContain('current_context.json.bak');
     });
   });
 });
