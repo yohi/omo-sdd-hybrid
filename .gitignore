@@ -1,6 +1,11 @@
 # Dependencies
 node_modules/
 bun.lockb
+bun.lock
+
+# Environment
+.env
+.env.*
 
 # Build outputs
 dist/
@@ -27,6 +32,9 @@ opencode/
 # State files (runtime generated)
 .opencode/state/*.json
 .opencode/state/*.json.*
+.opencode/state/*.key
+.opencode/state/*.log
+.opencode/state/.lock/
 !.opencode/state/.gitkeep
 
 # Sisyphus notepads (local work context)

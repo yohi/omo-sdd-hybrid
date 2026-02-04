@@ -93,6 +93,28 @@ SDD（仕様駆動開発）の効果を最大化するための推奨運用ル�
 - 実装の区切りで頻繁に `sdd_validate_gap` を実行してください。
 - 早い段階で「スコープ外への変更」や「テスト不整合」を検知することで、手戻りを最小化できます。
 
+### 4. Kiro (cc-sdd) 統合ワークフロー（推奨）
+
+Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開発サイクルです。
+
+#### Phase 1: Architect (仕様策定)
+1. **初期化**: `sdd_scaffold_specs --feature <name>` で仕様書セットを生成。
+2. **AI対話**: `/kiro` コマンドを使用して Requirements と Design を詰める。
+3. **タスク分解**: `sdd_generate_tasks` で実装タスク (`tasks.md`) を自動生成。
+4. **Scope定義**: `specs/tasks.md` にタスクIDを登録し、具体的なファイルスコープを定義する。
+
+#### Phase 2: Implementer (実装)
+1. **開始**: `sdd_start_task <TaskID>` (Role: implementer)
+2. **実装**: `requirements.md` の受入条件を満たすコードを記述。
+3. **検証**: `sdd_validate_gap --kiroSpec <name> --deep` で仕様との乖離をAIレビュー。
+4. **完了**: `sdd_end_task` → PR作成。
+
+#### Phase 3: Reviewer (レビュー)
+1. **CI検証**: `sdd_ci_runner` が「変更ファイルがScope内か」を機械的に保証。
+2. **仕様チェック**: PRの内容が `requirements.md` と合致しているかを確認。
+
+このサイクルにより、**「仕様なき実装（Vibe Coding）」** と **「実装なき仕様変更（ドキュメント劣化）」** の両方を防ぎます。
+
 ## 使い方 (Basic Usage)
 
 インストール後、OpenCode 環境は `.opencode/plugins` 内の Gatekeeper を自動的に認識することを想定しています。
@@ -472,6 +494,19 @@ omo-sdd-hybrid/
 ├── __tests__/           # [DEV] テスト (.opencodeと鏡像構成)
 └── package.json         # 開発用設定
 ```
+
+## 開発 (Development)
+
+本プロジェクトの開発には **Bun** を使用します。
+詳細なコーディング規約やテスト方法は [AGENTS.md](./AGENTS.md) を参照してください。
+
+### 主な開発コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `bun test` | 全テストを実行します。 |
+| `bun test:seq` | テストを直列実行します（推奨）。StateやLockの競合を防ぐため、CI等ではこちらを使用してください。 |
+| `bun run scripts/sdd_ci_validate.ts` | CI用バリデーションスクリプトを実行します。 |
 
 ## ライセンス
 
