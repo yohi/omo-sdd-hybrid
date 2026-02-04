@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
-import { getStateDir, getStatePath } from '../../.opencode/lib/state-utils';
+import { getStateDir, getStatePath, getTasksPath, computeTasksMdHashFromContent, computeStateHash, type StateInput } from '../../.opencode/lib/state-utils';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 const cleanupStateFiles = () => {
@@ -27,6 +27,26 @@ const deleteAllBackups = () => {
   backups.forEach(f => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
   });
+};
+
+const createValidState = (overrides: Partial<StateInput> = {}) => {
+  const tasksPath = getTasksPath();
+  const tasksContent = fs.readFileSync(tasksPath, 'utf-8');
+  const tasksMdHash = computeTasksMdHashFromContent(tasksContent);
+  const base = {
+    version: 1,
+    activeTaskId: 'Task-Backup',
+    activeTaskTitle: 'Backup Task',
+    allowedScopes: ['src/**'],
+    startedAt: new Date().toISOString(),
+    startedBy: 'test',
+    validationAttempts: 0,
+    role: null,
+    tasksMdHash,
+  };
+  const merged = { ...base, ...overrides, tasksMdHash };
+  const stateHash = computeStateHash(merged);
+  return { ...merged, stateHash };
 };
 
 describe('state-utils', () => {
@@ -201,19 +221,10 @@ describe('state-utils', () => {
   });
 
   describe('auto recovery', () => {
-    const validState = {
-      version: 1,
-      activeTaskId: 'Task-Backup',
-      activeTaskTitle: 'Backup Task',
-      allowedScopes: ['src/**'],
-      startedAt: new Date().toISOString(),
-      startedBy: 'test',
-      validationAttempts: 0, role: null
-    };
-
     test('recovers from backup when state is corrupted', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
+      const validState = createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });
@@ -238,6 +249,7 @@ describe('state-utils', () => {
     test('tries older backups if primary backup is also corrupted', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
+      const validState = createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });
@@ -262,6 +274,7 @@ describe('state-utils', () => {
     test('returns corrupted when all backups are invalid', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
+      const validState = createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });

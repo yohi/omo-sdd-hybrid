@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
-import { getStateDir, getStatePath, writeState, State } from '../../.opencode/lib/state-utils';
+import { getStatePath, writeState, StateInput } from '../../.opencode/lib/state-utils';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
 
 describe('state-utils atomic rename', () => {
@@ -15,7 +15,7 @@ describe('state-utils atomic rename', () => {
     cleanupTestState();
   });
 
-  const createSampleState = (id: string = 'test-task'): State => ({
+  const createSampleState = (id: string = 'test-task'): StateInput => ({
     version: 1,
     activeTaskId: id,
     activeTaskTitle: `Title for ${id}`,
