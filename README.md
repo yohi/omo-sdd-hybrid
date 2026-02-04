@@ -8,6 +8,9 @@
 
 ## Threat Model（脅威モデル）
 
+> [!WARNING]
+> **Out of Scope Editing**: 本プラグインのガード機能は OpenCode 環境外での直接的なファイル編集（ローカルの VSCode 等）には適用されません。運用上の注意点については [運用ガイド](./docs/OPERATIONS.md) を参照してください。
+
 ### 防げること
 - タスク未選択状態でのコード編集（NO_ACTIVE_TASK）
 - タスクスコープ外ファイルへの編集（SCOPE_DENIED）
@@ -205,6 +208,12 @@ sdd_end_task
 | `sdd_force_unlock` | 【非常用】ロック状態を強制解除します。 |
 | `sdd_ci_runner` | CI環境での検証（tasks.md整合性、変更範囲ガード）を実行します。 |
 | `sdd_kiro` | Kiro互換のコマンドエントリーポイント。`init`, `requirements`, `design`, `tasks`, `impl` をサポート。 |
+
+## ドキュメント / 運用
+
+詳細な運用方法やトラブルシューティングについては、以下のドキュメントを参照してください。
+
+- [運用ガイド (docs/OPERATIONS.md)](./docs/OPERATIONS.md): 運用上の制約、復旧ランブック、環境変数リファレンス。
 
 ## 高度な機能: Kiro 統合 (cc-sdd)
 
