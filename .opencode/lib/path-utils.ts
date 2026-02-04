@@ -97,13 +97,13 @@ export function isOutsideWorktree(filePath: string, worktreeRoot: string): boole
     return true;
   }
   
-  const fileRoot = path.parse(realFilePath).root;
-  const worktreeRootParsed = path.parse(realWorktreeRoot).root;
-  if (fileRoot !== worktreeRootParsed) {
+  const relative = path.relative(realWorktreeRoot, realFilePath);
+  
+  // Windowsなどでルート（ドライブ）が異なる場合、path.relative は絶対パスを返す
+  if (path.isAbsolute(relative)) {
     return true;
   }
   
-  const relative = path.relative(realWorktreeRoot, realFilePath);
   return relative === '..' || relative.startsWith('..' + path.sep);
 }
 
