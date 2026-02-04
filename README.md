@@ -142,6 +142,16 @@ Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開�
 sdd_start_task Task-1
 ```
 
+> **Note (Smart Role Selection):**
+> タスクの説明文（Description）やIDに基づき、適切なロール（Architect または Implementer）が自動的に選択されます。
+> - "設計", "仕様", "Design" 等が含まれる場合 → **Architect**
+> - それ以外（実装タスク等） → **Implementer**
+>
+> ロールを手動で指定する場合は `--role` オプションを使用してください。
+> ```bash
+> sdd_start_task Task-1 --role architect
+> ```
+
 #### Step 2: 実装する
 `allowedScopes` に含まれるファイルのみを編集してください。
 - **Scope外の編集**: `SDD_GUARD_MODE` が `block` の場合、保存時にエラーとなり拒否されます。`warn` の場合は警告が表示されます。
@@ -157,6 +167,10 @@ sdd_validate_gap
 - スコープ内のテスト実行
 - Kiro 仕様書との整合性チェック（後述）
 
+> **Note (Smart Strategy):**
+> 現在のロールが **Architect** の場合、自動的に `--deep` オプション（意味的検証）が有効になります。
+> Implementer の場合は、標準の検証（テスト + Diagnostics）が優先されます。
+
 #### Step 4: タスクを終了する
 作業が完了したらタスクを終了し、スコープ制限を解除します。
 
@@ -164,11 +178,15 @@ sdd_validate_gap
 sdd_end_task
 ```
 
+> **Note (Smart Summary):**
+> タスク終了時に、変更されたファイルの一覧（Git diffベース）がサマリーとして表示されます。
+> 作業内容の確認やコミットメッセージの作成に役立ちます。
+
 ## コマンド一覧
 
 | コマンド | 説明 |
 |---------|------|
-| `sdd_start_task <TaskID>` | 指定したタスクを開始し、編集スコープを有効化します。 |
+| `sdd_start_task <TaskID>` | 指定したタスクを開始し、編集スコープを有効化します（ロール自動判定あり）。 |
 | `sdd_end_task` | 現在のタスクを終了し、状態をクリアします。 |
 | `sdd_show_context` | 現在アクティブなタスク、許可されたスコープ、開始時間を表示します。 |
 | `sdd_project_status` | プロジェクトの進捗状況とステータスを表示します。 |
@@ -212,6 +230,10 @@ Kiro 形式の仕様書テンプレートを一括生成します。
 ```bash
 sdd_scaffold_specs --feature <name> [--prompt "指示"] [--overwrite true]
 ```
+
+> **Note (Smart Template Selection):**
+> 機能名やプロンプトに含まれるキーワード（例: `api`, `ui`, `db`）に応じて、
+> `design.md` のテンプレート内容（必要なセクション）が自動的に最適化されます。
 
 - **生成ファイル**:
   - `.kiro/specs/<feature>/requirements.md`: 要件定義

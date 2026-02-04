@@ -26,6 +26,62 @@ function validateFeatureName(feature: string, baseDir: string) {
   return resolvedPath;
 }
 
+function extractAcceptanceCriteria(content: string): string[] {
+  const lines = content.split('\n');
+  const criteria: string[] = [];
+  let inSection = false;
+
+  const sectionHeaderRegex = /^##\s+受入条件/;
+  const nextSectionRegex = /^##\s+/;
+
+  for (const line of lines) {
+    if (sectionHeaderRegex.test(line)) {
+      inSection = true;
+      continue;
+    }
+
+    if (inSection) {
+      if (nextSectionRegex.test(line)) {
+        break;
+      }
+      const trimmed = line.trim();
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        const c = trimmed.substring(2).trim();
+        if (c) criteria.push(c);
+      }
+    }
+  }
+  return criteria;
+}
+
+function extractComponents(content: string): string[] {
+  const lines = content.split('\n');
+  const components: string[] = [];
+  let inSection = false;
+
+  const sectionHeaderRegex = /^##\s+コンポーネント/;
+  const nextSectionRegex = /^##\s+/;
+
+  for (const line of lines) {
+    if (sectionHeaderRegex.test(line)) {
+      inSection = true;
+      continue;
+    }
+
+    if (inSection) {
+      if (nextSectionRegex.test(line)) {
+        break;
+      }
+      const trimmed = line.trim();
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        const c = trimmed.substring(2).trim();
+        if (c) components.push(c);
+      }
+    }
+  }
+  return components;
+}
+
 export default tool({
   description: 'requirements.md と design.md から tasks.md を生成します',
   args: {
@@ -62,18 +118,43 @@ export default tool({
       return `スキップ: tasks.md (既に存在します)\n\n既存ファイルを上書きするには、引数 'overwrite: true' を指定してください。`;
     }
 
-    // 簡易的な生成ロジック: テンプレートを使用
-    // 将来的にはここで requirements.md や design.md を解析してタスクを抽出する可能性あり
-    const tasksContent = `# Tasks
+    let reqContent = '';
+    let designContent = '';
+    try {
+      reqContent = fs.readFileSync(reqPath, 'utf-8');
+      designContent = fs.readFileSync(designPath, 'utf-8');
+    } catch (error: any) {
+      return `エラー: ファイルの読み込みに失敗しました (${error.message})`;
+    }
 
-* [ ] ${feature}-1: 基本実装 (Scope: \`src/...\`)
-* [ ] ${feature}-2: テスト実装 (Scope: \`__tests__/...\`)
-* [ ] ${feature}-3: ドキュメント更新 (Scope: \`.kiro/specs/${feature}/**\`)
-`;
+    const criteria = extractAcceptanceCriteria(reqContent);
+    const components = extractComponents(designContent);
+
+    let tasksContent = `# Tasks\n\n`;
+    let taskCount = 1;
+
+    if (criteria.length > 0) {
+      for (const c of criteria) {
+        tasksContent += `* [ ] ${feature}-${taskCount++}: 実装: ${c} (Scope: \`src/**\`, \`__tests__/**\`)\n`;
+      }
+    }
+
+    if (components.length > 0) {
+      for (const comp of components) {
+        tasksContent += `* [ ] ${feature}-${taskCount++}: コンポーネント実装: ${comp} (Scope: \`src/**\`)\n`;
+      }
+    }
+
+    if (criteria.length === 0 && components.length === 0) {
+      tasksContent += `* [ ] ${feature}-1: 基本実装 (Scope: \`src/...\`)\n`;
+      tasksContent += `* [ ] ${feature}-2: テスト実装 (Scope: \`__tests__/...\`)\n`;
+    }
+
+    tasksContent += `* [ ] ${feature}-${taskCount++}: ドキュメント更新 (Scope: \`.kiro/specs/${feature}/**\`)\n`;
 
     try {
       fs.writeFileSync(tasksPath, tasksContent, 'utf-8');
-      return `✅ tasks.md を生成しました: ${feature}`;
+      return `✅ tasks.md をスマート生成しました: ${feature} (${criteria.length} criteria, ${components.length} components)`;
     } catch (error: any) {
       return `エラー: tasks.md の書き込みに失敗しました (${error.message})`;
     }

@@ -232,7 +232,13 @@ export async function validateGapInternal(state: State, options: ValidateGapOpti
   
   sections.push('\n## Kiro統合');
   const kiroTarget = options.kiroSpec || effectiveTaskId;
-  const useDeepAnalysis = options.deep === true;
+  
+  // Smart Strategy: Architect ロールの場合はデフォルトで Deep Analysis を有効にする
+  let useDeepAnalysis = options.deep === true;
+  if (options.deep === undefined && state.role === 'architect') {
+    useDeepAnalysis = true;
+    sections.push('> Smart Strategy: Architect ロールのため、Deep Analysis が自動的に有効化されました。');
+  }
   
   if (changedFiles === null) {
     sections.push('SKIP: 変更ファイルの取得に失敗したため、Kiro統合はスキップされました');

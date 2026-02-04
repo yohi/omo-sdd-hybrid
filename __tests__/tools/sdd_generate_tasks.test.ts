@@ -44,14 +44,14 @@ describe('sdd_generate_tasks', () => {
     
     const result = await runTool({ feature });
     
-    expect(result).toContain(`✅ tasks.md を生成しました: ${feature}`);
+    expect(result).toContain(`✅ tasks.md をスマート生成しました: ${feature}`);
     
     const tasksPath = path.join(kiroDir, 'specs', feature, 'tasks.md');
     expect(fs.existsSync(tasksPath)).toBe(true);
     
     const content = fs.readFileSync(tasksPath, 'utf-8');
     expect(content).toContain('# Tasks');
-    expect(content).toContain(`(Scope: \`src/...\`)`);
+    expect(content).toContain(`基本実装 (Scope: \`src/...\`)`);
   });
 
   it('requirements.md が欠落している場合はエラーになる', async () => {
@@ -95,7 +95,7 @@ describe('sdd_generate_tasks', () => {
     
     const result = await runTool({ feature, overwrite: true });
     
-    expect(result).toContain(`✅ tasks.md を生成しました: ${feature}`);
+    expect(result).toContain(`✅ tasks.md をスマート生成しました: ${feature}`);
     
     const content = fs.readFileSync(path.join(specDir, 'tasks.md'), 'utf-8');
     expect(content).not.toBe('OLD');
@@ -105,5 +105,30 @@ describe('sdd_generate_tasks', () => {
   it('不正なfeature名を拒否する', async () => {
     const result = await runTool({ feature: '../bad-path' });
     expect(result).toContain('無効な機能名');
+  });
+
+  it('受入条件とコンポーネントからタスクを抽出する', async () => {
+    const feature = 'smart-feature';
+    const req = `## 受入条件
+- ログインができること
+- ログアウトができること
+`;
+    const design = `## コンポーネント
+- LoginForm
+- LogoutButton
+`;
+    createSpecs(feature, req, design);
+
+    const result = await runTool({ feature });
+    expect(result).toContain('✅ tasks.md をスマート生成しました: smart-feature (2 criteria, 2 components)');
+
+    const tasksPath = path.join(kiroDir, 'specs', feature, 'tasks.md');
+    const content = fs.readFileSync(tasksPath, 'utf-8');
+
+    expect(content).toContain(`smart-feature-1: 実装: ログインができること (Scope: \`src/**\`, \`__tests__/**\`)`);
+    expect(content).toContain(`smart-feature-2: 実装: ログアウトができること (Scope: \`src/**\`, \`__tests__/**\`)`);
+    expect(content).toContain(`smart-feature-3: コンポーネント実装: LoginForm (Scope: \`src/**\`)`);
+    expect(content).toContain(`smart-feature-4: コンポーネント実装: LogoutButton (Scope: \`src/**\`)`);
+    expect(content).toContain(`smart-feature-5: ドキュメント更新 (Scope: \`.kiro/specs/smart-feature/**\`)`);
   });
 });

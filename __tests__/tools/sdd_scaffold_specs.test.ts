@@ -119,4 +119,62 @@ describe('sdd_scaffold_specs', () => {
       expect(result).toContain('無効な機能名');
     }
   });
+
+  describe('Smart Template Selection', () => {
+    it('API関連のキーワードが含まれる場合、API Endpointsセクションが追加される', async () => {
+      const feature = 'user-api';
+      await runTool({ feature });
+
+      const specDir = path.join(kiroDir, 'specs', feature);
+      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
+      
+      expect(designContent).toContain('## API Endpoints');
+      expect(designContent).toContain('- エンドポイントの定義とリクエスト/レスポンス形式');
+    });
+
+    it('UI関連のキーワードが含まれる場合、Component Structureセクションが追加される', async () => {
+      const feature = 'login-page';
+      await runTool({ feature });
+
+      const specDir = path.join(kiroDir, 'specs', feature);
+      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
+      
+      expect(designContent).toContain('## Component Structure');
+      expect(designContent).toContain('- UIコンポーネントの構成と階層構造');
+    });
+
+    it('DB関連のキーワードが含まれる場合、Database Schemaセクションが追加される', async () => {
+      const feature = 'user-db';
+      await runTool({ feature });
+
+      const specDir = path.join(kiroDir, 'specs', feature);
+      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
+      
+      expect(designContent).toContain('## Database Schema');
+      expect(designContent).toContain('- データモデル定義と永続化戦略');
+    });
+
+    it('promptに含まれるキーワードも考慮される', async () => {
+      const feature = 'auth';
+      const prompt = 'Implement backend for authentication';
+      await runTool({ feature, prompt });
+
+      const specDir = path.join(kiroDir, 'specs', feature);
+      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
+      
+      expect(designContent).toContain('## API Endpoints');
+    });
+
+    it('複数のキーワードが含まれる場合、複数のセクションが追加される', async () => {
+      const feature = 'user-management';
+      const prompt = 'Create UI and database schema for users';
+      await runTool({ feature, prompt });
+
+      const specDir = path.join(kiroDir, 'specs', feature);
+      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
+      
+      expect(designContent).toContain('## Component Structure');
+      expect(designContent).toContain('## Database Schema');
+    });
+  });
 });
