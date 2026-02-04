@@ -204,6 +204,7 @@ sdd_end_task
 | `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block）を切り替えます。 |
 | `sdd_force_unlock` | 【非常用】ロック状態を強制解除します。 |
 | `sdd_ci_runner` | CI環境での検証（tasks.md整合性、変更範囲ガード）を実行します。 |
+| `sdd_kiro` | Kiro互換のコマンドエントリーポイント。`init`, `requirements`, `design`, `tasks`, `impl` をサポート。 |
 
 ## 高度な機能: Kiro 統合 (cc-sdd)
 
@@ -293,6 +294,21 @@ sdd_generate_tasks --feature <name> [--overwrite true]
 #### Step 1: 仕様の作成
 `cc-sdd` のAIコマンドを使用して、`.kiro/specs/<feature-name>/` 配下に仕様を生成します。
 
+**sdd_kiro コマンド（推奨）:**
+ネイティブ実装された `sdd_kiro` を使用することで、ロールの自動切り替えやSDDツールとの連携がスムーズに行われます。
+
+```bash
+# プロジェクト初期化 (Architectロールへ自動切替)
+sdd_kiro init --feature <feature-name>
+
+# タスク生成 (Architectロールへ自動切替)
+sdd_kiro tasks --feature <feature-name>
+
+# 実装フェーズへ移行 (Implementerロールへ自動切替)
+sdd_kiro impl --feature <feature-name>
+```
+
+**cc-sdd コマンド（従来）:**
 ```text
 /kiro:spec-init <feature-name>       # 仕様ディレクトリの初期化
 /kiro:spec-requirements <feature-name> # 要件定義 (requirements.md)

@@ -6,22 +6,19 @@ import { clearState as defaultClearState, readState as defaultReadState } from '
  * Git の変更（ステージング済み、未ステージング）を取得する
  */
 function getGitChanges(): string[] {
-  try {
-    const staged = spawnSync('git', ['diff', '--name-only', '--cached'], { encoding: 'utf-8' });
-    const unstaged = spawnSync('git', ['diff', '--name-only'], { encoding: 'utf-8' });
+  const staged = spawnSync('git', ['diff', '--name-only', '--cached'], { encoding: 'utf-8' });
+  if (staged.error) throw new Error(`Git staged error: ${staged.error.message}`);
+  if (staged.status !== 0) throw new Error(`Git staged failed: ${staged.stderr}`);
 
-    const files = new Set<string>();
-    if (staged.status === 0) {
-      staged.stdout.split('\n').filter(Boolean).forEach(f => files.add(f));
-    }
-    if (unstaged.status === 0) {
-      unstaged.stdout.split('\n').filter(Boolean).forEach(f => files.add(f));
-    }
+  const unstaged = spawnSync('git', ['diff', '--name-only'], { encoding: 'utf-8' });
+  if (unstaged.error) throw new Error(`Git unstaged error: ${unstaged.error.message}`);
+  if (unstaged.status !== 0) throw new Error(`Git unstaged failed: ${unstaged.stderr}`);
 
-    return Array.from(files).sort();
-  } catch (e) {
-    return [];
-  }
+  const files = new Set<string>();
+  staged.stdout.split('\n').filter(Boolean).forEach(f => { files.add(f); });
+  unstaged.stdout.split('\n').filter(Boolean).forEach(f => { files.add(f); });
+
+  return Array.from(files).sort();
 }
 
 export default tool({
@@ -48,10 +45,19 @@ export default tool({
       : '';
     
     // 変更ファイルのサマリーを作成
-    const changedFiles = getGitChanges();
-    const summary = changedFiles.length > 0
-      ? `\n変更されたファイル:\n${changedFiles.map(f => `- ${f}`).join('\n')}`
-      : '\n未コミットの変更はありません。';
+    let changedFiles: string[] = [];
+    let gitError = '';
+    try {
+      changedFiles = getGitChanges();
+    } catch (e: any) {
+      gitError = e.message;
+    }
+
+    const summary = gitError
+      ? `\n変更ファイルの取得に失敗しました: ${gitError}`
+      : changedFiles.length > 0
+        ? `\n変更されたファイル:\n${changedFiles.map(f => `- ${f}`).join('\n')}`
+        : '\n未コミットの変更はありません。';
 
     await clearState();
     return `タスク終了: ${state.activeTaskId}${recoveryNote}${summary}

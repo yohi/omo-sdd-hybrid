@@ -148,6 +148,7 @@ export default tool({
     if (criteria.length === 0 && components.length === 0) {
       tasksContent += `* [ ] ${feature}-1: 基本実装 (Scope: \`src/...\`)\n`;
       tasksContent += `* [ ] ${feature}-2: テスト実装 (Scope: \`__tests__/...\`)\n`;
+      taskCount = 3;
     }
 
     tasksContent += `* [ ] ${feature}-${taskCount++}: ドキュメント更新 (Scope: \`.kiro/specs/${feature}/**\`)\n`;

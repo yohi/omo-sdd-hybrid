@@ -119,7 +119,7 @@ export default tool({
         if (deps['vitest']) {
           testFramework = 'vitest';
         } else if (deps['jest']) {
-          testFramework = 'jest';
+          testFramework = '@jest/globals';
         }
       }
     } catch (e) {

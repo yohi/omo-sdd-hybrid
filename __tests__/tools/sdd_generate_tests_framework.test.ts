@@ -59,7 +59,7 @@ describe('sdd_generate_tests (Framework Detection)', () => {
     await sddGenerateTests.execute({ feature }, {});
 
     const content = fs.readFileSync(path.join(outputDir, `${feature}.acceptance.test.ts`), 'utf-8');
-    expect(content).toContain('import { describe, test } from "jest";');
+    expect(content).toContain('import { describe, test } from "@jest/globals";');
   });
 
   test('何も指定がない場合は bun:test を使用する', async () => {
