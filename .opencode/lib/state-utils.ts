@@ -114,18 +114,42 @@ function getStateHmacKey(): string {
   const stateDir = getStateDir();
   const keyPath = path.join(stateDir, STATE_HMAC_KEY_NAME);
 
+  // If file exists and has content, use it.
+  // Note: There's still a small race if file is empty (being written), handled by retry below.
   if (fs.existsSync(keyPath)) {
     const content = fs.readFileSync(keyPath, 'utf-8').trim();
     if (content) return content;
   }
 
   if (!fs.existsSync(stateDir)) {
-    fs.mkdirSync(stateDir, { recursive: true });
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+    } catch { /* ignore if already exists */ }
   }
 
   const generated = crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(keyPath, generated, { mode: 0o600 });
-  return generated;
+  
+  try {
+    // Atomic creation: fails if file exists
+    fs.writeFileSync(keyPath, generated, { mode: 0o600, flag: 'wx' });
+    return generated;
+  } catch (error: any) {
+    if (error.code === 'EEXIST') {
+      // Race condition: another process created it. Read it.
+      // Retry a few times in case the other process is still writing (empty file)
+      for (let i = 0; i < 5; i++) {
+        try {
+          const content = fs.readFileSync(keyPath, 'utf-8').trim();
+          if (content) return content;
+        } catch { /* ignore read errors temporarily */ }
+        // Busy wait (synchronous sleep)
+        const start = Date.now();
+        while (Date.now() - start < 10); 
+      }
+      throw new Error(`Failed to read HMAC key after atomic creation race: ${keyPath}`);
+    }
+    throw error;
+  }
 }
 
 export function computeStateHash(state: StateInput): string {
