@@ -20,11 +20,22 @@
     "@types/bun": "latest"
   },
   "dependencies": {
+    "@opencode-ai/plugin": "1.1.51",
+    "cc-sdd": "^2.0.5",
     "picomatch": "^2.3.1",
     "proper-lockfile": "^4.1.2",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
     "write-file-atomic": "^5.0.1",
     "zod": "^3.25.76"
   },
+  "files": [
+    ".opencode/**",
+    "opencode.jsonc",
+    "README.md"
+  ],
   "comments": {
     "sdd-cli": "The 'sdd' CLI tool (migrate-tasks, lint-tasks) is planned for in-repo implementation. Not added as dependency until implementation is complete. See spec.md section 4.3 for usage details and manual fallback steps."
   }
