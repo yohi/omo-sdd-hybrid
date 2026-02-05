@@ -36,6 +36,10 @@
     "opencode.jsonc",
     "README.md"
   ],
+  "main": "./.opencode/index.ts",
+  "exports": {
+    ".": "./.opencode/index.ts"
+  },
   "comments": {
     "sdd-cli": "The 'sdd' CLI tool (migrate-tasks, lint-tasks) is planned for in-repo implementation. Not added as dependency until implementation is complete. See spec.md section 4.3 for usage details and manual fallback steps."
   }
