@@ -378,6 +378,7 @@ sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
   - `design`: 基本設計ファイル (`design.md`) を生成・更新します。
   - `tasks`: 要件・設計に基づきタスク定義 (`tasks.md`) を生成します。内部的に `sdd_generate_tasks` を呼び出します。
   - `steering`: 仕様書（Requirements/Design）とタスク定義（Tasks）の整合性を分析し、修正案を提示します。
+  - `profile`: 仕様初期化用のArchitectペルソナプロンプトを表示します。
   - `validate-design`: 実装コードが設計書（Design）のアーキテクチャや制約に従っているかを検証します。
   - `impl`: 実装フェーズに移行します（ロールを Implementer に切り替えます）。
     - **注意**: このコマンドは `sdd_start_task` を内部で呼び出し **ません**。
@@ -396,6 +397,9 @@ sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
 
   # 要件定義の作成
   sdd_kiro requirements --feature auth-flow --prompt "JWTを使用した認証フロー"
+
+  # アーキテクト用プロンプトを表示
+  sdd_kiro profile --feature auth-flow
 
   # 実装フェーズへ移行（Implementerロールへ自動切替）
   sdd_kiro impl --feature auth-flow
