@@ -42,40 +42,51 @@ export default tool({
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
     overwrite: tool.schema.boolean().optional().describe('既存ファイルを上書きするかどうか')
   },
-  async execute({ command, feature, prompt, promptFile, overwrite }) {
+  async execute({ command, feature, prompt, promptFile, overwrite }, context) {
     // 0. プロンプトの準備
     let finalPrompt = prompt || '';
     if (promptFile) {
-      const resolvedPromptFile = path.resolve(process.cwd(), promptFile);
+      let projectRoot: string;
+      try {
+        projectRoot = fs.realpathSync(process.cwd());
+      } catch (error: any) {
+        return `エラー: プロジェクトルートの解決に失敗しました: ${error.message}`;
+      }
+
+      const resolvedPromptFile = path.resolve(projectRoot, promptFile);
       
       // パストラバーサル対策: プロジェクトルート外へのアクセスを禁止
       // 1. プロジェクトルートとの相対パスをチェック（基本的なトラバーサル検出）
-      const rel = path.relative(process.cwd(), resolvedPromptFile);
+      const rel = path.relative(projectRoot, resolvedPromptFile);
       if (rel.startsWith('..') || path.isAbsolute(rel)) {
         return `エラー: 不正なファイルパスです。プロジェクトルート内のファイルを指定してください: ${promptFile}`;
       }
 
-      if (!fs.existsSync(resolvedPromptFile)) {
-        return `エラー: プロンプトファイルが見つかりません: ${promptFile}`;
-      }
+      try {
+        if (!fs.existsSync(resolvedPromptFile)) {
+          return `エラー: プロンプトファイルが見つかりません: ${promptFile}`;
+        }
 
-      // 2. シンボリックリンクの検出と拒否（lstatを使用）
-      // fs.exists はリンク先を見るが、lstat はリンクそのものを見る
-      const stats = fs.lstatSync(resolvedPromptFile);
-      if (stats.isSymbolicLink()) {
-        return `エラー: シンボリックリンクは許可されていません: ${promptFile}`;
-      }
+        // 2. シンボリックリンクの検出と拒否（lstatを使用）
+        // fs.exists はリンク先を見るが、lstat はリンクそのものを見る
+        const stats = fs.lstatSync(resolvedPromptFile);
+        if (stats.isSymbolicLink()) {
+          return `エラー: シンボリックリンクは許可されていません: ${promptFile}`;
+        }
 
-      // 3. リアルパスでの解決と再検証（シンボリックリンク攻撃やジャンクション回避）
-      // realpathSync はリンクを解決した最終的なパスを返す
-      const realPath = fs.realpathSync(resolvedPromptFile);
-      const realRel = path.relative(process.cwd(), realPath);
-      if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
-         return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
-      }
+        // 3. リアルパスでの解決と再検証（シンボリックリンク攻撃やジャンクション回避）
+        // realpathSync はリンクを解決した最終的なパスを返す
+        const realPath = fs.realpathSync(resolvedPromptFile);
+        const realRel = path.relative(projectRoot, realPath);
+        if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+           return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
+        }
 
-      const fileContent = fs.readFileSync(realPath, 'utf-8');
-      finalPrompt = (finalPrompt ? finalPrompt + '\n\n' : '') + fileContent;
+        const fileContent = fs.readFileSync(realPath, 'utf-8');
+        finalPrompt = (finalPrompt ? finalPrompt + '\n\n' : '') + fileContent;
+      } catch (error: any) {
+        return `エラー: プロンプトファイルの読み込みに失敗しました: ${error.message}`;
+      }
     }
 
     // 1. ロールの判定
@@ -128,11 +139,11 @@ export default tool({
 
       case 'init':
         if (!feature) return 'エラー: feature は必須です';
-        return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite });
+        return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
       
       case 'tasks':
         if (!feature) return 'エラー: feature は必須です';
-        return await generateTasks.execute({ feature, overwrite });
+        return await generateTasks.execute({ feature, overwrite }, context);
 
       case 'requirements':
       case 'design': {
@@ -165,14 +176,25 @@ export default tool({
 
       case 'validate-design':
         if (!feature) return 'エラー: feature は必須です';
-        return await validateDesign.execute({ feature });
+        return await validateDesign.execute({ feature }, context);
 
       case 'profile': {
         const profilePath = path.resolve('.opencode/prompts/sdd-architect-init.md');
         if (!fs.existsSync(profilePath)) {
           return 'エラー: プロファイルファイルが見つかりません。';
         }
-        return fs.readFileSync(profilePath, 'utf-8');
+
+        let profileContent: string;
+        try {
+          profileContent = fs.readFileSync(profilePath, 'utf-8');
+        } catch (error: any) {
+          return `エラー: プロファイルの読み込みに失敗しました: ${error.message}`;
+        }
+        
+        if (finalPrompt) {
+          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}`;
+        }
+        return profileContent;
       }
 
       default:
