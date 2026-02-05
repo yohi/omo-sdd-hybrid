@@ -10,7 +10,7 @@ type AfterHook = NonNullable<Hooks['tool.execute.after']>;
 type TransformHook = NonNullable<Hooks['experimental.chat.system.transform']>;
 type ChatParamsHook = NonNullable<Hooks['chat.params']>;
 
-function mergeHooks(hooksList: Hooks[]): Hooks {
+function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
   const merged: Hooks = {};
   const eventHooks: EventHook[] = [];
   const configHooks: ConfigHook[] = [];
@@ -19,9 +19,19 @@ function mergeHooks(hooksList: Hooks[]): Hooks {
   const transformHooks: TransformHook[] = [];
   const chatParamsHooks: ChatParamsHook[] = [];
 
-  for (const hooks of hooksList) {
+  for (const { name: pluginName, hooks } of hooksList) {
     if (hooks.tool) {
-      merged.tool = { ...merged.tool, ...hooks.tool };
+      if (!merged.tool) {
+        merged.tool = {};
+      }
+      for (const [toolName, toolDef] of Object.entries(hooks.tool)) {
+        if (Object.prototype.hasOwnProperty.call(merged.tool, toolName)) {
+          console.warn(
+            `[Opencode Plugin] Tool collision detected: '${toolName}' from plugin '${pluginName}' overwrites an existing tool.`
+          );
+        }
+        merged.tool[toolName] = toolDef;
+      }
     }
     if (hooks.event) eventHooks.push(hooks.event);
     if (hooks.config) configHooks.push(hooks.config);
@@ -85,11 +95,18 @@ function mergeHooks(hooksList: Hooks[]): Hooks {
 }
 
 const plugin: Plugin = async (options) => {
-  const hooksList = await Promise.all([
+  const results = await Promise.all([
     gatekeeper(options),
     contextInjector(options),
     feedbackLoop(options),
   ]);
+
+  const hooksList = [
+    { name: 'sdd-gatekeeper', hooks: results[0] },
+    { name: 'sdd-context-injector', hooks: results[1] },
+    { name: 'sdd-feedback-loop', hooks: results[2] },
+  ];
+
   return mergeHooks(hooksList);
 };
 
