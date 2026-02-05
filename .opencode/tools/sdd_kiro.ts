@@ -36,12 +36,48 @@ function validateFeatureName(feature: string, baseDir: string) {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design']).describe('実行するKiroコマンド'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'profile']).describe('実行するKiroコマンド'),
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
+    promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
     overwrite: tool.schema.boolean().optional().describe('既存ファイルを上書きするかどうか')
   },
-  async execute({ command, feature, prompt, overwrite }) {
+  async execute({ command, feature, prompt, promptFile, overwrite }) {
+    // 0. プロンプトの準備
+    let finalPrompt = prompt || '';
+    if (promptFile) {
+      const resolvedPromptFile = path.resolve(process.cwd(), promptFile);
+      
+      // パストラバーサル対策: プロジェクトルート外へのアクセスを禁止
+      // 1. プロジェクトルートとの相対パスをチェック（基本的なトラバーサル検出）
+      const rel = path.relative(process.cwd(), resolvedPromptFile);
+      if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        return `エラー: 不正なファイルパスです。プロジェクトルート内のファイルを指定してください: ${promptFile}`;
+      }
+
+      if (!fs.existsSync(resolvedPromptFile)) {
+        return `エラー: プロンプトファイルが見つかりません: ${promptFile}`;
+      }
+
+      // 2. シンボリックリンクの検出と拒否（lstatを使用）
+      // fs.exists はリンク先を見るが、lstat はリンクそのものを見る
+      const stats = fs.lstatSync(resolvedPromptFile);
+      if (stats.isSymbolicLink()) {
+        return `エラー: シンボリックリンクは許可されていません: ${promptFile}`;
+      }
+
+      // 3. リアルパスでの解決と再検証（シンボリックリンク攻撃やジャンクション回避）
+      // realpathSync はリンクを解決した最終的なパスを返す
+      const realPath = fs.realpathSync(resolvedPromptFile);
+      const realRel = path.relative(process.cwd(), realPath);
+      if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+         return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
+      }
+
+      const fileContent = fs.readFileSync(realPath, 'utf-8');
+      finalPrompt = (finalPrompt ? finalPrompt + '\n\n' : '') + fileContent;
+    }
+
     // 1. ロールの判定
     const requiredRole = (command === 'impl') ? 'implementer' : 'architect';
 
@@ -82,7 +118,7 @@ export default tool({
           return `利用可能なステアリングドキュメント:\n${docs.map(d => `- ${d}`).join('\n')}`;
         }
         
-        const content = prompt || `# ${feature}\n\n詳細をここに記述してください。`;
+        const content = finalPrompt || `# ${feature}\n\n詳細をここに記述してください。`;
         if (updateSteeringDoc(feature, content)) {
           return `✅ ステアリングドキュメント '${feature}' を更新しました。`;
         } else {
@@ -91,16 +127,16 @@ export default tool({
       }
 
       case 'init':
-        if (!feature) return 'エラー: 機能名(feature)は必須です';
-        return await scaffoldSpecs.execute({ feature, prompt, overwrite });
+        if (!feature) return 'エラー: feature は必須です';
+        return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite });
       
       case 'tasks':
-        if (!feature) return 'エラー: 機能名(feature)は必須です';
+        if (!feature) return 'エラー: feature は必須です';
         return await generateTasks.execute({ feature, overwrite });
 
       case 'requirements':
       case 'design': {
-        if (!feature) return 'エラー: 機能名(feature)は必須です';
+        if (!feature) return 'エラー: feature は必須です';
         const baseDir = getKiroSpecsDir();
         let targetDir: string;
         try {
@@ -118,18 +154,26 @@ export default tool({
           return `スキップ: ${fileName} は既に存在します。`;
         }
         const title = command.charAt(0).toUpperCase() + command.slice(1);
-        const docContent = `# ${title}: ${feature}\n\n${prompt || '詳細をここに記述してください。'}\n`;
+        const docContent = `# ${title}: ${feature}\n\n${finalPrompt || '詳細をここに記述してください。'}\n`;
         fs.writeFileSync(filePath, docContent, 'utf-8');
         return `✅ ${fileName} を作成しました。`;
       }
 
       case 'impl':
-        if (!feature) return 'エラー: 機能名(feature)は必須です';
+        if (!feature) return 'エラー: feature は必須です';
         return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}`;
 
       case 'validate-design':
-        if (!feature) return 'エラー: 機能名(feature)は必須です';
+        if (!feature) return 'エラー: feature は必須です';
         return await validateDesign.execute({ feature });
+
+      case 'profile': {
+        const profilePath = path.resolve('.opencode/prompts/sdd-architect-init.md');
+        if (!fs.existsSync(profilePath)) {
+          return 'エラー: プロファイルファイルが見つかりません。';
+        }
+        return fs.readFileSync(profilePath, 'utf-8');
+      }
 
       default:
         return `エラー: 未対応のコマンドです: ${command}`;
