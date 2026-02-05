@@ -65,6 +65,15 @@ export default tool({
     // 3. コマンドの振り分け実行
     switch (command) {
       case 'steering': {
+        if (feature) {
+          const baseDir = getKiroSpecsDir();
+          try {
+            validateFeatureName(feature, baseDir);
+          } catch (error: any) {
+            return `エラー: ${error.message}`;
+          }
+        }
+
         if (!feature) {
           const docs = listSteeringDocs();
           if (docs.length === 0) {
