@@ -66,12 +66,12 @@ describe('sdd_start_task', () => {
       .rejects.toThrow('E_SCOPE_MISSING');
   });
 
-  test('assigns implementer role by default', async () => {
+  test('assigns architect role by default (safe mode)', async () => {
     fs.writeFileSync(tasksPath, '* [ ] Task-1: Test (Scope: `src/**`)');
     const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
     await sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any);
     const state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
-    expect(state.role).toBe('implementer');
+    expect(state.role).toBe('architect');
   });
 
   test('assigns architect role for KIRO tasks', async () => {

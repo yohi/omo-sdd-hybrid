@@ -34,7 +34,7 @@ describe('selectRoleForTask', () => {
     expect(await selectRoleForTask(task2)).toBe('architect');
   });
 
-  it('should return implementer for other tasks', async () => {
+  it('should return architect for other tasks (default safety)', async () => {
     const task: SddTask = {
       id: 'Task-3',
       description: 'Implement login button',
@@ -42,6 +42,6 @@ describe('selectRoleForTask', () => {
       checked: false,
       line: 1
     };
-    expect(await selectRoleForTask(task)).toBe('implementer');
+    expect(await selectRoleForTask(task)).toBe('architect');
   });
 });

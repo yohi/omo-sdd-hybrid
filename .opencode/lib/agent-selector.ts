@@ -13,5 +13,5 @@ export async function selectRoleForTask(task: SddTask): Promise<'architect' | 'i
     return 'architect';
   }
 
-  return 'implementer';
+  return 'architect';
 }

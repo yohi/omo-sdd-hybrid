@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import { type StateResult, type State, type GuardMode, type GuardModeState, getStateDir } from './state-utils';
 import { normalizeToRepoRelative, isOutsideWorktree } from './path-utils';
 import { matchesScope } from './glob-utils';
@@ -697,8 +698,10 @@ export function evaluateRoleAccess(
   }
 
   if (role === 'implementer') {
-    // Implementer: Deny .kiro/** (Priority over scope)
     if (isKiroPath) {
+      if (path.basename(normalizedPath) === 'tasks.md') {
+        return { allowed: true, warned: false, rule: 'RoleAllowed' };
+      }
       return {
         allowed: allowedOnViolation,
         warned: true,
