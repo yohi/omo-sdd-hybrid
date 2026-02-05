@@ -46,36 +46,47 @@ export default tool({
     // 0. プロンプトの準備
     let finalPrompt = prompt || '';
     if (promptFile) {
-      const resolvedPromptFile = path.resolve(process.cwd(), promptFile);
+      let projectRoot: string;
+      try {
+        projectRoot = fs.realpathSync(process.cwd());
+      } catch (error: any) {
+        return `エラー: プロジェクトルートの解決に失敗しました: ${error.message}`;
+      }
+
+      const resolvedPromptFile = path.resolve(projectRoot, promptFile);
       
       // パストラバーサル対策: プロジェクトルート外へのアクセスを禁止
       // 1. プロジェクトルートとの相対パスをチェック（基本的なトラバーサル検出）
-      const rel = path.relative(process.cwd(), resolvedPromptFile);
+      const rel = path.relative(projectRoot, resolvedPromptFile);
       if (rel.startsWith('..') || path.isAbsolute(rel)) {
         return `エラー: 不正なファイルパスです。プロジェクトルート内のファイルを指定してください: ${promptFile}`;
       }
 
-      if (!fs.existsSync(resolvedPromptFile)) {
-        return `エラー: プロンプトファイルが見つかりません: ${promptFile}`;
-      }
+      try {
+        if (!fs.existsSync(resolvedPromptFile)) {
+          return `エラー: プロンプトファイルが見つかりません: ${promptFile}`;
+        }
 
-      // 2. シンボリックリンクの検出と拒否（lstatを使用）
-      // fs.exists はリンク先を見るが、lstat はリンクそのものを見る
-      const stats = fs.lstatSync(resolvedPromptFile);
-      if (stats.isSymbolicLink()) {
-        return `エラー: シンボリックリンクは許可されていません: ${promptFile}`;
-      }
+        // 2. シンボリックリンクの検出と拒否（lstatを使用）
+        // fs.exists はリンク先を見るが、lstat はリンクそのものを見る
+        const stats = fs.lstatSync(resolvedPromptFile);
+        if (stats.isSymbolicLink()) {
+          return `エラー: シンボリックリンクは許可されていません: ${promptFile}`;
+        }
 
-      // 3. リアルパスでの解決と再検証（シンボリックリンク攻撃やジャンクション回避）
-      // realpathSync はリンクを解決した最終的なパスを返す
-      const realPath = fs.realpathSync(resolvedPromptFile);
-      const realRel = path.relative(process.cwd(), realPath);
-      if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
-         return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
-      }
+        // 3. リアルパスでの解決と再検証（シンボリックリンク攻撃やジャンクション回避）
+        // realpathSync はリンクを解決した最終的なパスを返す
+        const realPath = fs.realpathSync(resolvedPromptFile);
+        const realRel = path.relative(projectRoot, realPath);
+        if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+           return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
+        }
 
-      const fileContent = fs.readFileSync(realPath, 'utf-8');
-      finalPrompt = (finalPrompt ? finalPrompt + '\n\n' : '') + fileContent;
+        const fileContent = fs.readFileSync(realPath, 'utf-8');
+        finalPrompt = (finalPrompt ? finalPrompt + '\n\n' : '') + fileContent;
+      } catch (error: any) {
+        return `エラー: プロンプトファイルの読み込みに失敗しました: ${error.message}`;
+      }
     }
 
     // 1. ロールの判定
