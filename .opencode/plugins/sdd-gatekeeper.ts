@@ -38,7 +38,7 @@ const SddGatekeeper: Plugin = async (options) => {
                 variant: 'error',
                 duration: 5000
               }
-            });
+            }).catch(() => {});
           }
           throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
         }
@@ -51,7 +51,7 @@ const SddGatekeeper: Plugin = async (options) => {
                 variant: 'warning',
                 duration: 5000
               }
-            });
+            }).catch(() => {});
           } else {
             console.warn(`[SDD-GATEKEEPER] ${result.message}`);
           }
@@ -74,7 +74,7 @@ const SddGatekeeper: Plugin = async (options) => {
               variant: 'error',
               duration: 5000
             }
-          });
+          }).catch(() => {});
         }
         throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
       }
@@ -88,7 +88,7 @@ const SddGatekeeper: Plugin = async (options) => {
               variant: 'warning',
               duration: 5000
             }
-          });
+          }).catch(() => {});
         } else {
           console.warn(`[SDD-GATEKEEPER] ${result.message}`);
         }
