@@ -47,12 +47,5 @@ describe('sdd_kiro path traversal and symlink check', () => {
     }
   });
   
-  it('promptFile resolving to outside project root via realpath should be rejected', async () => {
-    // This is hard to test in the current harness because we can't easily create files outside of the temporary test root 
-    // without messing with the actual system or assuming /tmp structure.
-    // However, if we assume the tool resolves realpath, we can simulate a "valid looking" path that resolves elsewhere?
-    // Actually, testing the symlink rejection itself covers the main vector.
-    // We can try to use a symlink that points to a file within the project, which should be rejected if we ban symlinks entirely.
-    // (Which is what we did in the previous test).
-  });
+  it.todo('promptFile resolving to outside project root via realpath should be rejected');
 });
