@@ -392,16 +392,16 @@ sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
 
 - **使用例**:
   ```bash
-  # プロジェクトの初期化（Architectロールへ自動切替）
-  sdd_kiro init --feature auth-flow
-
-  # 要件定義の作成
-  sdd_kiro requirements --feature auth-flow --prompt "JWTを使用した認証フロー"
-
-  # アーキテクト用プロンプトを表示
+  # Step 0: アーキテクト用プロンプトを表示
   sdd_kiro profile --feature auth-flow
 
-  # 実装フェーズへ移行（Implementerロールへ自動切替）
+  # Step 1: プロジェクトの初期化（Architectロールへ自動切替）
+  sdd_kiro init --feature auth-flow
+
+  # Step 2: 要件定義の作成
+  sdd_kiro requirements --feature auth-flow --prompt "JWTを使用した認証フロー"
+
+  # Step 3: 実装フェーズへ移行（Implementerロールへ自動切替）
   sdd_kiro impl --feature auth-flow
   ```
 
