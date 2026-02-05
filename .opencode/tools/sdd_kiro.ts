@@ -1,11 +1,13 @@
 import { tool } from '../lib/plugin-stub';
 import { readState, writeState } from '../lib/state-utils';
+import { updateSteeringDoc, listSteeringDocs } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // 既存のツール実装をインポート（内部的に execute を呼ぶため）
 import scaffoldSpecs from './sdd_scaffold_specs';
 import generateTasks from './sdd_generate_tasks';
+import validateDesign from './sdd_validate_design';
 
 function getKiroSpecsDir() {
   const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
@@ -34,8 +36,8 @@ function validateFeatureName(feature: string, baseDir: string) {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl']).describe('実行するKiroコマンド'),
-    feature: tool.schema.string().describe('対象の機能名'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design']).describe('実行するKiroコマンド'),
+    feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     overwrite: tool.schema.boolean().optional().describe('既存ファイルを上書きするかどうか')
   },
@@ -62,14 +64,43 @@ export default tool({
 
     // 3. コマンドの振り分け実行
     switch (command) {
+      case 'steering': {
+        if (feature) {
+          const baseDir = getKiroSpecsDir();
+          try {
+            validateFeatureName(feature, baseDir);
+          } catch (error: any) {
+            return `エラー: ${error.message}`;
+          }
+        }
+
+        if (!feature) {
+          const docs = listSteeringDocs();
+          if (docs.length === 0) {
+            return 'ステアリングドキュメントは存在しません。';
+          }
+          return `利用可能なステアリングドキュメント:\n${docs.map(d => `- ${d}`).join('\n')}`;
+        }
+        
+        const content = prompt || `# ${feature}\n\n詳細をここに記述してください。`;
+        if (updateSteeringDoc(feature, content)) {
+          return `✅ ステアリングドキュメント '${feature}' を更新しました。`;
+        } else {
+          return `エラー: ステアリングドキュメント '${feature}' の更新に失敗しました。`;
+        }
+      }
+
       case 'init':
+        if (!feature) return 'エラー: 機能名(feature)は必須です';
         return await scaffoldSpecs.execute({ feature, prompt, overwrite });
       
       case 'tasks':
+        if (!feature) return 'エラー: 機能名(feature)は必須です';
         return await generateTasks.execute({ feature, overwrite });
 
       case 'requirements':
       case 'design': {
+        if (!feature) return 'エラー: 機能名(feature)は必須です';
         const baseDir = getKiroSpecsDir();
         let targetDir: string;
         try {
@@ -87,13 +118,18 @@ export default tool({
           return `スキップ: ${fileName} は既に存在します。`;
         }
         const title = command.charAt(0).toUpperCase() + command.slice(1);
-        const content = `# ${title}: ${feature}\n\n${prompt || '詳細をここに記述してください。'}\n`;
-        fs.writeFileSync(filePath, content, 'utf-8');
+        const docContent = `# ${title}: ${feature}\n\n${prompt || '詳細をここに記述してください。'}\n`;
+        fs.writeFileSync(filePath, docContent, 'utf-8');
         return `✅ ${fileName} を作成しました。`;
       }
 
       case 'impl':
+        if (!feature) return 'エラー: 機能名(feature)は必須です';
         return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}`;
+
+      case 'validate-design':
+        if (!feature) return 'エラー: 機能名(feature)は必須です';
+        return await validateDesign.execute({ feature });
 
       default:
         return `エラー: 未対応のコマンドです: ${command}`;

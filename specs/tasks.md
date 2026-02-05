@@ -1,6 +1,7 @@
 # Tasks
 
 ## Active Tasks
+* [x] Task-106: Fix LSP error in sdd_kiro.ts (Scope: `.opencode/tools/sdd_kiro.ts`)
 
 * [ ] Task-2-1: `sdd_scaffold_specs` ツールとテストの実装 (Scope: `.opencode/tools/sdd_scaffold_specs.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_scaffold_specs.test.ts`, `README.md`)
 * [ ] Task-2-2: `sdd_generate_tasks` ツールとテストの実装 (Scope: `.opencode/tools/sdd_generate_tasks.ts`, `.opencode/lib/**`, `__tests__/tools/sdd_generate_tasks.test.ts`, `README.md`)
@@ -26,6 +27,7 @@
 * [ ] Task-104: sdd_lint_tasks の lint 対象パス拡張 (Scope: `.opencode/tools/sdd_lint_tasks.ts`, `__tests__/tools/sdd_lint_tasks.test.ts`)
 * [ ] Task-103: パッケージ配布時のOpenCode起動不具合修正（依存/設定ファイルの整理） (Scope: `package.json`, `opencode.jsonc`)
 
+* [x] Task-105: Implement Steering docs support in kiro-utils (Scope: `.opencode/lib/kiro-utils.ts`, `__tests__/lib/kiro-utils.test.ts`)
 
 ## Completed Tasks
 
