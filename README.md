@@ -369,7 +369,7 @@ sdd_generate_tasks --feature <name> [--overwrite true]
 Kiro（cc-sdd）互換のコマンドエントリーポイントです。実行するサブコマンドに応じて、適切なロール（Architect または Implementer）へ自動的に切り替えて実行します。
 
 ```bash
-sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
+sdd_kiro <command> --feature <name> [--prompt "指示"] [--promptFile "path/to/file"] [--overwrite true]
 ```
 
 - **command** (必須): 実行するKiroコマンドを指定します。
@@ -388,6 +388,7 @@ sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
 - **引数**:
   - `--feature` (必須): 対象の機能名。
   - `--prompt` (任意): `init`, `requirements`, `design` 時の追加指示や詳細内容。
+  - `--promptFile` (任意): プロンプトとして読み込むファイルのパス。
   - `--overwrite` (任意): 既存ファイルを上書きする場合 `true` を指定。
 
 - **使用例**:
