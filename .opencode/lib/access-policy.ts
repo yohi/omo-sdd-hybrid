@@ -697,8 +697,10 @@ export function evaluateRoleAccess(
   }
 
   if (role === 'implementer') {
-    // Implementer: Deny .kiro/** (Priority over scope)
     if (isKiroPath) {
+      if (normalizedPath.endsWith('tasks.md')) {
+        return { allowed: true, warned: false, rule: 'RoleAllowed' };
+      }
       return {
         allowed: allowedOnViolation,
         warned: true,

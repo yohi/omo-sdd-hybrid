@@ -186,12 +186,35 @@ describe('access-policy', () => {
 
     test('detects destructive bash in env -u VAR wrapper', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
-
+      
       const result = evaluateAccess('bash', undefined, 'env -u VAR rm -rf /', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.rule).toBe('Rule4');
     });
+
+    test('allows implementer to edit tasks.md inside .kiro/', async () => {
+      const { evaluateRoleAccess } = await import('../../.opencode/lib/access-policy');
+      
+      const state = { ...baseState, role: 'implementer' as const };
+      
+      const result = evaluateRoleAccess('edit', '.kiro/specs/foo/tasks.md', undefined, { status: 'ok', state }, WORKTREE_ROOT);
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+      expect(result.rule).toBe('RoleAllowed');
+    });
+
+    test('denies implementer from editing other files in .kiro/', async () => {
+      const { evaluateRoleAccess } = await import('../../.opencode/lib/access-policy');
+      
+      const state = { ...baseState, role: 'implementer' as const };
+      
+      const result = evaluateRoleAccess('edit', '.kiro/specs/foo/requirements.md', undefined, { status: 'ok', state }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('RoleDenied');
+    });
+
 
     test('does not split on command substitution separators', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
