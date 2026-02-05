@@ -425,3 +425,82 @@ export function updateKiroSpecTasks(featureName: string, newContent: string): bo
     return false;
   }
 }
+
+export function getSteeringDir(): string {
+  return path.join(getKiroDir(), 'steering');
+}
+
+export function listSteeringDocs(): string[] {
+  const steeringDir = getSteeringDir();
+  if (!fs.existsSync(steeringDir)) {
+    return [];
+  }
+
+  try {
+    const entries = fs.readdirSync(steeringDir, { withFileTypes: true });
+    return entries
+      .filter(e => e.isFile() && e.name.endsWith('.md'))
+      .map(e => e.name);
+  } catch (e) {
+    logger.error('Failed to list steering docs:', e);
+    return [];
+  }
+}
+
+export function updateSteeringDoc(name: string, content: string): boolean {
+  if (!name || name.trim() === '') return false;
+  if (name.includes('..') || name.includes('/') || name.includes('\\')) return false;
+
+  const fileName = name.endsWith('.md') ? name : `${name}.md`;
+  const steeringDir = getSteeringDir();
+  const filePath = path.join(steeringDir, fileName);
+
+  try {
+    if (!fs.existsSync(steeringDir)) {
+      fs.mkdirSync(steeringDir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, content, 'utf-8');
+    return true;
+  } catch (e) {
+    logger.error(`Failed to update steering doc ${fileName}:`, e);
+    return false;
+  }
+}
+
+export interface DesignAnalysisResult {
+  status: 'ok' | 'missing_req' | 'missing_design';
+  issues: string[];
+}
+
+export function analyzeDesignConsistency(featureName: string): DesignAnalysisResult {
+  const spec = loadKiroSpec(featureName);
+  const issues: string[] = [];
+
+  if (!spec) {
+    return {
+      status: 'missing_req',
+      issues: [`Feature '${featureName}' spec not found`]
+    };
+  }
+
+  if (!spec.requirements) {
+    issues.push('requirements.md not found');
+  }
+
+  if (!spec.design) {
+    issues.push('design.md not found');
+  }
+
+  let status: 'ok' | 'missing_req' | 'missing_design' = 'ok';
+
+  if (!spec.requirements) {
+    status = 'missing_req';
+  } else if (!spec.design) {
+    status = 'missing_design';
+  }
+
+  return {
+    status,
+    issues
+  };
+}
