@@ -42,7 +42,7 @@ export default tool({
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
     overwrite: tool.schema.boolean().optional().describe('既存ファイルを上書きするかどうか')
   },
-  async execute({ command, feature, prompt, promptFile, overwrite }) {
+  async execute({ command, feature, prompt, promptFile, overwrite }, context) {
     // 0. プロンプトの準備
     let finalPrompt = prompt || '';
     if (promptFile) {
@@ -128,11 +128,11 @@ export default tool({
 
       case 'init':
         if (!feature) return 'エラー: feature は必須です';
-        return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite });
+        return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
       
       case 'tasks':
         if (!feature) return 'エラー: feature は必須です';
-        return await generateTasks.execute({ feature, overwrite });
+        return await generateTasks.execute({ feature, overwrite }, context);
 
       case 'requirements':
       case 'design': {
@@ -165,14 +165,19 @@ export default tool({
 
       case 'validate-design':
         if (!feature) return 'エラー: feature は必須です';
-        return await validateDesign.execute({ feature });
+        return await validateDesign.execute({ feature }, context);
 
       case 'profile': {
         const profilePath = path.resolve('.opencode/prompts/sdd-architect-init.md');
         if (!fs.existsSync(profilePath)) {
           return 'エラー: プロファイルファイルが見つかりません。';
         }
-        return fs.readFileSync(profilePath, 'utf-8');
+        const profileContent = fs.readFileSync(profilePath, 'utf-8');
+        
+        if (finalPrompt) {
+          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}`;
+        }
+        return profileContent;
       }
 
       default:
