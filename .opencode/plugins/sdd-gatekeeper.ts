@@ -30,10 +30,31 @@ const SddGatekeeper: Plugin = async (options) => {
         const stateResult = await readState();
         const result = evaluateMultiEdit(args.files, stateResult, worktreeRoot, effectiveMode);
         if (!result.allowed) {
+          if (client?.tui?.showToast) {
+            void client.tui.showToast({
+              body: {
+                title: 'SDD Gatekeeper Blocked',
+                message: result.message,
+                variant: 'error',
+                duration: 5000
+              }
+            }).catch(() => {});
+          }
           throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
         }
         if (result.warned) {
-          console.warn(`[SDD-GATEKEEPER] ${result.message}`);
+          if (client?.tui?.showToast) {
+            void client.tui.showToast({
+              body: {
+                title: 'SDD Gatekeeper Warning',
+                message: result.message,
+                variant: 'warning',
+                duration: 5000
+              }
+            }).catch(() => {});
+          } else {
+            console.warn(`[SDD-GATEKEEPER] ${result.message}`);
+          }
         }
         return;
       }
@@ -45,11 +66,32 @@ const SddGatekeeper: Plugin = async (options) => {
       const result = evaluateRoleAccess(name, filePath, command, stateResult, worktreeRoot, effectiveMode);
       
       if (!result.allowed) {
+        if (client?.tui?.showToast) {
+          void client.tui.showToast({
+            body: {
+              title: 'SDD Gatekeeper Blocked',
+              message: result.message,
+              variant: 'error',
+              duration: 5000
+            }
+          }).catch(() => {});
+        }
         throw new Error(`[SDD-GATEKEEPER] ${result.message}`);
       }
       
       if (result.warned) {
-        console.warn(`[SDD-GATEKEEPER] ${result.message}`);
+        if (client?.tui?.showToast) {
+          void client.tui.showToast({
+            body: {
+              title: 'SDD Gatekeeper Warning',
+              message: result.message,
+              variant: 'warning',
+              duration: 5000
+            }
+          }).catch(() => {});
+        } else {
+          console.warn(`[SDD-GATEKEEPER] ${result.message}`);
+        }
       }
     }
   };

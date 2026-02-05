@@ -128,18 +128,18 @@ describe('policy-loader', () => {
 
   test('logs policy summary on first load', async () => {
     fs.writeFileSync(TEST_POLICY_PATH, JSON.stringify({ alwaysAllow: ['foo/'] }));
-    const infoSpy = spyOn(logger, 'info');
+    const debugSpy = spyOn(logger, 'debug');
     
     const { loadPolicyConfig } = await import('../../.opencode/lib/policy-loader');
     
     loadPolicyConfig();
-    expect(infoSpy).toHaveBeenCalled();
-    expect(infoSpy.mock.calls[0][0]).toContain('Loaded policy');
+    expect(debugSpy).toHaveBeenCalled();
+    expect(debugSpy.mock.calls[0][0]).toContain('Loaded policy');
     
-    infoSpy.mockClear();
+    debugSpy.mockClear();
     loadPolicyConfig(); // Second call should not log
-    expect(infoSpy).not.toHaveBeenCalled();
+    expect(debugSpy).not.toHaveBeenCalled();
     
-    infoSpy.mockRestore();
+    debugSpy.mockRestore();
   });
 });
