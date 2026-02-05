@@ -53,7 +53,19 @@ export const tool: ToolFactory = Object.assign(
 export type ToolDefinition = ReturnType<typeof tool>;
 
 export type PluginInput = {
-  client: any;
+  client: {
+    tui?: {
+      showToast(input: {
+        body: {
+          message: string;
+          variant?: 'info' | 'success' | 'warning' | 'error';
+          duration?: number;
+          title?: string;
+        };
+      }): Promise<void>;
+    };
+    [key: string]: any;
+  };
   project: any;
   directory: string;
   worktree: string;

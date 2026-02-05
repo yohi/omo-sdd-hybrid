@@ -27,7 +27,7 @@ export function loadPolicyConfig(): PolicyConfig {
   
   if (!fs.existsSync(configPath)) {
     if (!hasLoggedPolicy) {
-      logger.info(`[SDD] Loaded policy: alwaysAllow=${JSON.stringify(DEFAULT_POLICY.alwaysAllow)} (DEFAULT)`);
+      logger.debug(`[SDD] Loaded policy: alwaysAllow=${JSON.stringify(DEFAULT_POLICY.alwaysAllow)} (DEFAULT)`);
       hasLoggedPolicy = true;
     }
     return DEFAULT_POLICY;
@@ -81,7 +81,7 @@ export function loadPolicyConfig(): PolicyConfig {
     };
 
     if (!hasLoggedPolicy) {
-      logger.info(`[SDD] Loaded policy: alwaysAllow=${JSON.stringify(policy.alwaysAllow)}`);
+      logger.debug(`[SDD] Loaded policy: alwaysAllow=${JSON.stringify(policy.alwaysAllow)}`);
       hasLoggedPolicy = true;
     }
 
@@ -104,7 +104,7 @@ export function loadPolicyConfig(): PolicyConfig {
     // Fallback for missing/corrupt config (Fail-Safe)
     logger.warn(`[SDD] Failed to load policy config from ${configPath}: ${msg}. Using defaults.`);
     if (!hasLoggedPolicy) {
-      logger.info(`[SDD] Loaded policy: alwaysAllow=${JSON.stringify(DEFAULT_POLICY.alwaysAllow)} (DEFAULT via fallback)`);
+      logger.debug(`[SDD] Loaded policy: alwaysAllow=${JSON.stringify(DEFAULT_POLICY.alwaysAllow)} (DEFAULT via fallback)`);
       hasLoggedPolicy = true;
     }
     return DEFAULT_POLICY;
