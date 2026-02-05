@@ -183,7 +183,13 @@ export default tool({
         if (!fs.existsSync(profilePath)) {
           return 'エラー: プロファイルファイルが見つかりません。';
         }
-        const profileContent = fs.readFileSync(profilePath, 'utf-8');
+
+        let profileContent: string;
+        try {
+          profileContent = fs.readFileSync(profilePath, 'utf-8');
+        } catch (error: any) {
+          return `エラー: プロファイルの読み込みに失敗しました: ${error.message}`;
+        }
         
         if (finalPrompt) {
           return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}`;
