@@ -15,6 +15,7 @@
 | `sdd_start_task.ts` | `sdd_start_task` | 指定されたタスクを開始し、Scopeに基づき編集権限を付与する。 |
 | `sdd_end_task.ts` | `sdd_end_task` | 現在のタスクを完了し、編集権限を破棄する。未コミット変更のチェックを行う。 |
 | `sdd_validate_gap.ts` | `sdd_validate_gap` | 現在の実装と仕様のギャップを検証する。 |
+| `sdd_validate_design.ts` | `sdd_validate_design` | 設計書（Design.md）と実装コードの整合性を検証する。 |
 | `sdd_show_context.ts` | `sdd_show_context` | 現在アクティブなタスクや許可されているファイルScopeを表示する。 |
 | `sdd_set_guard_mode.ts` | `sdd_set_guard_mode` | Gatekeeperの動作モード（Strict/Permissiveなど）を切り替える。 |
 | `sdd_request_spec_change.ts` | `sdd_request_spec_change` | 実装中に仕様変更が必要になった場合のフローを開始する。 |

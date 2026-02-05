@@ -114,6 +114,7 @@ AIと対話しながら、実装前に「何を作るか」を固めます。
    ```bash
    sdd_kiro requirements --feature <feature-name> --prompt "詳細な要件を追加..."
    sdd_kiro design --feature <feature-name> --prompt "アーキテクチャの制約..."
+   sdd_kiro steering --feature <feature-name>
    ```
 
 3. **タスク分解**:
@@ -145,6 +146,7 @@ AIと対話しながら、実装前に「何を作るか」を固めます。
    実装中、コードが仕様から乖離していないかAIに検証させます。
    ```bash
    sdd_validate_gap --kiroSpec <feature-name> --deep
+   sdd_kiro validate-design --feature <feature-name>
    ```
    *「仕様にはあるが実装されていない機能」や「仕様にない勝手な実装」を検出します。*
 
@@ -375,6 +377,8 @@ sdd_kiro <command> --feature <name> [--prompt "指示"] [--overwrite true]
   - `requirements`: 要件定義ファイル (`requirements.md`) を生成・更新します。
   - `design`: 基本設計ファイル (`design.md`) を生成・更新します。
   - `tasks`: 要件・設計に基づきタスク定義 (`tasks.md`) を生成します。内部的に `sdd_generate_tasks` を呼び出します。
+  - `steering`: 仕様書（Requirements/Design）とタスク定義（Tasks）の整合性を分析し、修正案を提示します。
+  - `validate-design`: 実装コードが設計書（Design）のアーキテクチャや制約に従っているかを検証します。
   - `impl`: 実装フェーズに移行します（ロールを Implementer に切り替えます）。
     - **注意**: このコマンドは `sdd_start_task` を内部で呼び出し **ません**。
     - Gatekeeperを有効にするには、先に `sdd_start_task` を実行する必要があります。
@@ -413,11 +417,17 @@ sdd_kiro init --feature <feature-name> [--prompt "指示"]
 sdd_kiro requirements --feature <feature-name> [--prompt "指示"]
 sdd_kiro design --feature <feature-name> [--prompt "指示"]
 
+# 仕様とタスクの整合性分析
+sdd_kiro steering --feature <feature-name>
+
 # タスク生成 (Architectロールへ自動切替)
 sdd_kiro tasks --feature <feature-name>
 
 # 実装フェーズへ移行 (Implementerロールへ自動切替)
 sdd_kiro impl --feature <feature-name>
+
+# 設計整合性の検証
+sdd_kiro validate-design --feature <feature-name>
 ```
 
 **cc-sdd コマンド（従来）:**
@@ -437,6 +447,7 @@ sdd_kiro impl --feature <feature-name>
 
 ```bash
 sdd_validate_gap --kiroSpec <feature-name> --deep
+sdd_kiro validate-design --feature <feature-name>
 ```
 
 **`--deep` オプションの効果:**
