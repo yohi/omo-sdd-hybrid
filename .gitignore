@@ -11,6 +11,7 @@ bun.lock
 dist/
 build/
 *.log
+*.tsbuildinfo
 
 # IDE
 .vscode/
