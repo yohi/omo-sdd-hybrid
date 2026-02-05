@@ -47,6 +47,13 @@ export default tool({
     let finalPrompt = prompt || '';
     if (promptFile) {
       const resolvedPromptFile = path.resolve(process.cwd(), promptFile);
+      
+      // パストラバーサル対策: プロジェクトルート外へのアクセスを禁止
+      const rel = path.relative(process.cwd(), resolvedPromptFile);
+      if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        return `エラー: 不正なファイルパスです。プロジェクトルート内のファイルを指定してください: ${promptFile}`;
+      }
+
       if (!fs.existsSync(resolvedPromptFile)) {
         return `エラー: プロンプトファイルが見つかりません: ${promptFile}`;
       }

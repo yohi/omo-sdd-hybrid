@@ -394,7 +394,7 @@ sdd_kiro <command> --feature <name> [--prompt "指示"] [--promptFile "path/to/f
 - **使用例**:
   ```bash
   # Step 0: アーキテクト用プロンプトを表示
-  sdd_kiro profile --feature auth-flow
+  sdd_kiro profile
 
   # Step 1: プロジェクトの初期化（Architectロールへ自動切替）
   sdd_kiro init --feature auth-flow
