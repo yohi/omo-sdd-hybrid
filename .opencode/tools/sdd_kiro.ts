@@ -49,6 +49,7 @@ export default tool({
       const resolvedPromptFile = path.resolve(process.cwd(), promptFile);
       
       // パストラバーサル対策: プロジェクトルート外へのアクセスを禁止
+      // 1. プロジェクトルートとの相対パスをチェック（基本的なトラバーサル検出）
       const rel = path.relative(process.cwd(), resolvedPromptFile);
       if (rel.startsWith('..') || path.isAbsolute(rel)) {
         return `エラー: 不正なファイルパスです。プロジェクトルート内のファイルを指定してください: ${promptFile}`;
@@ -57,7 +58,23 @@ export default tool({
       if (!fs.existsSync(resolvedPromptFile)) {
         return `エラー: プロンプトファイルが見つかりません: ${promptFile}`;
       }
-      const fileContent = fs.readFileSync(resolvedPromptFile, 'utf-8');
+
+      // 2. シンボリックリンクの検出と拒否（lstatを使用）
+      // fs.exists はリンク先を見るが、lstat はリンクそのものを見る
+      const stats = fs.lstatSync(resolvedPromptFile);
+      if (stats.isSymbolicLink()) {
+        return `エラー: シンボリックリンクは許可されていません: ${promptFile}`;
+      }
+
+      // 3. リアルパスでの解決と再検証（シンボリックリンク攻撃やジャンクション回避）
+      // realpathSync はリンクを解決した最終的なパスを返す
+      const realPath = fs.realpathSync(resolvedPromptFile);
+      const realRel = path.relative(process.cwd(), realPath);
+      if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+         return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
+      }
+
+      const fileContent = fs.readFileSync(realPath, 'utf-8');
       finalPrompt = (finalPrompt ? finalPrompt + '\n\n' : '') + fileContent;
     }
 
