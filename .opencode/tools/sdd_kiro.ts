@@ -36,7 +36,7 @@ function validateFeatureName(feature: string, baseDir: string) {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design']).describe('実行するKiroコマンド'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'profile']).describe('実行するKiroコマンド'),
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     overwrite: tool.schema.boolean().optional().describe('既存ファイルを上書きするかどうか')
@@ -130,6 +130,14 @@ export default tool({
       case 'validate-design':
         if (!feature) return 'エラー: 機能名(feature)は必須です';
         return await validateDesign.execute({ feature });
+
+      case 'profile': {
+        const profilePath = path.resolve('.opencode/prompts/sdd-architect-init.md');
+        if (!fs.existsSync(profilePath)) {
+          return 'エラー: プロファイルファイルが見つかりません。';
+        }
+        return fs.readFileSync(profilePath, 'utf-8');
+      }
 
       default:
         return `エラー: 未対応のコマンドです: ${command}`;
