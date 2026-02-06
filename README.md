@@ -99,78 +99,7 @@ SDD（仕様駆動開発）の効果を最大化するための推奨運用ル�
 ### 4. Kiro (cc-sdd) 統合ワークフロー（推奨）
 
 Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開発サイクルです。
-
-#### Phase 1: Architect - 仕様策定とタスク分解
-AIと対話しながら、実装前に「何を作るか」を固めます。
-
-1. **仕様の初期化**:
-   ```bash
-   sdd_kiro init --feature <feature-name> --prompt "機能の概要"
-   ```
-   `.kiro/specs/<feature-name>/` 配下に雛形が生成されます。
-
-2. **詳細設計 (Iterative Design)**:
-   要件と設計を詰めます。何度でも実行して洗練させます。
-   ```bash
-   sdd_kiro requirements --feature <feature-name> --prompt "詳細な要件を追加..."
-   sdd_kiro design --feature <feature-name> --prompt "アーキテクチャの制約..."
-   sdd_kiro steering --feature <feature-name>
-   ```
-
-3. **タスク分解**:
-   仕様に基づき、実装タスクをリストアップします。
-   ```bash
-   sdd_kiro tasks --feature <feature-name>
-   ```
-
-4. **Scope定義 (重要)**:
-   生成された `.kiro/specs/<feature-name>/tasks.md` の内容を参考に、プロジェクトルートの `specs/tasks.md` に正式なタスクと**編集権限（Scope）**を定義します。
-   ```markdown
-   # specs/tasks.md
-   * [ ] <feature-name>: 機能の実装 (Scope: `src/features/<feature-name>/**`)
-   ```
-
-#### Phase 2: Implementer - 実装と整合性検証
-許可された範囲内で、仕様に忠実なコードを書きます。
-
-1. **実装モード開始**:
-   ```bash
-   sdd_start_task <feature-name>
-   ```
-   *Gatekeeperが有効化され、Scope外への書き込みがブロックされます。*
-
-2. **コーディング**:
-   `sdd_kiro impl` を使うと、コンテキストがImplementerに切り替わります（オプション）。
-
-3. **ギャップ分析 (Deep Validation)**:
-   実装中、コードが仕様から乖離していないかAIに検証させます。
-   ```bash
-   sdd_validate_gap --kiroSpec <feature-name> --deep
-   sdd_kiro validate-design --feature <feature-name>
-   ```
-   *「仕様にはあるが実装されていない機能」や「仕様にない勝手な実装」を検出します。*
-
-4. **タスク完了**:
-   ```bash
-   sdd_end_task
-   ```
-
-#### Phase 3: Reviewer - 機械的かつ本質的なレビュー
-PRレビューの負荷を下げ、本質的な議論に集中します。
-
-1. **CI検証 (Scope Guard)**:
-   `sdd_ci_runner` が「変更ファイルがScope内か」を機械的に保証します。Vibe Coding（無関係なファイル修正）はCIで落ちます。
-2. **仕様チェック**:
-   PRには `.kiro/specs/` の変更も含めることで、仕様変更とコード変更が同期していることを確認します。
-
-#### 💡 仕様変更が発生した場合 (Feedback Loop)
-実装中に仕様の不備に気づいた場合は、**必ず仕様書から**修正します。
-
-1. `sdd_kiro requirements/design` でMarkdownを更新。
-2. `sdd_validate_gap` でコードとの整合性を再確認。
-3. コードを修正。
-
-このサイクルにより、**「仕様なき実装（Vibe Coding）」** と **「実装なき仕様変更（ドキュメント劣化）」** の両方を防ぎます。
+詳細は **[3. 参考開発フロー](#3-参考開発フローsddサイクル)** を参照してください。
 
 ## 使い方 (Basic Usage)
 
@@ -190,68 +119,119 @@ PRレビューの負荷を下げ、本質的な議論に集中します。
 
 - **Scope**: Globパターンで指定します。複数指定が可能で、定義されたファイル以外への書き込みはブロック（または警告）されます。
 
-### 2. 開発フロー（SDDサイクル）
+### 2. スラッシュコマンド一覧 (推奨)
 
-#### Step 1: タスクを開始する
-作業するタスクのIDを指定して開始します。これにより、編集可能なスコープが制限されます。
+開発フェーズに応じて、以下のスラッシュコマンドを使用して役割（ペルソナ）を切り替えます。
 
+| コマンド | ロール | 説明 |
+|---------|--------|------|
+| `/profile` | **Architect** | 仕様策定・設計フェーズ。要件定義やタスク分解を行います。 |
+| `/impl` | **Implementer** | 実装フェーズ。スコープを厳守し、Vibe Coding を回避しながらコーディングします。 |
+| `/validate` | **Reviewer** | 検証フェーズ。仕様と実装の乖離（Gap）を厳格に分析します。 |
+
+#### 💡 高度な使い方 (Advanced Usage)
+
+スラッシュコマンドは、テキストやファイルを同時に渡すことで、初期コンテキストを効率的に伝えることができます。
+
+- **指示を同時に渡す**:
+  ```bash
+  /profile OAuth2の認証を追加したい
+  ```
+  Architectロールになり、即座にOAuth2の要件定義セッションを開始します。
+
+- **ファイルをコンテキストにする**:
+  ```bash
+  /profile @specs/initial_idea.md
+  ```
+  手持ちのメモや既存のドキュメント（`@ファイル名`）をベースに、仕様策定を開始します。
+
+- **実装指示を渡す**:
+  ```bash
+  /impl @src/auth/login.ts のバリデーションロジックを修正して
+  ```
+  Implementerロールになり、特定のファイルに対する具体的な実装指示を渡せます。
+
+### 3. 参考開発フロー（SDDサイクル）
+
+プロジェクトのフェーズに合わせて、以下の3段階で開発を進めます。
+**アイコンの意味**: 👤 ユーザーが実行 / 🤖 エージェントが自動実行
+
+#### Phase 1: Architect - 仕様策定とタスク分解
+AIと対話しながら「何を作るか」を固め、タスクを定義します。
+
+1. **ロール切替**:
+   ```bash
+   👤 /profile
+   # または
+   👤 /profile OAuth2の実装をしたい
+   ```
+   **Architect ロール**に切り替わります。
+
+2. **仕様策定 (Design)**:
+   対話を通じて仕様書（`.kiro/specs/`）を作成・洗練させます。以下のコマンドはエージェントが必要に応じて裏側で実行します。
+   ```bash
+   🤖 sdd_kiro init --feature <feature-name>
+   🤖 sdd_kiro requirements --feature <feature-name>
+   🤖 sdd_kiro design --feature <feature-name>
+   ```
+
+3. **タスク定義 & Scope設定 (手動)**:
+   仕様が固まったらタスクを定義し、`specs/tasks.md` に **編集権限（Scope）** を記述します。これがGatekeeperの設定となります。
+   ```markdown
+   # specs/tasks.md
+   * [ ] <feature-name>: 機能の実装 (Scope: `src/features/<feature-name>/**`)
+   ```
+
+#### Phase 2: Implementer - 実装
+許可された範囲（Scope）内で、仕様に忠実な実装を行います。
+
+1. **実装モード開始**:
+   ```bash
+   👤 /impl
+   # または
+   👤 /impl @specs/tasks.md Task-1を開始して
+   ```
+   **Implementer ロール**に切り替わります。
+
+2. **タスク開始処理**:
+   ユーザーが`/impl`を実行すると、エージェントは自動的に以下のコマンドを実行してロックを取得します。
+   ```bash
+   🤖 sdd_start_task <feature-name>
+   🤖 sdd_kiro impl --feature <feature-name>
+   ```
+
+3. **コーディング & 検証**:
+   ユーザーが実装の指示を出し、エージェントがコードを書きます。その過程で、エージェントは自律的に検証ツールを使用します。
+   ```bash
+   🤖 sdd_validate_gap --kiroSpec <feature-name> --deep
+   ```
+
+#### Phase 3: Reviewer - 検証と納品
+実装完了後、客観的な視点で検証を行います。
+
+1. **検証モード開始**:
+   ```bash
+   👤 /validate
+   ```
+   **Reviewer ロール**に切り替わります。
+
+2. **厳密な検証 (Validation)**:
+   エージェントは以下のチェックを順次実行し、レポートを提出します。
+   *   🤖 `sdd_validate_gap --deep` (Gap Analysis)
+   *   🤖 `sdd_kiro validate-design` (Design Check)
+
+#### 💡 仕様変更が必要になったら？
+実装中に仕様の不備に気づいた場合、勝手にコードを変える（Vibe Coding）のではなく、**必ず Phase 1 (Architect) に戻って仕様書から修正**してください。これにより「ドキュメントとコードの乖離」を恒久的に防ぎます。
+
+#### Step 4: タスク終了
+全ての検証が完了したらタスクを終了し、ロックを解除します。これだけは **ユーザーが明示的に** 行うのが安全です（またはエージェントに頼んでも構いません）。
 ```bash
-sdd_start_task Task-1
+👤 sdd_end_task
 ```
 
-> **Note (Smart Role Selection):**
-> タスクの説明文（Description）やIDに基づき、適切なロール（Architect または Implementer）が自動的に選択されます。
-> - "設計", "仕様", "Design" 等が含まれる場合 → **Architect**
-> - それ以外（実装タスク等） → **Implementer**
->
-> ロールを手動で指定する場合は `--role` オプションを使用してください。
-> ```bash
-> sdd_start_task Task-1 --role architect
-> ```
+## コマンド一覧 (CLI Tools)
 
-#### Step 2: 実装 (Implementation)
-Gatekeeperが有効化された状態で実装を行います。
-
-> **Note (sdd_start_task vs sdd_kiro impl):**
-> - **`sdd_start_task <id>`**: **必須**。タスクコンテキストを初期化し、Gatekeeper（ファイル監視）を有効化します。
-> - **`sdd_kiro impl`**: **任意**。既存のタスクコンテキスト内で、ロールを `Implementer` に切り替えます。
->
-> **推奨フロー:**
-> ```bash
-> sdd_start_task <feature-name> && sdd_kiro impl --feature <feature-name>
-> ```
-> ※ `sdd_start_task` 単体でもタスクは開始されますが、フェーズを明示したい場合に `impl` を併用します。
-
-`allowedScopes` に含まれるファイルのみを編集してください。
-- **Scope外の編集**: `SDD_GUARD_MODE` が `block` の場合、保存時にエラーとなり拒否されます。`warn` の場合は警告が表示されます。
-
-#### Step 3: 検証する
-実装が仕様と整合しているかを確認します。
-
-```bash
-sdd_validate_gap
-```
-- スコープ外の変更がないかチェック
-- TypeScript のエラー診断（Diagnostics）
-- スコープ内のテスト実行
-- Kiro 仕様書との整合性チェック（後述）
-
-> **Note (Smart Strategy):**
-> 現在のロールが **Architect** の場合、`--deep` オプション（意味的検証）の使用が推奨されます。
-> Implementer の場合は、標準の検証（テスト + Diagnostics）が優先されます。
-
-#### Step 4: タスクを終了する
-作業が完了したらタスクを終了し、スコープ制限を解除します。
-
-```bash
-sdd_end_task
-```
-
-> **Note (Smart Summary):**
-> タスク終了時に、変更されたファイルの一覧（Git diffベース）がサマリーとして表示されます。
-> 作業内容の確認やコミットメッセージの作成に役立ちます。
-
-## コマンド一覧
+エージェントが内部的に使用する、またはユーザーが手動で実行するCLIツール群です。
 
 | コマンド | 説明 |
 |---------|------|
@@ -273,7 +253,7 @@ sdd_end_task
 | `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block）を切り替えます。 |
 | `sdd_force_unlock` | 【非常用】ロック状態を強制解除します。 |
 | `sdd_ci_runner` | CI環境での検証（tasks.md整合性、変更範囲ガード）を実行します。 |
-| `sdd_kiro` | Kiro互換のコマンドエントリーポイント。`init`, `requirements`, `design`, `tasks`, `impl` をサポート。 |
+| `sdd_kiro` | Kiro互換のコマンドエントリーポイント。各機能の詳細は後述。 |
 
 ## ドキュメント / 運用
 
@@ -285,179 +265,19 @@ sdd_end_task
 
 [cc-sdd](https://github.com/gotalab/cc-sdd)（Kiro）と連携し、仕様書（Requirements, Design, Tasks）と実装の整合を確認しやすくします。
 
-### 現状の対応範囲（重要）
-
-- `cc-sdd@2.x` は主に「スラッシュコマンド等の導入・セットアップ」を行うCLIであり、`cc-sdd validate tasks --json` のようなサブコマンド型の検証CLIとしては動作しません。
-- 本プロジェクトの `sdd_validate_gap --kiroSpec <feature>` は、現時点では `.kiro/specs/<feature>/` 配下の主要ファイル存在確認と `tasks.md` のチェックボックス進捗集計を行います。
-  - 仕様内容（REQや設計）とコードの意味的な突き合わせは、将来的な拡張（`--deep`）として段階的に追加していく想定です。
-
 ### セットアップ
-
-Kiro（cc-sdd）をプロジェクトにセットアップします。
 
 ```bash
 npx cc-sdd@latest --claude
 ```
 
-### 仕様書テンプレート生成ツール (sdd_scaffold_specs)
-
-Kiro 形式の仕様書テンプレートを一括生成します。
-
-```bash
-sdd_scaffold_specs --feature <name> [--prompt "指示"] [--overwrite true]
-```
-
-> **Note (Smart Template Selection):**
-> 機能名やプロンプトに含まれるキーワード（例: `api`, `ui`, `db`）に応じて、
-> `design.md` のテンプレート内容（必要なセクション）が自動的に最適化されます。
-
-- **生成ファイル**:
-  - `.kiro/specs/<feature>/requirements.md`: 要件定義
-  - `.kiro/specs/<feature>/design.md`: 基本設計
-  - `.kiro/specs/<feature>/tasks.md`: タスク分解
-
-- **引数**:
-  - `--feature` (必須): 機能名。英数字記号 `^[A-Za-z][A-Za-z0-9._-]*$` のみ使用可能。
-  - `--prompt` (任意): 生成時の追加指示（コンテキスト）。
-  - `--overwrite` (任意): 既存ファイルを上書きする場合 `true` を指定。
-
-- **使用例**:
-  ```bash
-  # 基本的な生成
-  sdd_scaffold_specs --feature auth-flow
-
-  # 指示を与えて生成
-  sdd_scaffold_specs --feature payment --prompt "Stripeを使用した決済フロー"
-
-  # 強制上書き
-  sdd_scaffold_specs --feature auth-flow --overwrite true
-  ```
-
-### タスク雛形生成ツール (sdd_generate_tasks)
-
-Kiro 仕様書（Requirements, Design）に基づき、タスク定義ファイル (`tasks.md`) の雛形を生成します。
-
-```bash
-sdd_generate_tasks --feature <name> [--overwrite true]
-```
-
-- **前提条件**:
-  - `.kiro/specs/<feature>/requirements.md` および `design.md` が存在すること。
-
-- **生成ファイル**:
-  - `.kiro/specs/<feature>/tasks.md`: タスクリストの雛形
-
-- **引数**:
-  - `--feature` (必須): 対象の機能名。
-  - `--overwrite` (任意): 既存の `tasks.md` を上書きする場合 `true` を指定。
-
-- **sdd_scaffold_specs との違い**:
-  - `sdd_scaffold_specs`: 仕様書セット全体の構造と空ファイルを初期化します。
-  - `sdd_generate_tasks`: 既存の要件・設計ファイルからタスクリストのテンプレートを生成します。
-
-- **使用例**:
-  ```bash
-  # tasks.md の生成
-  sdd_generate_tasks --feature auth-flow
-
-  # 強制上書き
-  sdd_generate_tasks --feature auth-flow --overwrite true
-  ```
-
-### 統合コマンド (sdd_kiro)
-
-Kiro（cc-sdd）互換のコマンドエントリーポイントです。実行するサブコマンドに応じて、適切なロール（Architect または Implementer）へ自動的に切り替えて実行します。
-
-```bash
-sdd_kiro <command> --feature <name> [--prompt "指示"] [--promptFile "path/to/file"] [--overwrite true]
-```
-
-- **command** (必須): 実行するKiroコマンドを指定します。
-  - `init`: 仕様書（Requirements/Design/Tasks）の雛形を生成します。内部的に `sdd_scaffold_specs` を呼び出します。
-  - `requirements`: 要件定義ファイル (`requirements.md`) を生成・更新します。
-  - `design`: 基本設計ファイル (`design.md`) を生成・更新します。
-  - `tasks`: 要件・設計に基づきタスク定義 (`tasks.md`) を生成します。内部的に `sdd_generate_tasks` を呼び出します。
-  - `steering`: 仕様書（Requirements/Design）とタスク定義（Tasks）の整合性を分析し、修正案を提示します。
-  - `profile`: 仕様初期化用のArchitectペルソナプロンプトを表示します。
-  - `validate-design`: 実装コードが設計書（Design）のアーキテクチャや制約に従っているかを検証します。
-  - `impl`: 実装フェーズに移行します（ロールを Implementer に切り替えます）。
-    - **注意**: このコマンドは `sdd_start_task` を内部で呼び出し **ません**。
-    - Gatekeeperを有効にするには、先に `sdd_start_task` を実行する必要があります。
-    - タスク未開始状態で実行しても、状態（State）は変更されません。
-
-- **引数**:
-  - `--feature` (必須): 対象の機能名。
-  - `--prompt` (任意): `init`, `requirements`, `design` 時の追加指示や詳細内容。
-  - `--promptFile` (任意): プロンプトとして読み込むファイルのパス。
-  - `--overwrite` (任意): 既存ファイルを上書きする場合 `true` を指定。
-
-- **使用例**:
-  ```bash
-  # Step 0: アーキテクト用プロンプトを表示
-  sdd_kiro profile
-
-  # Step 1: プロジェクトの初期化（Architectロールへ自動切替）
-  sdd_kiro init --feature auth-flow
-
-  # Step 2: 要件定義の作成
-  sdd_kiro requirements --feature auth-flow --prompt "JWTを使用した認証フロー"
-
-  # Step 3: 実装フェーズへ移行（Implementerロールへ自動切替）
-  sdd_kiro impl --feature auth-flow
-  ```
-
 ### 仕様駆動ワークフロー
 
-#### Step 1: 仕様の作成
-`cc-sdd` のAIコマンドを使用して、`.kiro/specs/<feature-name>/` 配下に仕様を生成します。
+詳細は **[3. 参考開発フロー](#3-参考開発フローsddサイクル)** を参照してください。
 
-**sdd_kiro コマンド（推奨）:**
-ネイティブ実装された `sdd_kiro` を使用することで、ロールの自動切り替えやSDDツールとの連携がスムーズに行われます。
+### sdd_kiro コマンドリファレンス
 
-```bash
-# プロジェクト初期化 (Architectロールへ自動切替)
-sdd_kiro init --feature <feature-name> [--prompt "指示"]
-
-# 要件定義・設計の作成
-sdd_kiro requirements --feature <feature-name> [--prompt "指示"]
-sdd_kiro design --feature <feature-name> [--prompt "指示"]
-
-# 仕様とタスクの整合性分析
-sdd_kiro steering --feature <feature-name>
-
-# タスク生成 (Architectロールへ自動切替)
-sdd_kiro tasks --feature <feature-name>
-
-# 実装フェーズへ移行 (Implementerロールへ自動切替)
-sdd_kiro impl --feature <feature-name>
-
-# 設計整合性の検証
-sdd_kiro validate-design --feature <feature-name>
-```
-
-**cc-sdd コマンド（従来）:**
-```text
-/kiro:spec-init <feature-name>       # 仕様ディレクトリの初期化
-/kiro:spec-requirements <feature-name> # 要件定義 (requirements.md)
-/kiro:spec-design <feature-name> -y    # 設計 (design.md)
-/kiro:spec-tasks <feature-name> -y     # タスク分解 (tasks.md)
-```
-
-#### Step 2: SDDタスクとの同期
-`sdd_start_task` で使用するタスクIDを、Kiroの仕様名（`<feature-name>`）と一致させると便利です。
-あるいは、Kiroが生成した `tasks.md` の内容をプロジェクトルートの `specs/tasks.md` に転記し、Scopeを追記します。
-
-#### Step 3: ギャップ分析（Deep Analysis）
-実装中、仕様との乖離がないかを深く分析します。
-
-```bash
-sdd_validate_gap --kiroSpec <feature-name> --deep
-sdd_kiro validate-design --feature <feature-name>
-```
-
-**`--deep` オプションの効果:**
-- （開発中）**構造的分析**: 要件（REQ-XXX）の網羅状況、設計で定義されたコンポーネントの実装状況のチェックを追加予定です。
-- （開発中）**意味的分析**: LLM用のプロンプト生成やEmbeddings等を用いた意味的検証を追加予定です。
+`sdd_kiro` は以下のサブコマンドをサポートします。通常はスラッシュコマンド経由でAgentが実行しますが、手動実行も可能です。
 
 ### 意味的検証 (Semantic Verification)
 

@@ -25,7 +25,7 @@ function validateFeatureName(feature: string, baseDir: string) {
   }
 
   const resolvedPath = path.resolve(baseDir, feature);
-  
+
   if (!resolvedPath.startsWith(baseDir)) {
     throw new Error('無効な機能名: パストラバーサルが検出されました');
   }
@@ -54,7 +54,7 @@ export default tool({
       }
 
       const resolvedPromptFile = path.resolve(projectRoot, promptFile);
-      
+
       // パストラバーサル対策: プロジェクトルート外へのアクセスを禁止
       // 1. プロジェクトルートとの相対パスをチェック（基本的なトラバーサル検出）
       const rel = path.relative(projectRoot, resolvedPromptFile);
@@ -79,7 +79,7 @@ export default tool({
         const realPath = fs.realpathSync(resolvedPromptFile);
         const realRel = path.relative(projectRoot, realPath);
         if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
-           return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
+          return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
         }
 
         const fileContent = fs.readFileSync(realPath, 'utf-8');
@@ -128,7 +128,7 @@ export default tool({
           }
           return `利用可能なステアリングドキュメント:\n${docs.map(d => `- ${d}`).join('\n')}`;
         }
-        
+
         const content = finalPrompt || `# ${feature}\n\n詳細をここに記述してください。`;
         if (updateSteeringDoc(feature, content)) {
           return `✅ ステアリングドキュメント '${feature}' を更新しました。`;
@@ -140,7 +140,7 @@ export default tool({
       case 'init':
         if (!feature) return 'エラー: feature は必須です';
         return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
-      
+
       case 'tasks':
         if (!feature) return 'エラー: feature は必須です';
         return await generateTasks.execute({ feature, overwrite }, context);
@@ -179,9 +179,35 @@ export default tool({
         return await validateDesign.execute({ feature }, context);
 
       case 'profile': {
-        const profilePath = path.resolve('.opencode/prompts/sdd-architect-init.md');
+        // 優先順位:
+        // 1. カレントディレクトリの .opencode/prompts/profile.md (ユーザーによる上書き/ローカル開発)
+        // 2. パッケージ内の .opencode/prompts/profile.md (npmパッケージとしてインストール時)
+
+        const localPath = path.resolve('.opencode/prompts/profile.md');
+
+        // npmパッケージとして実行されている場合のパス解決
+        // dist/tools/sdd_kiro.js から見て、../../.opencode/prompts/profile.md
+        // 注意: __dirname は ESM では使えない場合があるため、import.meta.url を使うか、バンドルツールの挙動に依存
+        // ここでは単純化のため、見つかるまで探す戦略をとる
+
+        let profilePath = localPath;
         if (!fs.existsSync(profilePath)) {
-          return 'エラー: プロファイルファイルが見つかりません。';
+          // パッケージ内部のパスを探す
+          // Note: 実行環境がローカルかnpmかでパスが変わる可能性があるため、柔軟に解決
+          // node_modules/@yohi/omo-sdd-hybrid/.opencode/prompts/profile.md
+          try {
+            const pkgRoot = path.resolve(__dirname, '../../');
+            const pkgPath = path.join(pkgRoot, '.opencode/prompts/profile.md');
+            if (fs.existsSync(pkgPath)) {
+              profilePath = pkgPath;
+            }
+          } catch (e) {
+            // __dirname アクセスエラー等の場合
+          }
+        }
+
+        if (!fs.existsSync(profilePath)) {
+          return 'エラー: プロファイルファイルが見つかりません: .opencode/prompts/profile.md';
         }
 
         let profileContent: string;
@@ -190,7 +216,7 @@ export default tool({
         } catch (error: any) {
           return `エラー: プロファイルの読み込みに失敗しました: ${error.message}`;
         }
-        
+
         if (finalPrompt) {
           return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}`;
         }
