@@ -114,4 +114,46 @@ describe('sdd_kiro', () => {
       expect(result).toContain(expected);
     }
   });
+
+  it('profileコマンドでプロファイルファイルの内容を返す（パス解決テスト）', async () => {
+    // モック用のプロファイルファイルを作成
+    const profileDir = path.join(tmpDir, '.opencode', 'prompts');
+    fs.mkdirSync(profileDir, { recursive: true });
+    const profilePath = path.join(profileDir, 'profile.md');
+    const profileContent = '# Test Profile Content';
+    fs.writeFileSync(profilePath, profileContent);
+
+    // テスト実行環境のカレントディレクトリをモックの一時ディレクトリにする必要があるが、
+    // sdd_kiro.tsの実装では process.cwd() または import.meta.url から探索する。
+    // ここではテストハーネスが OMO_HOME を設定しているが、sdd_kiro はそれを使っていない可能性がある。
+    // しかし、今回のパス解決ロジック（currentFileから遡る）をテストするには、
+    // 実際にファイルが存在するディレクトリ構造を再現する必要がある。
+    
+    // sdd_kiro.ts が .opencode/prompts/profile.md を探すロジックは:
+    // 1. .opencode/tools/sdd_kiro.ts (実行ファイル) の場所から親を辿る
+    // 2. process.cwd()/.opencode/prompts/profile.md (ローカルパス) を見る
+
+    // ユニットテスト環境では import.meta.url はテストファイル自身などを指すため、
+    // バンドル後のパス解決ロジックを完全再現するのは難しい。
+    // ただし、「ローカルパス（process.cwd()）」での解決はテスト可能。
+    
+    // 現在のプロセスCWDを一時的に変更する
+    const originalCwd = process.cwd();
+    try {
+      // tmpDir (モックのプロジェクトルート) に移動
+      process.chdir(tmpDir);
+      
+      const result = await runTool({ command: 'profile' });
+      expect(result).toContain(profileContent);
+      
+      // promptを追加した場合
+      const resultWithPrompt = await runTool({ command: 'profile', prompt: 'Additional Context' });
+      expect(resultWithPrompt).toContain(profileContent);
+      expect(resultWithPrompt).toContain('Additional Context');
+      
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
 });
