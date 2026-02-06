@@ -136,6 +136,22 @@ Uses the `picomatch` library.
 - `src/**`: Allows all files under `src`.
 - `specs/tasks.md`: Allows only a specific file.
 
+## 9. TROUBLESHOOTING FOR AGENTS
+
+### "ELOCKED" Error
+- **Situation**: A `Failed to acquire lock` error occurs during test or tool execution.
+- **Cause**: A previous process crashed, leaving a residual lock file (`.opencode/state/.lock`).
+- **Resolution**:
+  1.  Run `sdd_force_unlock` to release the lock.
+  2.  Check for missing cleanup in `afterEach` within the test code.
+
+### "Scope Denied" Error
+- **Situation**: Blocked by the Gatekeeper during code editing.
+- **Resolution**:
+  1.  Check the current scope with `sdd_show_context`.
+  2.  If necessary, correct the Scope definition in `specs/tasks.md`.
+  3.  To reflect changes, run `sdd_end_task` once, then run `sdd_start_task` again.
+
 ## 10. CI/CD & RELEASE PROCESS
 
 ### Pipeline Overview
