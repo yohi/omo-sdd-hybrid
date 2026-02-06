@@ -74,7 +74,7 @@ describe('SddGatekeeper Entry Point', () => {
     await expect(handler(event), '無効なfilesでエラーになること').rejects.toThrow('INVALID_ARGUMENTS');
   });
 
-  test('blocks implementer writing to .kiro/tasks.md via entry point', async () => {
+  test('blocks implementer writing to .kiro/requirements.md via entry point', async () => {
     const implementerState = {
       status: 'ok',
       state: {
