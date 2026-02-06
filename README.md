@@ -218,7 +218,7 @@ AIと対話しながら「何を作るか」を固め、タスクを定義しま
 2. **厳密な検証 (Validation)**:
    エージェントは以下のチェックを順次実行し、レポートを提出します。
    *   🤖 `sdd_validate_gap --deep` (Gap Analysis)
-   *   🤖 `sdd_kiro validate-design` (Design Check)
+   *   🤖 `sdd_kiro validate-design --feature <feature-name>` (Design Check)
 
 #### 💡 仕様変更が必要になったら？
 実装中に仕様の不備に気づいた場合、勝手にコードを変える（Vibe Coding）のではなく、**必ず Phase 1 (Architect) に戻って仕様書から修正**してください。これにより「ドキュメントとコードの乖離」を恒久的に防ぎます。
