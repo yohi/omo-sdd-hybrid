@@ -39,13 +39,20 @@ bun test __tests__/tools/sdd_start_task.test.ts
 bun test:seq
 ```
 
+### Build
+```bash
+# Build the plugin (outputs to dist/)
+bun run build
+```
+
 ### Lint / Format
 There is no explicit Lint command, but please follow the existing code style (Prettier-compliant).
 
 ## 3. CODE STYLE GUIDELINES
 
 ### Language & naming
-- **Code**: TypeScript (Strict mode)
+- **Code**: TypeScript
+  - **Note**: `tsconfig.json` has `"strict": false` for flexibility, but you MUST aim for type safety. Avoid `any`.
 - **Comments/Docs**: **ALL JAPANESE** (Required).
   - **Reason**: To maximize readability for the development team and users (assumed to be in Japan).
   - **Exception 1**: Variable and function names must be in English (camelCase).
@@ -77,6 +84,10 @@ There is no explicit Lint command, but please follow the existing code style (Pr
 - **No Binaries**: Do not include binary dependencies. Complete implementation using pure TypeScript/JavaScript.
 - **Idempotency**: Maintain idempotency as much as possible.
 
+### Path Resolution Strategy
+- **Hybrid Support**: Tools may run from `dist/` (npm package) or `.opencode/tools/` (local dev).
+- **Robustness**: Do not rely solely on relative paths like `../../`. Use intelligent lookup strategies to find assets (like `.opencode/prompts/`) by traversing up from `import.meta.url` or `process.cwd()`.
+
 ### Plugin Implementation (`.opencode/plugins/`)
 - **Performance**: Keep processing lightweight as it hooks into every tool execution.
 - **Fail Closed**: Security-related checks (Gatekeeper) must "Deny (Exception)" if they fail, rather than "Allow."
@@ -95,7 +106,7 @@ There is no explicit Lint command, but please follow the existing code style (Pr
 - **[FORBIDDEN]** Implementing core plugin functionality within code logic under `src/` (Reverse dependency).
 - **[FORBIDDEN]** Leaving `console.log` in the library layer (`lib/`). Use the `logger` module or leave it to the caller (tool layer).
 - **[FORBIDDEN]** English commit messages. Always write them in Japanese.
-- **[FORBIDDEN]** Overuse of `as any`. Maintain strict type safety.
+- **[FORBIDDEN]** Overuse of `as any`. Maintain strict type safety despite loose config.
 
 ## 7. AI AGENT BEHAVIOR
 - **Response Language**: Responses to users must be in **Japanese**.
@@ -125,18 +136,21 @@ Uses the `picomatch` library.
 - `src/**`: Allows all files under `src`.
 - `specs/tasks.md`: Allows only a specific file.
 
-## 9. TROUBLESHOOTING FOR AGENTS
+## 10. CI/CD & RELEASE PROCESS
 
-### "ELOCKED" Error
-- **Situation**: A `Failed to acquire lock` error occurs during test or tool execution.
-- **Cause**: A previous process crashed, leaving a residual lock file (`.opencode/state/.lock`).
-- **Resolution**:
-  1.  Run `sdd_force_unlock` to release the lock.
-  2.  Check for missing cleanup in `afterEach` within the test code.
+### Pipeline Overview
+- **Platform**: GitHub Actions
+- **Registry**: GitHub Packages (`npm.pkg.github.com`)
+- **Scope**: `@yohi`
 
-### "Scope Denied" Error
-- **Situation**: Blocked by the Gatekeeper during code editing.
-- **Resolution**:
-  1.  Check the current scope with `sdd_show_context`.
-  2.  If necessary, correct the Scope definition in `specs/tasks.md`.
-  3.  To reflect changes, run `sdd_end_task` once, then run `sdd_start_task` again.
+### Release Workflow
+The release process is **fully automated**.
+1.  **Trigger**: Push to `master` branch.
+2.  **Build**: `bun run build` is executed.
+3.  **Versioning**: The CI workflow **automatically increments the patch version** (e.g., 0.0.1 -> 0.0.2) based on the latest version in the registry.
+4.  **Publish**: The package is published to GitHub Packages.
+
+### Agent Rules
+- **[FORBIDDEN] Manual Version Bump**: Do NOT modify `version` in `package.json`. It is overwritten by CI.
+- **[FORBIDDEN] Manual Publish**: Do NOT run `npm publish` locally.
+- **[REQUIRED] CI Check**: Ensure `ci.yml` (tests) passes before merging to `master`.

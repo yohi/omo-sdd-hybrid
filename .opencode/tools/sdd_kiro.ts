@@ -189,13 +189,34 @@ export default tool({
 
         // npmパッケージとして実行されている場合のパス解決
         // dist/tools/sdd_kiro.js から見て、../../.opencode/prompts/profile.md
+        // または、バンドル構成によって位置が変わる可能性があるため、上層を探索する
         if (!fs.existsSync(profilePath)) {
           try {
-            const currentDir = path.dirname(fileURLToPath(import.meta.url));
-            const pkgRoot = path.resolve(currentDir, '../../');
-            const pkgPath = path.join(pkgRoot, '.opencode/prompts/profile.md');
-            if (fs.existsSync(pkgPath)) {
-              profilePath = pkgPath;
+            const currentFile = fileURLToPath(import.meta.url);
+            let searchDir = path.dirname(currentFile);
+            const root = path.parse(searchDir).root;
+
+            // 最大5階層、またはルートに到達するまで探索
+            for (let i = 0; i < 5; i++) {
+              const candidate = path.join(searchDir, '.opencode/prompts/profile.md');
+              if (fs.existsSync(candidate)) {
+                profilePath = candidate;
+                break;
+              }
+              
+              // .opencodeディレクトリ自体を探して、その中のpromptsを見る
+              const opencodeDir = path.join(searchDir, '.opencode');
+              if (fs.existsSync(opencodeDir) && fs.statSync(opencodeDir).isDirectory()) {
+                 const p = path.join(opencodeDir, 'prompts/profile.md');
+                 if (fs.existsSync(p)) {
+                   profilePath = p;
+                   break;
+                 }
+              }
+
+              const parent = path.dirname(searchDir);
+              if (parent === searchDir || parent === root) break;
+              searchDir = parent;
             }
           } catch (e) {
             // import.meta.url アクセスエラー等の場合
