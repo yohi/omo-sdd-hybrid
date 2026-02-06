@@ -12,6 +12,40 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
+  "contributes": {
+    "slashCommands": [
+      {
+        "command": "profile",
+        "description": "Architect role: Specification & Design",
+        "tool": {
+          "name": "sdd_kiro",
+          "parameters": {
+            "command": "profile"
+          }
+        }
+      },
+      {
+        "command": "impl",
+        "description": "Implementer role: Coding & Implementation",
+        "tool": {
+          "name": "sdd_kiro",
+          "parameters": {
+            "command": "impl"
+          }
+        }
+      },
+      {
+        "command": "validate",
+        "description": "Reviewer role: Validation & QA",
+        "tool": {
+          "name": "sdd_kiro",
+          "parameters": {
+            "command": "validate-design"
+          }
+        }
+      }
+    ]
+  },
   "scripts": {
     "build": "tsup .opencode/index.ts .opencode/tools/*.ts --format esm,cjs --out-dir dist --clean --splitting",
     "prepublishOnly": "bun run build",

@@ -2,6 +2,7 @@ import type { Hooks, Plugin } from './lib/plugin-stub.js';
 import gatekeeper from './plugins/sdd-gatekeeper.js';
 import contextInjector from './plugins/sdd-context-injector.js';
 import feedbackLoop from './plugins/sdd-feedback-loop.js';
+import tools from './tools/index.js';
 
 type EventHook = NonNullable<Hooks['event']>;
 type ConfigHook = NonNullable<Hooks['config']>;
@@ -105,6 +106,7 @@ const plugin: Plugin = async (options) => {
     { name: 'sdd-gatekeeper', hooks: results[0] },
     { name: 'sdd-context-injector', hooks: results[1] },
     { name: 'sdd-feedback-loop', hooks: results[2] },
+    { name: 'sdd-tools', hooks: { tool: tools } },
   ];
 
   return mergeHooks(hooksList);
