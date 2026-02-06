@@ -3,6 +3,7 @@ import { readState, writeState } from '../lib/state-utils';
 import { updateSteeringDoc, listSteeringDocs } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 // 既存のツール実装をインポート（内部的に execute を呼ぶため）
 import scaffoldSpecs from './sdd_scaffold_specs';
@@ -196,13 +197,14 @@ export default tool({
           // Note: 実行環境がローカルかnpmかでパスが変わる可能性があるため、柔軟に解決
           // node_modules/@yohi/omo-sdd-hybrid/.opencode/prompts/profile.md
           try {
-            const pkgRoot = path.resolve(__dirname, '../../');
+            const currentDir = path.dirname(fileURLToPath(import.meta.url));
+            const pkgRoot = path.resolve(currentDir, '../../');
             const pkgPath = path.join(pkgRoot, '.opencode/prompts/profile.md');
             if (fs.existsSync(pkgPath)) {
               profilePath = pkgPath;
             }
           } catch (e) {
-            // __dirname アクセスエラー等の場合
+            // import.meta.url アクセスエラー等の場合
           }
         }
 
