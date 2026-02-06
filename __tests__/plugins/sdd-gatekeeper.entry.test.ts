@@ -31,7 +31,7 @@ describe('SddGatekeeper Entry Point', () => {
     if (!handler) {
       throw new Error('Handler not found');
     }
-    
+
     const event = {
       tool: {
         name: 'edit',
@@ -53,7 +53,7 @@ describe('SddGatekeeper Entry Point', () => {
   test('handles multiedit with invalid files arg via entry point', async () => {
     const mockReadState = mock(() => Promise.resolve(mockStateResult as any));
     const mockReadGuardModeState = mock(() => Promise.resolve(null));
-    
+
     const plugin = await SddGatekeeper({
       client: {} as any,
       __testDeps: { readState: mockReadState, readGuardModeState: mockReadGuardModeState }
@@ -74,7 +74,7 @@ describe('SddGatekeeper Entry Point', () => {
     await expect(handler(event), '無効なfilesでエラーになること').rejects.toThrow('INVALID_ARGUMENTS');
   });
 
-  test('blocks implementer writing to .kiro/tasks.md via entry point', async () => {
+  test('blocks implementer writing to .kiro/requirements.md via entry point', async () => {
     const implementerState = {
       status: 'ok',
       state: {
@@ -105,7 +105,7 @@ describe('SddGatekeeper Entry Point', () => {
       tool: {
         name: 'edit',
         args: {
-          filePath: '.kiro/tasks.md'
+          filePath: '.kiro/requirements.md'
         }
       }
     };

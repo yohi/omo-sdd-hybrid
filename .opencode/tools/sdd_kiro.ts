@@ -3,6 +3,7 @@ import { readState, writeState } from '../lib/state-utils';
 import { updateSteeringDoc, listSteeringDocs } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 // 既存のツール実装をインポート（内部的に execute を呼ぶため）
 import scaffoldSpecs from './sdd_scaffold_specs';
@@ -25,7 +26,7 @@ function validateFeatureName(feature: string, baseDir: string) {
   }
 
   const resolvedPath = path.resolve(baseDir, feature);
-  
+
   if (!resolvedPath.startsWith(baseDir)) {
     throw new Error('無効な機能名: パストラバーサルが検出されました');
   }
@@ -54,7 +55,7 @@ export default tool({
       }
 
       const resolvedPromptFile = path.resolve(projectRoot, promptFile);
-      
+
       // パストラバーサル対策: プロジェクトルート外へのアクセスを禁止
       // 1. プロジェクトルートとの相対パスをチェック（基本的なトラバーサル検出）
       const rel = path.relative(projectRoot, resolvedPromptFile);
@@ -79,7 +80,7 @@ export default tool({
         const realPath = fs.realpathSync(resolvedPromptFile);
         const realRel = path.relative(projectRoot, realPath);
         if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
-           return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
+          return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${promptFile}`;
         }
 
         const fileContent = fs.readFileSync(realPath, 'utf-8');
@@ -128,7 +129,7 @@ export default tool({
           }
           return `利用可能なステアリングドキュメント:\n${docs.map(d => `- ${d}`).join('\n')}`;
         }
-        
+
         const content = finalPrompt || `# ${feature}\n\n詳細をここに記述してください。`;
         if (updateSteeringDoc(feature, content)) {
           return `✅ ステアリングドキュメント '${feature}' を更新しました。`;
@@ -140,7 +141,7 @@ export default tool({
       case 'init':
         if (!feature) return 'エラー: feature は必須です';
         return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
-      
+
       case 'tasks':
         if (!feature) return 'エラー: feature は必須です';
         return await generateTasks.execute({ feature, overwrite }, context);
@@ -179,9 +180,48 @@ export default tool({
         return await validateDesign.execute({ feature }, context);
 
       case 'profile': {
-        const profilePath = path.resolve('.opencode/prompts/sdd-architect-init.md');
+        // 優先順位:
+        // 1. カレントディレクトリの .opencode/prompts/profile.md (ユーザーによる上書き/ローカル開発)
+        // 2. パッケージ内の .opencode/prompts/profile.md (npmパッケージとしてインストール時)
+
+        const localPath = path.resolve('.opencode/prompts/profile.md');
+        let profilePath = localPath;
+
+        // npmパッケージとして実行されている場合のパス解決
+        // dist/tools/sdd_kiro.js から見て、../../.opencode/prompts/profile.md
         if (!fs.existsSync(profilePath)) {
-          return 'エラー: プロファイルファイルが見つかりません。';
+          try {
+            const currentDir = path.dirname(fileURLToPath(import.meta.url));
+            const pkgRoot = path.resolve(currentDir, '../../');
+            const pkgPath = path.join(pkgRoot, '.opencode/prompts/profile.md');
+            if (fs.existsSync(pkgPath)) {
+              profilePath = pkgPath;
+            }
+          } catch (e) {
+            // import.meta.url アクセスエラー等の場合
+          }
+        }
+
+        if (!fs.existsSync(profilePath)) {
+          return 'エラー: プロファイルファイルが見つかりません: .opencode/prompts/profile.md';
+        }
+
+        try {
+          const projectRoot = fs.realpathSync(process.cwd());
+          const stats = fs.lstatSync(profilePath);
+          if (stats.isSymbolicLink()) {
+            return `エラー: シンボリックリンクは許可されていません: ${profilePath}`;
+          }
+
+          const realPath = fs.realpathSync(profilePath);
+          const realRel = path.relative(projectRoot, realPath);
+
+          if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+            return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${profilePath}`;
+          }
+          profilePath = realPath;
+        } catch (error: any) {
+          return `エラー: プロファイルのパス検証に失敗しました: ${error.message}`;
         }
 
         let profileContent: string;
@@ -190,7 +230,7 @@ export default tool({
         } catch (error: any) {
           return `エラー: プロファイルの読み込みに失敗しました: ${error.message}`;
         }
-        
+
         if (finalPrompt) {
           return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}`;
         }
