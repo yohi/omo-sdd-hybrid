@@ -185,17 +185,11 @@ export default tool({
         // 2. パッケージ内の .opencode/prompts/profile.md (npmパッケージとしてインストール時)
 
         const localPath = path.resolve('.opencode/prompts/profile.md');
+        let profilePath = localPath;
 
         // npmパッケージとして実行されている場合のパス解決
         // dist/tools/sdd_kiro.js から見て、../../.opencode/prompts/profile.md
-        // 注意: __dirname は ESM では使えない場合があるため、import.meta.url を使うか、バンドルツールの挙動に依存
-        // ここでは単純化のため、見つかるまで探す戦略をとる
-
-        let profilePath = localPath;
         if (!fs.existsSync(profilePath)) {
-          // パッケージ内部のパスを探す
-          // Note: 実行環境がローカルかnpmかでパスが変わる可能性があるため、柔軟に解決
-          // node_modules/@yohi/omo-sdd-hybrid/.opencode/prompts/profile.md
           try {
             const currentDir = path.dirname(fileURLToPath(import.meta.url));
             const pkgRoot = path.resolve(currentDir, '../../');
@@ -210,6 +204,24 @@ export default tool({
 
         if (!fs.existsSync(profilePath)) {
           return 'エラー: プロファイルファイルが見つかりません: .opencode/prompts/profile.md';
+        }
+
+        try {
+          const projectRoot = fs.realpathSync(process.cwd());
+          const stats = fs.lstatSync(profilePath);
+          if (stats.isSymbolicLink()) {
+            return `エラー: シンボリックリンクは許可されていません: ${profilePath}`;
+          }
+
+          const realPath = fs.realpathSync(profilePath);
+          const realRel = path.relative(projectRoot, realPath);
+
+          if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+            return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${profilePath}`;
+          }
+          profilePath = realPath;
+        } catch (error: any) {
+          return `エラー: プロファイルのパス検証に失敗しました: ${error.message}`;
         }
 
         let profileContent: string;

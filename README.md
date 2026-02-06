@@ -217,7 +217,7 @@ AIと対話しながら「何を作るか」を固め、タスクを定義しま
 
 2. **厳密な検証 (Validation)**:
    エージェントは以下のチェックを順次実行し、レポートを提出します。
-   *   🤖 `sdd_validate_gap --deep` (Gap Analysis)
+   *   🤖 `sdd_validate_gap --kiroSpec <feature-name> --deep` (Gap Analysis)
    *   🤖 `sdd_kiro validate-design --feature <feature-name>` (Design Check)
 
 #### 💡 仕様変更が必要になったら？

@@ -21,7 +21,6 @@
   "files": [
     "dist",
     ".opencode",
-    "opencode.jsonc",
     "README.md"
   ],
   "main": "./dist/index.js",
