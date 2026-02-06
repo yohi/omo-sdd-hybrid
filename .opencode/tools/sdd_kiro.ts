@@ -207,11 +207,11 @@ export default tool({
               // .opencodeディレクトリ自体を探して、その中のpromptsを見る
               const opencodeDir = path.join(searchDir, '.opencode');
               if (fs.existsSync(opencodeDir) && fs.statSync(opencodeDir).isDirectory()) {
-                 const p = path.join(opencodeDir, 'prompts/profile.md');
-                 if (fs.existsSync(p)) {
-                   profilePath = p;
-                   break;
-                 }
+                const p = path.join(opencodeDir, 'prompts/profile.md');
+                if (fs.existsSync(p)) {
+                  profilePath = p;
+                  break;
+                }
               }
 
               const parent = path.dirname(searchDir);
