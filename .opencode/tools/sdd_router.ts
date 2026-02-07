@@ -1,5 +1,5 @@
-import { tool } from "../../.opencode/lib/plugin-stub.js";
-import { getAllBuiltinCommands, getBuiltinCommand } from "../features/builtin-commands/index.js";
+import { tool } from "../lib/plugin-stub.js";
+import { getAllBuiltinCommands, getBuiltinCommand } from "../../src/features/builtin-commands/index.js";
 
 // ツール説明文を動的に生成（モデルにコマンド一覧を教えるため）
 const commandsList = getAllBuiltinCommands()
@@ -37,3 +37,5 @@ ${content}
     `;
     },
 });
+
+export default sddRouterTool;
