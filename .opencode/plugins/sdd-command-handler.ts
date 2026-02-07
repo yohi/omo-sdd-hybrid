@@ -18,10 +18,10 @@ const SddCommandHandler: Plugin = async () => {
                     `Please call the tool 'sdd_kiro' with arguments: { command: '${action}', feature: '${args || "unknown"}' }.\n` +
                     `If 'feature' is missing and required for '${action}', ask the user for it.`;
 
-                // Inject the prompt as a system message or user message part
+                // システムメッセージまたはユーザーメッセージパートとしてプロンプトを注入
                 // 'command.execute.before' では完全なツール呼び出しを直接注入することは難しいが、
-                // but we can substitute the user's input with a clear instruction.
-                // However, 'output.parts' expects Part[].
+                // ユーザーの入力を明確な指示に置き換えることができる。
+                // ただし、'output.parts' は Part[] を期待している。
 
                 output.parts.push({
                     id: crypto.randomUUID(),
