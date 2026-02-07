@@ -29,7 +29,7 @@ const SddCommandHandler: Plugin = async () => {
                     messageID: crypto.randomUUID(), // Placeholder
                     type: 'text',
                     text: prompt,
-                    // active: true // implied
+                    // active: true // 暗黙的に true
                 });
             }
         },
