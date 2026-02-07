@@ -37,7 +37,7 @@ function validateFeatureName(feature: string, baseDir: string) {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'profile']).describe('実行するKiroコマンド'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'validate', 'profile']).describe('実行するKiroコマンド'),
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
@@ -176,6 +176,7 @@ export default tool({
         return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}`;
 
       case 'validate-design':
+      case 'validate':
         if (!feature) return 'エラー: feature は必須です';
         return await validateDesign.execute({ feature }, context);
 
