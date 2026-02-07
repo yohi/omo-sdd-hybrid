@@ -12,7 +12,7 @@ const SddCommandHandler: Plugin = async () => {
             };
 
             if (command in mapping) {
-                // Construct a prompt that instructs the model to call the appropriate tool
+                // モデルに適切なツールを呼び出すよう指示するプロンプトを構築
                 const action = mapping[command];
                 const prompt = `User executed command '/${command} ${args}'.\n` +
                     `Please call the tool 'sdd_kiro' with arguments: { command: '${action}', feature: '${args || "unknown"}' }.\n` +
