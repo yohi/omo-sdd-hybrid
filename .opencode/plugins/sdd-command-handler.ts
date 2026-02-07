@@ -28,6 +28,7 @@ const SddCommandHandler: Plugin = async (ctx) => {
                             body: { message: usage, variant: 'error', duration: 4000 }
                         }).catch(console.warn);
                     }
+                    message.content = '';
                     return;
                 }
                 if (cmd === '/sdd' && args.length < 2) {
@@ -37,6 +38,7 @@ const SddCommandHandler: Plugin = async (ctx) => {
                             body: { message: usage, variant: 'error', duration: 4000 }
                         }).catch(console.warn);
                     }
+                    message.content = '';
                     return;
                 }
 
