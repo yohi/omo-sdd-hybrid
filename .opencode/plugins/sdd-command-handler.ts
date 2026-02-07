@@ -9,28 +9,28 @@ const SddCommandHandler: Plugin = async () => {
             const mapping: Record<string, string> = {
                 'profile': 'profile',
                 'impl': 'impl',
-                'validate': 'validate-design', // Default validation action
+                'validate': 'validate-design', // デフォルトの検証アクション
             };
 
             if (command in mapping) {
-                // Construct a prompt that instructs the model to call the appropriate tool
+                // モデルに適切なツールを呼び出すよう指示するプロンプトを構築
                 const action = mapping[command];
                 const prompt = `User executed command '/${command} ${args}'.\n` +
                     `Please call the tool 'sdd_kiro' with arguments: { command: '${action}', feature: '${args || "unknown"}' }.\n` +
                     `If 'feature' is missing and required for '${action}', ask the user for it.`;
 
-                // Inject the prompt as a system message or user message part
-                // Since we are in 'command.execute.before', we can't easily injection a full tool call,
-                // but we can substitute the user's input with a clear instruction.
-                // However, 'output.parts' expects Part[].
+                // システムメッセージまたはユーザーメッセージパートとしてプロンプトを注入
+                // 'command.execute.before' では完全なツール呼び出しを直接注入することは難しいが、
+                // ユーザーの入力を明確な指示に置き換えることができる。
+                // ただし、'output.parts' は Part[] を期待している。
 
                 output.parts.push({
                     id: randomUUID(),
                     sessionID: input.sessionID,
-                    messageID: randomUUID(), // Placeholder
+                    messageID: randomUUID(), // プレースホルダ
                     type: 'text',
                     text: prompt,
-                    // active: true // implied
+                    // active: true // 暗黙的に true
                 });
             }
         },
