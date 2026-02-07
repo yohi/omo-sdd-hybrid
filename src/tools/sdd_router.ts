@@ -17,9 +17,8 @@ export const sddRouterTool = tool({
     description: DESCRIPTION,
     args: {
         command: tool.schema.string().describe("The command name to execute (e.g., 'profile', 'impl')"),
-        args: tool.schema.string().optional().describe("Optional arguments for the command"),
     },
-    execute: async ({ command, args }) => {
+    execute: async ({ command }) => {
         // 1. コマンドの検索
         const normalizedCmd = command.trim().replace(/^\/+/, "");
         const cmdDef = getBuiltinCommand(normalizedCmd);
@@ -28,11 +27,8 @@ export const sddRouterTool = tool({
             return `Command '/${normalizedCmd}' not found. Available commands:\n${commandsList}`;
         }
 
-        // 2. テンプレートの処理
-        let content = cmdDef.template;
-        if (args) {
-            content = content.replace(/\$ARGUMENTS/g, args);
-        }
+        // 2. テンプレートの適用
+        const content = cmdDef.template;
 
         // 3. プロンプト（指示書）を返す
         return `
