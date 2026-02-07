@@ -3,6 +3,7 @@
   "plugin": [
     "./plugins/sdd-gatekeeper.ts",
     "./plugins/sdd-context-injector.ts",
-    "./plugins/sdd-feedback-loop.ts"
+    "./plugins/sdd-feedback-loop.ts",
+    "./plugins/sdd-command-handler.ts"
   ],
 }
