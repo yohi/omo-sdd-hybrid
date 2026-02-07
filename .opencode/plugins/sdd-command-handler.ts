@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Hooks, Plugin } from '../lib/plugin-stub.js';
 
 const SddCommandHandler: Plugin = async () => {
@@ -24,9 +25,9 @@ const SddCommandHandler: Plugin = async () => {
                 // However, 'output.parts' expects Part[].
 
                 output.parts.push({
-                    id: crypto.randomUUID(),
+                    id: randomUUID(),
                     sessionID: input.sessionID,
-                    messageID: crypto.randomUUID(), // Placeholder
+                    messageID: randomUUID(), // Placeholder
                     type: 'text',
                     text: prompt,
                     // active: true // implied
