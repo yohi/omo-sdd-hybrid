@@ -8,7 +8,7 @@ const SddCommandHandler: Plugin = async () => {
             const mapping: Record<string, string> = {
                 'profile': 'profile',
                 'impl': 'impl',
-                'validate': 'validate-design', // Default validation action
+                'validate': 'validate-design', // デフォルトの検証アクション
             };
 
             if (command in mapping) {
