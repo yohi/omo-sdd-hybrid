@@ -20,7 +20,7 @@ export const sddRouterTool = tool({
     },
     execute: async ({ command }) => {
         // 1. コマンドの検索
-        const normalizedCmd = command.trim().replace(/^\/+/, "");
+        const normalizedCmd = command.trim().replace(/^\/+/, "").split(/\s+/)[0];
         const cmdDef = getBuiltinCommand(normalizedCmd);
 
         if (!cmdDef) {
