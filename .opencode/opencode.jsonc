@@ -16,7 +16,7 @@
     },
     "validate": {
       "description": "Reviewer role: Validation Phase",
-      "prompt": "By using the available tool `sdd_kiro`, execute the `validate` command.\nArgument: `{"command": "validate"}`"
+      "prompt": "By using the available tool `sdd_kiro`, execute the `validate` command.\nArgument: `{\"command\": \"validate\"}`"
     }
   }
 }
