@@ -21,10 +21,11 @@ export const sddRouterTool = tool({
     },
     execute: async ({ command, args }) => {
         // 1. コマンドの検索
-        const cmdDef = getBuiltinCommand(command.replace(/^\//, "")); // 先頭の / を除去
+        const normalizedCmd = command.trim().replace(/^\/+/, "");
+        const cmdDef = getBuiltinCommand(normalizedCmd);
 
         if (!cmdDef) {
-            return `Command '/${command}' not found. Available commands:\n${commandsList}`;
+            return `Command '/${normalizedCmd}' not found. Available commands:\n${commandsList}`;
         }
 
         // 2. テンプレートの処理
