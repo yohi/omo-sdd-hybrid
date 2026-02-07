@@ -19,7 +19,7 @@ const SddCommandHandler: Plugin = async () => {
                     `If 'feature' is missing and required for '${action}', ask the user for it.`;
 
                 // Inject the prompt as a system message or user message part
-                // Since we are in 'command.execute.before', we can't easily injection a full tool call,
+                // 'command.execute.before' では完全なツール呼び出しを直接注入することは難しいが、
                 // but we can substitute the user's input with a clear instruction.
                 // However, 'output.parts' expects Part[].
 
