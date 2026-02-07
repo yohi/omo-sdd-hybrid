@@ -20,18 +20,38 @@ const SddCommandHandler: Plugin = async (ctx) => {
 
             // マッピングに一致するか、汎用的な /sdd コマンドかを確認します
             if (cmd in mapping || cmd === '/sdd') {
-                const action = mapping[cmd] || args[0] || 'unknown';
-                const feature = (cmd === '/sdd' ? args[1] : args[0]) || 'unknown';
+                // Argument validation to prevent 'unknown' injection
+                if (cmd in mapping && args.length < 1) {
+                    const usage = `Usage: ${cmd} <feature>`;
+                    if (ctx.client.tui?.showToast) {
+                        ctx.client.tui.showToast({
+                            body: { message: usage, variant: 'error', duration: 4000 }
+                        }).catch(console.warn);
+                    }
+                    return;
+                }
+                if (cmd === '/sdd' && args.length < 2) {
+                    const usage = 'Usage: /sdd <action> <feature>';
+                    if (ctx.client.tui?.showToast) {
+                        ctx.client.tui.showToast({
+                            body: { message: usage, variant: 'error', duration: 4000 }
+                        }).catch(console.warn);
+                    }
+                    return;
+                }
 
-                // ユーザーへのフィードバック
+                const action = mapping[cmd] || args[0];
+                const feature = (cmd === '/sdd' ? args[1] : args[0]);
+
+                // User feedback (best-effort, fail-safe)
                 if (ctx.client.tui?.showToast) {
-                    await ctx.client.tui.showToast({
+                    ctx.client.tui.showToast({
                         body: {
                             message: `Executing command: ${cmd} -> action: ${action}`,
                             variant: 'info',
                             duration: 3000
                         }
-                    });
+                    }).catch(console.warn);
                 }
 
                 // ルーターロジックを使用して結果をアシスタントメッセージとして注入します
