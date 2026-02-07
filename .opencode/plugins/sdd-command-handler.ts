@@ -26,7 +26,7 @@ const SddCommandHandler: Plugin = async () => {
                 output.parts.push({
                     id: crypto.randomUUID(),
                     sessionID: input.sessionID,
-                    messageID: crypto.randomUUID(), // Placeholder
+                    messageID: crypto.randomUUID(), // プレースホルダ
                     type: 'text',
                     text: prompt,
                     // active: true // 暗黙的に true
