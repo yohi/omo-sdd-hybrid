@@ -5,18 +5,4 @@
     "./plugins/sdd-context-injector.ts",
     "./plugins/sdd-feedback-loop.ts"
   ],
-  "commands": {
-    "profile": {
-      "description": "Architect role: Specification & Design",
-      "prompt": "By using the available tool `sdd_kiro`, execute the `profile` command.\nArgument: `{\"command\": \"profile\"}`"
-    },
-    "impl": {
-      "description": "Implementer role: Implementation Phase",
-      "prompt": "By using the available tool `sdd_kiro`, execute the `impl` command.\nArgument: `{\"command\": \"impl\"}`"
-    },
-    "validate": {
-      "description": "Reviewer role: Validation Phase",
-      "prompt": "By using the available tool `sdd_kiro`, execute the `validate` command.\nArgument: `{\"command\": \"validate\"}`"
-    }
-  }
 }
