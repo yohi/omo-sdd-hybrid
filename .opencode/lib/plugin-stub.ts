@@ -26,10 +26,12 @@ interface ToolFactory {
   <Args extends z.ZodRawShape>(input: {
     description: string;
     args: Args;
+    command?: boolean;
     execute(args: z.infer<z.ZodObject<Args>>, context: ToolContext): Promise<string>;
   }): {
     description: string;
     args: Args;
+    command?: boolean;
     execute(args: z.infer<z.ZodObject<Args>>, context: ToolContext): Promise<string>;
     schema: z.ZodObject<Args>;
   };
@@ -40,6 +42,7 @@ export const tool: ToolFactory = Object.assign(
   <Args extends z.ZodRawShape>(input: {
     description: string;
     args: Args;
+    command?: boolean;
     execute(args: z.infer<z.ZodObject<Args>>, context: ToolContext): Promise<string>;
   }) => {
     return {
@@ -100,5 +103,9 @@ export interface Hooks {
   'command.execute.before'?: (
     input: { command: string; sessionID: string; arguments: string },
     output: { parts: any[] },
+  ) => Promise<void>;
+  'chat.message'?: (
+    input: { sessionID: string; agent: string;[key: string]: any },
+    output: { message: { role: string; content: string | any[];[key: string]: any };[key: string]: any },
   ) => Promise<void>;
 }

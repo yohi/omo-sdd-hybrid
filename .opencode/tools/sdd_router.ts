@@ -15,6 +15,7 @@ ${commandsList}
 
 export const sddRouterTool = tool({
     description: DESCRIPTION,
+    command: true,
     args: {
         command: tool.schema.string().describe("The command name to execute (e.g., 'profile', 'impl')"),
     },
