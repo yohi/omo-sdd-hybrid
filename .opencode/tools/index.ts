@@ -1,4 +1,5 @@
 import sdd_ci_runner from './sdd_ci_runner.js';
+import { sddRouterTool as sdd_router } from '../../src/tools/sdd_router.js';
 import sdd_end_task from './sdd_end_task.js';
 import sdd_force_unlock from './sdd_force_unlock.js';
 import sdd_generate_tasks from './sdd_generate_tasks.js';
@@ -40,4 +41,5 @@ export default {
     sdd_sync_kiro,
     sdd_validate_design,
     sdd_validate_gap,
+    sdd_router,
 };
