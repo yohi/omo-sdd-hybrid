@@ -2,6 +2,7 @@ import type { Hooks, Plugin } from './lib/plugin-stub.js';
 import gatekeeper from './plugins/sdd-gatekeeper.js';
 import contextInjector from './plugins/sdd-context-injector.js';
 import feedbackLoop from './plugins/sdd-feedback-loop.js';
+import commandHandler from './plugins/sdd-command-handler.js';
 import tools from './tools/index.js';
 
 type EventHook = NonNullable<Hooks['event']>;
@@ -10,6 +11,7 @@ type BeforeHook = NonNullable<Hooks['tool.execute.before']>;
 type AfterHook = NonNullable<Hooks['tool.execute.after']>;
 type TransformHook = NonNullable<Hooks['experimental.chat.system.transform']>;
 type ChatParamsHook = NonNullable<Hooks['chat.params']>;
+type CommandHook = NonNullable<Hooks['command.execute.before']>;
 
 function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
   const merged: Hooks = {};
@@ -19,6 +21,7 @@ function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
   const afterHooks: AfterHook[] = [];
   const transformHooks: TransformHook[] = [];
   const chatParamsHooks: ChatParamsHook[] = [];
+  const commandHooks: CommandHook[] = [];
 
   for (const { name: pluginName, hooks } of hooksList) {
     if (hooks.tool) {
@@ -42,6 +45,7 @@ function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
       transformHooks.push(hooks['experimental.chat.system.transform']);
     }
     if (hooks['chat.params']) chatParamsHooks.push(hooks['chat.params']);
+    if (hooks['command.execute.before']) commandHooks.push(hooks['command.execute.before']);
   }
 
   if (eventHooks.length > 0) {
@@ -92,6 +96,14 @@ function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
     };
   }
 
+  if (commandHooks.length > 0) {
+    merged['command.execute.before'] = async (input, output) => {
+      for (const hook of commandHooks) {
+        await hook(input, output);
+      }
+    };
+  }
+
   return merged;
 }
 
@@ -100,12 +112,14 @@ const plugin: Plugin = async (options) => {
     gatekeeper(options),
     contextInjector(options),
     feedbackLoop(options),
+    commandHandler(options),
   ]);
 
   const hooksList = [
     { name: 'sdd-gatekeeper', hooks: results[0] },
     { name: 'sdd-context-injector', hooks: results[1] },
     { name: 'sdd-feedback-loop', hooks: results[2] },
+    { name: 'sdd-command-handler', hooks: results[3] },
     { name: 'sdd-tools', hooks: { tool: tools } },
   ];
 

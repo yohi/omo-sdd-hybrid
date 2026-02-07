@@ -94,7 +94,11 @@ export interface Hooks {
     output: { system: string[] },
   ) => Promise<void>;
   'chat.params'?: (
-    input: { sessionID: string; agent: string; [key: string]: any },
-    output: { temperature?: number; [key: string]: any },
+    input: { sessionID: string; agent: string;[key: string]: any },
+    output: { temperature?: number;[key: string]: any },
+  ) => Promise<void>;
+  'command.execute.before'?: (
+    input: { command: string; sessionID: string; arguments: string },
+    output: { parts: any[] },
   ) => Promise<void>;
 }
