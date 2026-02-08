@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { readState as defaultReadState, writeState as defaultWriteState, State } from '../lib/state-utils';
 import { matchesScope } from '../lib/glob-utils';
 import { parseTasksFile, ParsedTask } from '../lib/tasks-parser';

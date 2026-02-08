@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { readState as defaultReadState } from '../lib/state-utils';
 import { countMarkdownTasks } from '../lib/tasks_markdown';
 import fs from 'fs';

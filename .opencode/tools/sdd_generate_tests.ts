@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import * as fs from 'fs';
 import * as path from 'path';
 

@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { analyzeDesignConsistency } from '../lib/kiro-utils';
 
 export default tool({

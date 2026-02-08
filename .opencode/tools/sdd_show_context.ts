@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { readState as defaultReadState } from '../lib/state-utils';
 
 export default tool({

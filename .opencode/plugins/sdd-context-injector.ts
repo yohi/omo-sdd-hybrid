@@ -1,10 +1,11 @@
-import type { Plugin } from '../lib/plugin-stub';
+import type { Plugin } from '@opencode-ai/plugin';
 import { readState as defaultReadState, readGuardModeState as defaultReadGuardModeState } from '../lib/state-utils';
 import { determineEffectiveGuardMode } from '../lib/access-policy';
 
-const SddContextInjector: Plugin = async (options: any) => {
-  const readState = options?.__testDeps?.readState ?? defaultReadState;
-  const readGuardModeState = options?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
+const SddContextInjector: Plugin = async (options) => {
+  const opts = options as any;
+  const readState = opts?.__testDeps?.readState ?? defaultReadState;
+  const readGuardModeState = opts?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
 
   return {
     'experimental.chat.system.transform': async (_input, output) => {

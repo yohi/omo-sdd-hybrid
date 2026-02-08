@@ -1,4 +1,4 @@
-import { tool } from "../lib/plugin-stub.js";
+import { tool } from "@opencode-ai/plugin";
 import { getAllBuiltinCommands, getBuiltinCommand } from "../lib/builtin-commands/index.js";
 
 // ツール説明文を動的に生成（モデルにコマンド一覧を教えるため）
@@ -15,7 +15,6 @@ ${commandsList}
 
 export const sddRouterTool = tool({
     description: DESCRIPTION,
-    command: true,
     args: {
         command: tool.schema.string().describe("The command name to execute (e.g., 'profile', 'impl')"),
     },

@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { type GuardMode, writeGuardModeState } from '../lib/state-utils';
 
 export default tool({

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { findKiroSpecs, loadKiroSpec, updateKiroSpecTasks } from '../lib/kiro-utils';
 import { parseTasksFile, updateTaskStatusInContent, extractTaskIdFromLine } from '../lib/tasks-parser';
 

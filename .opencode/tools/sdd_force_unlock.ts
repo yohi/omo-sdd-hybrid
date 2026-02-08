@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { getStateDir, getStatePath, readLockInfo, LockInfo } from '../lib/state-utils';
 import fs from 'fs';
 import path from 'path';
