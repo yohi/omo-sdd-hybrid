@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { readState, writeState } from '../lib/state-utils';
 import { updateSteeringDoc, listSteeringDocs } from '../lib/kiro-utils';
 import * as fs from 'fs';

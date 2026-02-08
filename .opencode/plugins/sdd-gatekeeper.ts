@@ -1,4 +1,4 @@
-import type { Plugin } from '../lib/plugin-stub';
+import type { Plugin } from '@opencode-ai/plugin';
 import { readState as defaultReadState, readGuardModeState as defaultReadGuardModeState } from '../lib/state-utils';
 import { getWorktreeRoot } from '../lib/path-utils';
 import {
@@ -14,14 +14,20 @@ import {
 // export { evaluateAccess, evaluateMultiEdit, type AccessResult, type GuardMode };
 
 const SddGatekeeper: Plugin = async (options) => {
-  const { client } = options || {};
-  const worktreeRoot = options?.worktree || getWorktreeRoot();
-  const readState = options?.__testDeps?.readState ?? defaultReadState;
-  const readGuardModeState = options?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
+  const opts = options as any;
+  const client = opts.client;
+  const worktreeRoot = options.worktree || getWorktreeRoot();
+  const readState = opts?.__testDeps?.readState ?? defaultReadState;
+  const readGuardModeState = opts?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
   
   return {
-    'tool.execute.before': async (event) => {
-      const { name, args } = event.tool;
+    'tool.execute.before': async (input, output) => {
+      const toolInput = input.tool;
+      const name = typeof toolInput === 'string' 
+        ? toolInput 
+        : (toolInput as any)?.name || (toolInput as any)?.id || '';
+        
+      const args = output.args;
 
       const guardModeState = await readGuardModeState();
       const effectiveMode = determineEffectiveGuardMode(process.env.SDD_GUARD_MODE, guardModeState);

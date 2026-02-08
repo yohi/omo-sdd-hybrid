@@ -1,5 +1,5 @@
 import { spawnSync } from 'child_process';
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { clearState as defaultClearState, readState as defaultReadState } from '../lib/state-utils';
 
 /**

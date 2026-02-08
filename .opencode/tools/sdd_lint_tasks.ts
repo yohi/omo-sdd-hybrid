@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import fs from 'fs';
 import path from 'path';
 import { parseSddTasks } from '../lib/tasks_markdown';

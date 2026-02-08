@@ -1,4 +1,4 @@
-import type { Hooks, Plugin } from './lib/plugin-stub.js';
+import type { Hooks, Plugin } from '@opencode-ai/plugin';
 import gatekeeper from './plugins/sdd-gatekeeper.js';
 import contextInjector from './plugins/sdd-context-injector.js';
 import feedbackLoop from './plugins/sdd-feedback-loop.js';

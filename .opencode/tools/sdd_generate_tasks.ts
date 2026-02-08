@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -106,7 +106,7 @@ export default tool({
     const designPath = path.join(targetDir, 'design.md');
     const tasksPath = path.join(targetDir, 'tasks.md');
 
-    const missingFiles = [];
+    const missingFiles: string[] = [];
     if (!fs.existsSync(reqPath)) missingFiles.push('requirements.md');
     if (!fs.existsSync(designPath)) missingFiles.push('design.md');
 

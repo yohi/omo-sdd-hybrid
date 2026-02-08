@@ -1,4 +1,4 @@
-import { tool } from '../lib/plugin-stub';
+import { tool } from '@opencode-ai/plugin';
 import { parseSddTasks } from '../lib/tasks_markdown';
 import { matchesScope } from '../lib/glob-utils';
 import { spawnSync } from 'child_process';

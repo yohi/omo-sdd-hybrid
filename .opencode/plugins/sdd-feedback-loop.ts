@@ -1,4 +1,4 @@
-import type { Plugin } from '../lib/plugin-stub';
+import type { Plugin } from '@opencode-ai/plugin';
 import { readState as defaultReadState } from '../lib/state-utils';
 import { validateGapInternal as defaultValidateGapInternal } from '../tools/sdd_validate_gap';
 import defaultReportBug from '../tools/sdd_report_bug';
@@ -14,9 +14,10 @@ const BUG_REPORT_THROTTLE_MS = 30000;
 const TRIGGER_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
 
 const SddFeedbackLoop: Plugin = async (options) => {
-  const readState = options?.__testDeps?.readState ?? defaultReadState;
-  const validateGapInternal = options?.__testDeps?.validateGapInternal ?? defaultValidateGapInternal;
-  const reportBug = options?.__testDeps?.reportBug ?? defaultReportBug;
+  const opts = options as any;
+  const readState = opts?.__testDeps?.readState ?? defaultReadState;
+  const validateGapInternal = opts?.__testDeps?.validateGapInternal ?? defaultValidateGapInternal;
+  const reportBug = opts?.__testDeps?.reportBug ?? defaultReportBug;
 
   return {
     'tool.execute.before': async (input: any, output: any) => {
