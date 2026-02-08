@@ -130,7 +130,8 @@ const SddCommandHandler: Plugin = async (ctx) => {
                             body: { message: errorMsg, variant: 'error', duration: 4000 }
                         }).catch(console.warn);
                     }
-                    message.content = '';
+                    // 元のメッセージを保持してエラーをトーストで通知済み
+                    return;
                 }
                 return;
             }
