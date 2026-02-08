@@ -75,12 +75,34 @@ const SddCommandHandler: Plugin = async (ctx) => {
             const [cmd, ...args] = content.split(/\s+/);
             const normalizedCmd = cmd.replace(/^\/+/, "");
 
-            // Toolとして登録されているコマンドはここでは処理しない（重複実行防止）
-            if (getBuiltinCommand(normalizedCmd)) {
+            // 1. 登録されている組み込みコマンドかどうかを確認
+            const builtinCmd = getBuiltinCommand(normalizedCmd);
+
+            // 2. コマンドが見つかった場合、テンプレートを展開してメッセージを置換する
+            if (builtinCmd) {
+                const feature = args.join(' ').trim(); // 引数をfeatureとして結合
+                
+                // テンプレート内のプレースホルダーを置換
+                const promptContent = builtinCmd.template.replace('{{feature}}', feature);
+                
+                // メッセージの内容をプロンプト（指示書）そのものに書き換える
+                // これにより、AIはユーザーが「スラッシュコマンド」ではなく「長いプロンプト」を入力したと認識して処理を開始する
+                message.content = promptContent;
+
+                // ユーザーへのフィードバック（オプション）
+                if (ctx.client.tui?.showToast) {
+                    await ctx.client.tui.showToast({
+                        body: { 
+                            message: `Expanded /${normalizedCmd} command template.`, 
+                            variant: 'info', 
+                            duration: 2000 
+                        }
+                    });
+                }
                 return;
             }
 
-            // 汎用 /sdd コマンドの処理
+            // 3. 汎用 /sdd コマンドの処理 (既存ロジック維持)
             if (normalizedCmd === 'sdd') {
                 if (args.length < 2) {
                     const usage = 'Usage: /sdd <action> <feature>';
