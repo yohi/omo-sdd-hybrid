@@ -11,6 +11,7 @@ type BeforeHook = NonNullable<Hooks['tool.execute.before']>;
 type AfterHook = NonNullable<Hooks['tool.execute.after']>;
 type TransformHook = NonNullable<Hooks['experimental.chat.system.transform']>;
 type ChatParamsHook = NonNullable<Hooks['chat.params']>;
+type ChatMessageHook = NonNullable<Hooks['chat.message']>;
 type CommandHook = NonNullable<Hooks['command.execute.before']>;
 
 function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
@@ -21,6 +22,7 @@ function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
   const afterHooks: AfterHook[] = [];
   const transformHooks: TransformHook[] = [];
   const chatParamsHooks: ChatParamsHook[] = [];
+  const chatMessageHooks: ChatMessageHook[] = [];
   const commandHooks: CommandHook[] = [];
 
   for (const { name: pluginName, hooks } of hooksList) {
@@ -45,6 +47,7 @@ function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
       transformHooks.push(hooks['experimental.chat.system.transform']);
     }
     if (hooks['chat.params']) chatParamsHooks.push(hooks['chat.params']);
+    if (hooks['chat.message']) chatMessageHooks.push(hooks['chat.message']);
     if (hooks['command.execute.before']) commandHooks.push(hooks['command.execute.before']);
   }
 
@@ -91,6 +94,14 @@ function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
   if (chatParamsHooks.length > 0) {
     merged['chat.params'] = async (input, output) => {
       for (const hook of chatParamsHooks) {
+        await hook(input, output);
+      }
+    };
+  }
+
+  if (chatMessageHooks.length > 0) {
+    merged['chat.message'] = async (input, output) => {
+      for (const hook of chatMessageHooks) {
         await hook(input, output);
       }
     };
