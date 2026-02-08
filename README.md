@@ -478,7 +478,8 @@ omo-sdd-hybrid/
 │   ├── plugins/         # Gatekeeper, Context Injector
 │   ├── tools/           # CLIコマンド実装
 │   ├── lib/             # 共通ロジック & 状態管理
-│   └── state/           # 実行時状態 (Git管理外)
+│   ├── state/           # 実行時状態 (Git管理外)
+│   └── builtin-commands/# [MOVED] コマンド定義
 ├── src/                 # [USER] SDD管理対象のコード領域 (Userland)
 ├── specs/               # [USER] タスク・仕様定義 (Source of Truth)
 ├── __tests__/           # [DEV] テスト (.opencodeと鏡像構成)

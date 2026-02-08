@@ -1,5 +1,5 @@
 import { tool } from "../lib/plugin-stub.js";
-import { getAllBuiltinCommands, getBuiltinCommand } from "../../src/features/builtin-commands/index.js";
+import { getAllBuiltinCommands, getBuiltinCommand } from "../lib/builtin-commands/index.js";
 
 // ツール説明文を動的に生成（モデルにコマンド一覧を教えるため）
 const commandsList = getAllBuiltinCommands()

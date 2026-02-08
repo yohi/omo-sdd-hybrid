@@ -1,75 +1,68 @@
 import { randomUUID } from 'node:crypto';
 import type { Hooks, Plugin } from '../lib/plugin-stub.js';
-import { getBuiltinCommand, getAllBuiltinCommands } from "../../src/features/builtin-commands/index.js";
+import { tool } from '../lib/plugin-stub.js';
+import { getBuiltinCommand, getAllBuiltinCommands } from "../lib/builtin-commands/index.js";
 
 const SddCommandHandler: Plugin = async (ctx) => {
-    return {
-        // [Approach A] 正規のTUIコマンド実行イベントをフック
-        // ユーザーが "/profile" などを入力してEnterを押した瞬間に発火します
-        event: async ({ event }) => {
-            if (event.type !== 'tui.command.execute') return;
+    // 組み込みコマンドを Tool として定義・登録する
+    const commandsAsTools = getAllBuiltinCommands().reduce((acc, cmd) => {
+        acc[cmd.name] = tool({
+            description: cmd.description,
+            command: true, // 重要: これによりスラッシュコマンドとして認識される
+            args: {
+                feature: tool.schema.string().optional().describe(cmd.argumentHint || 'Feature name')
+            },
+            execute: async (args, context) => {
+                const feature = args.feature || '';
+                const promptContent = cmd.template.replace('{{feature}}', feature);
 
-            const payload = event.properties || event.data || event.payload || {};
-            const rawCommand = payload.command || payload.name || "";
-            
-            // コマンド名の正規化 (e.g. "/profile" -> "profile")
-            const normalizedCmd = rawCommand.trim().replace(/^\/+/, "");
-            if (!normalizedCmd) return;
-
-            // 組み込みコマンド定義の検索
-            const cmdDef = getBuiltinCommand(normalizedCmd);
-            if (!cmdDef) return;
-
-            // 引数の取得
-            const args = Array.isArray(payload.args) 
-                ? payload.args 
-                : (typeof payload.arguments === 'string' ? payload.arguments.split(/\s+/) : []);
-            
-            // テンプレート変数の置換
-            const feature = args[0] || '';
-            // {{feature}} があれば置換、なければ末尾に追加するなどの処理が可能だが、
-            // 現状のテンプレートは単純な文字列置換を想定
-            const promptContent = cmdDef.template.replace('{{feature}}', feature || '(not specified)');
-
-            // ユーザーへのフィードバック (Toast)
-            if (ctx.client.tui?.showToast) {
-                ctx.client.tui.showToast({
-                    body: { 
-                        message: `Executing /${normalizedCmd} ${feature}`.trim(), 
-                        variant: 'info', 
-                        duration: 3000 
-                    }
-                }).catch(console.warn);
-            }
-
-            // AIエージェントへの指示送信 (Session Prompt)
-            // sessionIDが存在する場合のみ実行可能
-            const sessionID = payload.sessionID;
-            if (sessionID && ctx.client.session?.prompt) {
-                try {
-                    await ctx.client.session.prompt({
-                        path: { id: sessionID },
+                // Toast通知
+                if (ctx.client.tui?.showToast) {
+                    await ctx.client.tui.showToast({
                         body: { 
-                            parts: [{ 
-                                type: "text", 
-                                text: promptContent 
-                            }] 
+                            message: `Executing /${cmd.name} ${feature}`.trim(), 
+                            variant: 'info', 
+                            duration: 3000 
                         }
                     });
-                } catch (error) {
-                    console.warn(`Failed to execute command /${normalizedCmd}:`, error);
-                    if (ctx.client.tui?.showToast) {
-                        ctx.client.tui.showToast({
+                }
+
+                // AIエージェントへの指示送信
+                if (context.sessionID && ctx.client.session?.prompt) {
+                    try {
+                        await ctx.client.session.prompt({
+                            path: { id: context.sessionID },
                             body: { 
-                                message: `Failed to execute /${normalizedCmd}: ${error instanceof Error ? error.message : String(error)}`, 
-                                variant: 'error', 
-                                duration: 4000 
+                                parts: [{ 
+                                    type: "text", 
+                                    text: promptContent 
+                                }] 
                             }
-                        }).catch(console.warn);
+                        });
+                        return `Command /${cmd.name} sent successfully.`;
+                    } catch (error) {
+                        const errMsg = error instanceof Error ? error.message : String(error);
+                        if (ctx.client.tui?.showToast) {
+                            await ctx.client.tui.showToast({
+                                body: { 
+                                    message: `Failed to execute /${cmd.name}: ${errMsg}`, 
+                                    variant: 'error', 
+                                    duration: 4000 
+                                }
+                            });
+                        }
+                        return `Error executing command: ${errMsg}`;
                     }
                 }
+                return "Session ID missing, cannot execute prompt.";
             }
-        },
+        });
+        return acc;
+    }, {} as Record<string, any>);
+
+    return {
+        // Tool登録
+        tool: commandsAsTools,
 
         // [Fallback] チャットメッセージとして入力されたコマンドを捕捉
         // TUIイベントが発火しない環境や、チャット欄に直接入力された場合用
@@ -81,6 +74,11 @@ const SddCommandHandler: Plugin = async (ctx) => {
 
             const [cmd, ...args] = content.split(/\s+/);
             const normalizedCmd = cmd.replace(/^\/+/, "");
+
+            // Toolとして登録されているコマンドはここでは処理しない（重複実行防止）
+            if (getBuiltinCommand(normalizedCmd)) {
+                return;
+            }
 
             // 汎用 /sdd コマンドの処理
             if (normalizedCmd === 'sdd') {
@@ -113,16 +111,6 @@ const SddCommandHandler: Plugin = async (ctx) => {
                     message.content = '';
                 }
                 return;
-            }
-
-            // 個別コマンドの処理 (e.g. /profile)
-            const cmdDef = getBuiltinCommand(normalizedCmd);
-            if (cmdDef) {
-                const feature = args[0] || '';
-                const prompt = cmdDef.template.replace('{{feature}}', feature || '(not specified)');
-                
-                // メッセージ内容をプロンプトに書き換え（チャット送信として処理される）
-                message.content = prompt;
             }
         }
     };
