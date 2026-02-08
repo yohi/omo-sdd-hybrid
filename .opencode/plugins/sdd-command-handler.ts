@@ -46,15 +46,28 @@ const SddCommandHandler: Plugin = async (ctx) => {
             // sessionIDが存在する場合のみ実行可能
             const sessionID = payload.sessionID;
             if (sessionID && ctx.client.session?.prompt) {
-                await ctx.client.session.prompt({
-                    path: { id: sessionID },
-                    body: { 
-                        parts: [{ 
-                            type: "text", 
-                            text: promptContent 
-                        }] 
+                try {
+                    await ctx.client.session.prompt({
+                        path: { id: sessionID },
+                        body: { 
+                            parts: [{ 
+                                type: "text", 
+                                text: promptContent 
+                            }] 
+                        }
+                    });
+                } catch (error) {
+                    console.warn(`Failed to execute command /${normalizedCmd}:`, error);
+                    if (ctx.client.tui?.showToast) {
+                        ctx.client.tui.showToast({
+                            body: { 
+                                message: `Failed to execute /${normalizedCmd}: ${error instanceof Error ? error.message : String(error)}`, 
+                                variant: 'error', 
+                                duration: 4000 
+                            }
+                        }).catch(console.warn);
                     }
-                });
+                }
             }
         },
 
