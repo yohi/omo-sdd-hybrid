@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Hooks, Plugin } from '../lib/plugin-stub.js';
-import { getBuiltinCommand } from "../../src/features/builtin-commands/index.js";
+import { getBuiltinCommand, getAllBuiltinCommands } from "../../src/features/builtin-commands/index.js";
 
 const SddCommandHandler: Plugin = async (ctx) => {
     return {
@@ -101,6 +101,16 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 if (targetCmd) {
                      const prompt = targetCmd.template.replace('{{feature}}', feature);
                      message.content = prompt;
+                } else {
+                    const available = getAllBuiltinCommands().map(c => c.name).join(', ');
+                    const errorMsg = `Unknown action: '${action}'. Available actions: ${available}`;
+                    
+                    if (ctx.client.tui?.showToast) {
+                        ctx.client.tui.showToast({
+                            body: { message: errorMsg, variant: 'error', duration: 4000 }
+                        }).catch(console.warn);
+                    }
+                    message.content = errorMsg;
                 }
                 return;
             }
