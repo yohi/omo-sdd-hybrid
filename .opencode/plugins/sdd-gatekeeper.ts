@@ -14,15 +14,19 @@ import {
 // export { evaluateAccess, evaluateMultiEdit, type AccessResult, type GuardMode };
 
 const SddGatekeeper: Plugin = async (options) => {
-  const { client } = options;
   const opts = options as any;
+  const client = opts.client;
   const worktreeRoot = options.worktree || getWorktreeRoot();
   const readState = opts?.__testDeps?.readState ?? defaultReadState;
   const readGuardModeState = opts?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
   
   return {
     'tool.execute.before': async (input, output) => {
-      const name = input.tool;
+      const toolInput = input.tool;
+      const name = typeof toolInput === 'string' 
+        ? toolInput 
+        : (toolInput as any)?.name || (toolInput as any)?.id || '';
+        
       const args = output.args;
 
       const guardModeState = await readGuardModeState();
