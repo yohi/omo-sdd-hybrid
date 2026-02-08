@@ -1,14 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import type { Hooks, Plugin } from '../lib/plugin-stub.js';
-import { tool } from '../lib/plugin-stub.js';
+import type { Hooks, Plugin } from '@opencode-ai/plugin';
+import { tool } from '@opencode-ai/plugin';
 import { getBuiltinCommand, getAllBuiltinCommands } from "../lib/builtin-commands/index.js";
 
 const SddCommandHandler: Plugin = async (ctx) => {
     // 組み込みコマンドを Tool として定義・登録する
     const commandsAsTools = getAllBuiltinCommands().reduce((acc, cmd) => {
-        acc[cmd.name] = tool({
+        acc[cmd.name] = Object.assign(tool({
             description: cmd.description,
-            command: true, // 重要: これによりスラッシュコマンドとして認識される
             args: {
                 feature: tool.schema.string().optional().describe(cmd.argumentHint || 'Feature name')
             },
@@ -56,7 +55,7 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 }
                 return "Session ID missing, cannot execute prompt.";
             }
-        });
+        }), { command: true }); // 重要: これによりスラッシュコマンドとして認識される
         return acc;
     }, {} as Record<string, any>);
 
@@ -66,10 +65,15 @@ const SddCommandHandler: Plugin = async (ctx) => {
 
         // [Fallback] チャットメッセージとして入力されたコマンドを捕捉
         // TUIイベントが発火しない環境や、チャット欄に直接入力された場合用
-        'chat.message': async (params, { message }) => {
-            if (message.role !== 'user' || typeof message.content !== 'string') return;
+        'chat.message': async (params, output) => {
+            const { message, parts } = output;
+            if (message.role !== 'user') return;
 
-            const content = message.content.trim();
+            // partsからテキストを取得
+            const textPart = parts?.find(p => p.type === 'text');
+            if (!textPart || typeof textPart.text !== 'string') return;
+
+            const content = textPart.text.trim();
             if (!content.startsWith('/')) return;
 
             const [cmd, ...args] = content.split(/\s+/);
@@ -87,7 +91,7 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 
                 // メッセージの内容をプロンプト（指示書）そのものに書き換える
                 // これにより、AIはユーザーが「スラッシュコマンド」ではなく「長いプロンプト」を入力したと認識して処理を開始する
-                message.content = promptContent;
+                textPart.text = promptContent;
 
                 // ユーザーへのフィードバック（オプション）
                 if (ctx.client.tui?.showToast) {
@@ -120,7 +124,7 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 const targetCmd = getBuiltinCommand(action);
                 if (targetCmd) {
                      const prompt = targetCmd.template.replace('{{feature}}', feature);
-                     message.content = prompt;
+                     textPart.text = prompt;
                 } else {
                     const available = getAllBuiltinCommands().map(c => c.name).join(', ');
                     const errorMsg = `Unknown action: '${action}'. Available actions: ${available}`;
