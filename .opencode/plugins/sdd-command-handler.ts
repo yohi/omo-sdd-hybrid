@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import type { Hooks, Plugin } from '@opencode-ai/plugin';
+import type { Hooks, Plugin, ToolDefinition } from '@opencode-ai/plugin';
 import { tool } from '@opencode-ai/plugin';
 import { getBuiltinCommand, getAllBuiltinCommands } from "../lib/builtin-commands/index.js";
 
 const SddCommandHandler: Plugin = async (ctx) => {
     // 組み込みコマンドを Tool として定義・登録する
-    const commandsAsTools = getAllBuiltinCommands().reduce((acc, cmd) => {
-        acc[cmd.name] = Object.assign(tool({
+    const commandsAsTools = getAllBuiltinCommands().reduce<Record<string, ToolDefinition>>((acc, cmd) => {
+        acc[cmd.name] = tool({
             description: cmd.description,
             args: {
                 feature: tool.schema.string().optional().describe(cmd.argumentHint || 'Feature name')
@@ -55,9 +55,9 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 }
                 return "Session ID missing, cannot execute prompt.";
             }
-        }), { command: true }); // 重要: これによりスラッシュコマンドとして認識される
+        });
         return acc;
-    }, {} as Record<string, any>);
+    }, {});
 
     return {
         // Tool登録
@@ -67,7 +67,7 @@ const SddCommandHandler: Plugin = async (ctx) => {
         // TUIイベントが発火しない環境や、チャット欄に直接入力された場合用
         'chat.message': async (params, output) => {
             const { message, parts } = output;
-            if (message.role !== 'user') return;
+            if (!message || message.role !== 'user') return;
 
             // partsからテキストを取得
             const textPart = parts?.find(p => p.type === 'text');
