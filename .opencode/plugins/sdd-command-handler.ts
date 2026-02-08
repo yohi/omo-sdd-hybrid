@@ -1,78 +1,105 @@
 import { randomUUID } from 'node:crypto';
 import type { Hooks, Plugin } from '../lib/plugin-stub.js';
+import { getBuiltinCommand } from "../../src/features/builtin-commands/index.js";
 
 const SddCommandHandler: Plugin = async (ctx) => {
     return {
-        // フォールバック: ネイティブコマンドがサポートされていない環境向けに、チャットメッセージ内のスラッシュコマンドをインターセプトします
+        // [Approach A] 正規のTUIコマンド実行イベントをフック
+        // ユーザーが "/profile" などを入力してEnterを押した瞬間に発火します
+        event: async ({ event }) => {
+            if (event.type !== 'tui.command.execute') return;
+
+            const payload = event.properties || event.data || event.payload || {};
+            const rawCommand = payload.command || payload.name || "";
+            
+            // コマンド名の正規化 (e.g. "/profile" -> "profile")
+            const normalizedCmd = rawCommand.trim().replace(/^\/+/, "");
+            if (!normalizedCmd) return;
+
+            // 組み込みコマンド定義の検索
+            const cmdDef = getBuiltinCommand(normalizedCmd);
+            if (!cmdDef) return;
+
+            // 引数の取得
+            const args = Array.isArray(payload.args) 
+                ? payload.args 
+                : (typeof payload.arguments === 'string' ? payload.arguments.split(/\s+/) : []);
+            
+            // テンプレート変数の置換
+            const feature = args[0] || '';
+            // {{feature}} があれば置換、なければ末尾に追加するなどの処理が可能だが、
+            // 現状のテンプレートは単純な文字列置換を想定
+            const promptContent = cmdDef.template.replace('{{feature}}', feature || '(not specified)');
+
+            // ユーザーへのフィードバック (Toast)
+            if (ctx.client.tui?.showToast) {
+                ctx.client.tui.showToast({
+                    body: { 
+                        message: `Executing /${normalizedCmd} ${feature}`.trim(), 
+                        variant: 'info', 
+                        duration: 3000 
+                    }
+                }).catch(console.warn);
+            }
+
+            // AIエージェントへの指示送信 (Session Prompt)
+            // sessionIDが存在する場合のみ実行可能
+            const sessionID = payload.sessionID;
+            if (sessionID && ctx.client.session?.prompt) {
+                await ctx.client.session.prompt({
+                    path: { id: sessionID },
+                    body: { 
+                        parts: [{ 
+                            type: "text", 
+                            text: promptContent 
+                        }] 
+                    }
+                });
+            }
+        },
+
+        // [Fallback] チャットメッセージとして入力されたコマンドを捕捉
+        // TUIイベントが発火しない環境や、チャット欄に直接入力された場合用
         'chat.message': async (params, { message }) => {
             if (message.role !== 'user' || typeof message.content !== 'string') return;
 
             const content = message.content.trim();
             if (!content.startsWith('/')) return;
 
-            const mapping: Record<string, string> = {
-                '/profile': 'profile',
-                '/impl': 'impl',
-                '/validate': 'validate-design',
-            };
-
             const [cmd, ...args] = content.split(/\s+/);
+            const normalizedCmd = cmd.replace(/^\/+/, "");
 
-            // マッピングに一致するか、汎用的な /sdd コマンドかを確認します
-            if (cmd in mapping || cmd === '/sdd') {
-                // Argument validation to prevent 'unknown' injection
-                if (cmd in mapping && args.length < 1) {
-                    const usage = `Usage: ${cmd} <feature>`;
-                    if (ctx.client.tui?.showToast) {
-                        ctx.client.tui.showToast({
-                            body: { message: usage, variant: 'error', duration: 4000 }
-                        }).catch(console.warn);
-                    }
-                    message.content = '';
-                    return;
-                }
-                if (cmd === '/sdd' && args.length < 2) {
+            // 汎用 /sdd コマンドの処理
+            if (normalizedCmd === 'sdd') {
+                if (args.length < 2) {
                     const usage = 'Usage: /sdd <action> <feature>';
                     if (ctx.client.tui?.showToast) {
                         ctx.client.tui.showToast({
                             body: { message: usage, variant: 'error', duration: 4000 }
                         }).catch(console.warn);
                     }
-                    message.content = '';
                     return;
                 }
-
-                const action = mapping[cmd] || args[0];
-                const feature = (cmd === '/sdd' ? args[1] : args[0]);
-
-                // User feedback (best-effort, fail-safe)
-                if (ctx.client.tui?.showToast) {
-                    ctx.client.tui.showToast({
-                        body: {
-                            message: `Executing command: ${cmd} -> action: ${action}`,
-                            variant: 'info',
-                            duration: 3000
-                        }
-                    }).catch(console.warn);
+                const action = args[0];
+                const feature = args[1];
+                
+                // アクションに対応するコマンド定義を探す (e.g. "profile")
+                const targetCmd = getBuiltinCommand(action);
+                if (targetCmd) {
+                     const prompt = targetCmd.template.replace('{{feature}}', feature);
+                     message.content = prompt;
                 }
+                return;
+            }
 
-                // ルーターロジックを使用して結果をアシスタントメッセージとして注入します
-                // ここではコンテキストなしでツールを直接呼び出すことが難しいため、応答をシミュレートします。
-                // 本来は sddRouterTool.execute を呼び出すべきですが、インポートが必要です。
-                //今のところは、ルーターが行うように手動でプロンプト/応答を構築します。
-
-                const prompt = `Command '${cmd}' executed via interceptor.\n` +
-                    `Action: ${action}\n` +
-                    `Feature: ${feature}\n\n` +
-                    `Please proceed with the ${action} phase for ${feature}.`;
-
+            // 個別コマンドの処理 (e.g. /profile)
+            const cmdDef = getBuiltinCommand(normalizedCmd);
+            if (cmdDef) {
+                const feature = args[0] || '';
+                const prompt = cmdDef.template.replace('{{feature}}', feature || '(not specified)');
+                
+                // メッセージ内容をプロンプトに書き換え（チャット送信として処理される）
                 message.content = prompt;
-
-                // 注: PluginInput で公開されていない特定の API がない限り、ここからセッション履歴にメッセージを「注入」することは容易ではありません。
-                // そのため、現在のメッセージの内容を直接変更しています。
-
-                // 実際にツールをトリガーしたい場合は、`experimental.chat.system.transform` を検討するか、
-                // `ctx.client.session.addMessage` が利用可能であればそれを使用する必要があるかもしれません。
             }
         }
     };
