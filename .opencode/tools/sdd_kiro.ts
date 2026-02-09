@@ -38,7 +38,7 @@ function validateFeatureName(feature: string, baseDir: string) {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'validate-gap', 'validate', 'profile']).describe('実行するKiroコマンド'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'finalize', 'steering', 'validate-design', 'validate-gap', 'validate', 'profile']).describe('実行するKiroコマンド'),
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
@@ -183,6 +183,69 @@ export default tool({
       case 'impl':
         if (!feature) return 'エラー: feature は必須です';
         return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n実装完了後に sdd_kiro validate ${feature} を実行してください`;
+
+      case 'finalize': {
+        if (!feature) return 'エラー: feature は必須です';
+
+        const baseDir = getKiroSpecsDir();
+        let targetDir: string;
+        try {
+          targetDir = validateFeatureName(feature, baseDir);
+        } catch (error: any) {
+          return `エラー: ${error.message}`;
+        }
+
+        if (!fs.existsSync(targetDir)) {
+          return `エラー: 機能ディレクトリが存在しません: ${feature}`;
+        }
+
+        const specFiles = ['requirements', 'design', 'tasks'];
+        const renamedFiles: string[] = [];
+        const missingFiles: string[] = [];
+        const jaContents: { name: string; content: string }[] = [];
+
+        for (const name of specFiles) {
+          const srcPath = path.join(targetDir, `${name}.md`);
+          const destPath = path.join(targetDir, `${name}_ja.md`);
+
+          if (fs.existsSync(srcPath)) {
+            // 既に _ja.md が存在する場合はスキップ
+            if (!fs.existsSync(destPath)) {
+              fs.renameSync(srcPath, destPath);
+              renamedFiles.push(`${name}.md → ${name}_ja.md`);
+            }
+          } else if (!fs.existsSync(destPath)) {
+            missingFiles.push(`${name}.md`);
+          }
+
+          // _ja.md の内容を読み込み
+          if (fs.existsSync(destPath)) {
+            const content = fs.readFileSync(destPath, 'utf-8');
+            jaContents.push({ name, content });
+          }
+        }
+
+        // 翻訳プロンプト生成
+        let result = `✅ ファイナライズ完了: ${feature}\n\n`;
+
+        if (renamedFiles.length > 0) {
+          result += `**リネーム済み:**\n${renamedFiles.map(f => `- ${f}`).join('\n')}\n\n`;
+        }
+
+        if (missingFiles.length > 0) {
+          result += `⚠️ **見つからないファイル:** ${missingFiles.join(', ')}\n\n`;
+        }
+
+        result += `---\n\n**次のステップ:** 以下の日本語ファイルを英語に翻訳し、同名のファイル（_jaなし）を作成してください:\n\n`;
+
+        for (const { name, content } of jaContents) {
+          result += `### ${name}.md\n`;
+          result += `\`${targetDir}/${name}_ja.md\` の内容を英語に翻訳して \`${targetDir}/${name}.md\` を作成してください。\n\n`;
+          result += `<${name}_ja>\n${content}\n</${name}_ja>\n\n`;
+        }
+
+        return result;
+      }
 
       case 'validate-design':
         if (!feature) return 'エラー: feature は必須です';
