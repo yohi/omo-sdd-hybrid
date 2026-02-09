@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import scaffoldSpecs from './sdd_scaffold_specs';
 import generateTasks from './sdd_generate_tasks';
 import validateDesign from './sdd_validate_design';
+import validateGap from './sdd_validate_gap';
 
 function getKiroSpecsDir() {
   const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
@@ -37,7 +38,7 @@ function validateFeatureName(feature: string, baseDir: string) {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'validate', 'profile']).describe('実行するKiroコマンド'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'validate-gap', 'validate', 'profile']).describe('実行するKiroコマンド'),
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
@@ -183,6 +184,13 @@ export default tool({
         return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n**実装完了後:** \`validate-impl\` を実行して実装の検証を行いますか？\n\n- **[y]** 実装完了後に \`sdd_kiro validate ${feature}\` を実行\n- **[n]** 手動で検証する`;
 
       case 'validate-design':
+        if (!feature) return 'エラー: feature は必須です';
+        return await validateDesign.execute({ feature }, context);
+
+      case 'validate-gap':
+        if (!feature) return 'エラー: feature は必須です';
+        return await validateGap.execute({ kiroSpec: feature }, context);
+
       case 'validate':
         if (!feature) return 'エラー: feature は必須です';
         return await validateDesign.execute({ feature }, context);
