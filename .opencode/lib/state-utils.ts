@@ -494,7 +494,7 @@ export async function clearState(): Promise<void> {
   }
 }
 
-export type GuardMode = 'warn' | 'block';
+export type GuardMode = 'warn' | 'block' | 'disabled';
 
 export interface GuardModeState {
   mode: GuardMode;
@@ -512,7 +512,7 @@ export async function readGuardModeState(): Promise<GuardModeState | null> {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(content);
-    if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block')) {
+    if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block' || parsed.mode === 'disabled')) {
       return parsed as GuardModeState;
     }
     return null;
