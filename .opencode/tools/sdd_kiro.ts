@@ -187,6 +187,7 @@ export default tool({
 
         const localPath = path.resolve('.opencode/prompts/profile.md');
         let profilePath = localPath;
+        let isFromPackage = false; // パッケージ内から解決されたかどうか
 
         // npmパッケージとして実行されている場合のパス解決
         // dist/tools/sdd_kiro.js から見て、../../.opencode/prompts/profile.md
@@ -201,7 +202,17 @@ export default tool({
             for (let i = 0; i < 5; i++) {
               const candidate = path.join(searchDir, '.opencode/prompts/profile.md');
               if (fs.existsSync(candidate)) {
+                // node_modules内にある場合のみパッケージファイルとして扱う
+                const resolvedCandidate = path.resolve(candidate);
+                const nodeModulesPattern = path.sep + 'node_modules' + path.sep;
+                if (resolvedCandidate.includes(nodeModulesPattern)) {
+                  profilePath = candidate;
+                  isFromPackage = true;
+                  break;
+                }
+                // node_modules外のファイルは通常のセキュリティチェック対象
                 profilePath = candidate;
+                isFromPackage = false;
                 break;
               }
               
@@ -210,7 +221,17 @@ export default tool({
               if (fs.existsSync(opencodeDir) && fs.statSync(opencodeDir).isDirectory()) {
                 const p = path.join(opencodeDir, 'prompts/profile.md');
                 if (fs.existsSync(p)) {
+                  // node_modules内にある場合のみパッケージファイルとして扱う
+                  const resolvedP = path.resolve(p);
+                  const nodeModulesPattern = path.sep + 'node_modules' + path.sep;
+                  if (resolvedP.includes(nodeModulesPattern)) {
+                    profilePath = p;
+                    isFromPackage = true;
+                    break;
+                  }
+                  // node_modules外のファイルは通常のセキュリティチェック対象
                   profilePath = p;
+                  isFromPackage = false;
                   break;
                 }
               }
@@ -228,22 +249,27 @@ export default tool({
           return 'エラー: プロファイルファイルが見つかりません: .opencode/prompts/profile.md';
         }
 
-        try {
-          const projectRoot = fs.realpathSync(process.cwd());
-          const stats = fs.lstatSync(profilePath);
-          if (stats.isSymbolicLink()) {
-            return `エラー: シンボリックリンクは許可されていません: ${profilePath}`;
-          }
+        // セキュリティチェック:
+        // - ローカルファイル使用時のみプロジェクトルート外・シンボリックリンクをチェック
+        // - パッケージ内ファイルはパッケージの一部として信頼できるためスキップ
+        if (!isFromPackage) {
+          try {
+            const projectRoot = fs.realpathSync(process.cwd());
+            const stats = fs.lstatSync(profilePath);
+            if (stats.isSymbolicLink()) {
+              return `エラー: シンボリックリンクは許可されていません: ${profilePath}`;
+            }
 
-          const realPath = fs.realpathSync(profilePath);
-          const realRel = path.relative(projectRoot, realPath);
+            const realPath = fs.realpathSync(profilePath);
+            const realRel = path.relative(projectRoot, realPath);
 
-          if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
-            return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${profilePath}`;
+            if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+              return `エラー: ファイルの実体がプロジェクトルート外に存在します: ${profilePath}`;
+            }
+            profilePath = realPath;
+          } catch (error: any) {
+            return `エラー: プロファイルのパス検証に失敗しました: ${error.message}`;
           }
-          profilePath = realPath;
-        } catch (error: any) {
-          return `エラー: プロファイルのパス検証に失敗しました: ${error.message}`;
         }
 
         let profileContent: string;
