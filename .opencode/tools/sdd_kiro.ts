@@ -238,9 +238,11 @@ export default tool({
 
         result += `---\n\n**次のステップ:** 以下の日本語ファイルを英語に翻訳し、同名のファイル（_jaなし）を作成してください:\n\n`;
 
+        const safeDir = path.relative(process.cwd(), targetDir).replace(/\\/g, '/');
+
         for (const { name, content } of jaContents) {
           result += `### ${name}.md\n`;
-          result += `\`${targetDir}/${name}_ja.md\` の内容を英語に翻訳して \`${targetDir}/${name}.md\` を作成してください。\n\n`;
+          result += `\`${safeDir}/${name}_ja.md\` の内容を英語に翻訳して \`${safeDir}/${name}.md\` を作成してください。\n\n`;
           result += `<${name}_ja>\n${content}\n</${name}_ja>\n\n`;
         }
 
