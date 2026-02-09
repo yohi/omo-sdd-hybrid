@@ -168,12 +168,19 @@ export default tool({
         const title = command.charAt(0).toUpperCase() + command.slice(1);
         const docContent = `# ${title}: ${feature}\n\n${finalPrompt || '詳細をここに記述してください。'}\n`;
         fs.writeFileSync(filePath, docContent, 'utf-8');
+
+        // バリデーション確認プロンプト
+        if (command === 'requirements') {
+          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ:** \`validate-gap\` を実行して既存実装とのギャップ分析を行います。\n\n\`sdd_kiro validate-gap ${feature}\` を実行してください。`;
+        } else if (command === 'design') {
+          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ:** \`validate-design\` を実行して設計の品質レビューを行います。\n\n\`sdd_kiro validate-design ${feature}\` を実行してください。`;
+        }
         return `✅ ${fileName} を作成しました。`;
       }
 
       case 'impl':
         if (!feature) return 'エラー: feature は必須です';
-        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}`;
+        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n**実装完了後:** \`validate-impl\` を実行して実装の検証を行いますか？\n\n- **[y]** 実装完了後に \`sdd_kiro validate ${feature}\` を実行\n- **[n]** 手動で検証する`;
 
       case 'validate-design':
       case 'validate':
@@ -215,7 +222,7 @@ export default tool({
                 isFromPackage = false;
                 break;
               }
-              
+
               // .opencodeディレクトリ自体を探して、その中のpromptsを見る
               const opencodeDir = path.join(searchDir, '.opencode');
               if (fs.existsSync(opencodeDir) && fs.statSync(opencodeDir).isDirectory()) {
