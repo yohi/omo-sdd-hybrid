@@ -175,8 +175,9 @@ export default tool({
           return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ:** \`validate-gap\` を実行して既存実装とのギャップ分析を行います。\n\n\`sdd_kiro validate-gap ${feature}\` を実行してください。`;
         } else if (command === 'design') {
           return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ:** \`validate-design\` を実行して設計の品質レビューを行います。\n\n\`sdd_kiro validate-design ${feature}\` を実行してください。`;
+        } else {
+          return `✅ ${fileName} を作成しました。`;
         }
-        return `✅ ${fileName} を作成しました。`;
       }
 
       case 'impl':
