@@ -3,6 +3,7 @@ import gatekeeper from './plugins/sdd-gatekeeper.js';
 import contextInjector from './plugins/sdd-context-injector.js';
 import feedbackLoop from './plugins/sdd-feedback-loop.js';
 import commandHandler from './plugins/sdd-command-handler.js';
+import configCommands from './plugins/sdd-config-commands.js';
 import tools from './tools/index.js';
 
 type EventHook = NonNullable<Hooks['event']>;
@@ -124,6 +125,7 @@ const plugin: Plugin = async (options) => {
     contextInjector(options),
     feedbackLoop(options),
     commandHandler(options),
+    configCommands(options),
   ]);
 
   const hooksList = [
@@ -131,6 +133,7 @@ const plugin: Plugin = async (options) => {
     { name: 'sdd-context-injector', hooks: results[1] },
     { name: 'sdd-feedback-loop', hooks: results[2] },
     { name: 'sdd-command-handler', hooks: results[3] },
+    { name: 'sdd-config-commands', hooks: results[4] },
     { name: 'sdd-tools', hooks: { tool: tools } },
   ];
 

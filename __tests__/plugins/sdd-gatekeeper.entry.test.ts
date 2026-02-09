@@ -41,7 +41,7 @@ describe('SddGatekeeper Entry Point', () => {
 
     let caughtError: any;
     try {
-      await handler(event);
+      await handler(event as any, {} as any);
     } catch (e: any) {
       caughtError = e;
     }
@@ -52,7 +52,7 @@ describe('SddGatekeeper Entry Point', () => {
 
   test('handles multiedit with invalid files arg via entry point', async () => {
     const mockReadState = mock(() => Promise.resolve(mockStateResult as any));
-    const mockReadGuardModeState = mock(() => Promise.resolve(null));
+    const mockReadGuardModeState = mock(() => Promise.resolve({ mode: 'block' } as any));
 
     const plugin = await SddGatekeeper({
       client: {} as any,
@@ -71,7 +71,7 @@ describe('SddGatekeeper Entry Point', () => {
       }
     };
 
-    await expect(handler(event), '無効なfilesでエラーになること').rejects.toThrow('INVALID_ARGUMENTS');
+    await expect(handler(event as any, {} as any), '無効なfilesでエラーになること').rejects.toThrow('INVALID_ARGUMENTS');
   });
 
   test('blocks implementer writing to .kiro/requirements.md via entry point', async () => {
@@ -110,6 +110,6 @@ describe('SddGatekeeper Entry Point', () => {
       }
     };
 
-    await expect(handler(event), 'implementerが.kiroに書けないこと').rejects.toThrow('ROLE_DENIED');
+    await expect(handler(event as any, {} as any), 'implementerが.kiroに書けないこと').rejects.toThrow('ROLE_DENIED');
   });
 });
