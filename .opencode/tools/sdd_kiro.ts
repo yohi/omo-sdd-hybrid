@@ -202,8 +202,17 @@ export default tool({
             for (let i = 0; i < 5; i++) {
               const candidate = path.join(searchDir, '.opencode/prompts/profile.md');
               if (fs.existsSync(candidate)) {
+                // node_modules内にある場合のみパッケージファイルとして扱う
+                const resolvedCandidate = path.resolve(candidate);
+                const nodeModulesPattern = path.sep + 'node_modules' + path.sep;
+                if (resolvedCandidate.includes(nodeModulesPattern)) {
+                  profilePath = candidate;
+                  isFromPackage = true;
+                  break;
+                }
+                // node_modules外のファイルは通常のセキュリティチェック対象
                 profilePath = candidate;
-                isFromPackage = true;
+                isFromPackage = false;
                 break;
               }
               
@@ -212,8 +221,17 @@ export default tool({
               if (fs.existsSync(opencodeDir) && fs.statSync(opencodeDir).isDirectory()) {
                 const p = path.join(opencodeDir, 'prompts/profile.md');
                 if (fs.existsSync(p)) {
+                  // node_modules内にある場合のみパッケージファイルとして扱う
+                  const resolvedP = path.resolve(p);
+                  const nodeModulesPattern = path.sep + 'node_modules' + path.sep;
+                  if (resolvedP.includes(nodeModulesPattern)) {
+                    profilePath = p;
+                    isFromPackage = true;
+                    break;
+                  }
+                  // node_modules外のファイルは通常のセキュリティチェック対象
                   profilePath = p;
-                  isFromPackage = true;
+                  isFromPackage = false;
                   break;
                 }
               }
