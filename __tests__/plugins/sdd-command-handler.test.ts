@@ -88,4 +88,51 @@ describe('SddCommandHandler /guard command', () => {
     const lastCall = (writeGuardModeState as any).mock.calls.slice(-1)[0][0];
     expect(lastCall.mode).toBe('warn');
   });
+
+  test('chat.message: /profile @idea.md expands with promptFile option', async () => {
+    const handler = await SddCommandHandler(mockCtx);
+    const chatHook = (handler as any)['chat.message'];
+    
+    const output = {
+      message: { role: 'user' },
+      parts: [{ type: 'text', text: '/profile @idea.md' }]
+    };
+
+    await chatHook({}, output);
+
+    expect(output.parts[0].text).toContain('sdd_kiro');
+    expect(output.parts[0].text).toContain('profile');
+    expect(output.parts[0].text).toContain('--promptFile "idea.md"');
+  });
+
+  test('chat.message: /profile feature-name @idea.md combines feature and promptFile', async () => {
+    const handler = await SddCommandHandler(mockCtx);
+    const chatHook = (handler as any)['chat.message'];
+    
+    const output = {
+      message: { role: 'user' },
+      parts: [{ type: 'text', text: '/profile auth-feature @idea.md' }]
+    };
+
+    await chatHook({}, output);
+
+    expect(output.parts[0].text).toContain('auth-feature');
+    expect(output.parts[0].text).toContain('--promptFile "idea.md"');
+  });
+
+  test('chat.message: /impl @spec.md expands with promptFile option', async () => {
+    const handler = await SddCommandHandler(mockCtx);
+    const chatHook = (handler as any)['chat.message'];
+    
+    const output = {
+      message: { role: 'user' },
+      parts: [{ type: 'text', text: '/impl @spec.md' }]
+    };
+
+    await chatHook({}, output);
+
+    expect(output.parts[0].text).toContain('sdd_kiro');
+    expect(output.parts[0].text).toContain('impl');
+    expect(output.parts[0].text).toContain('--promptFile "spec.md"');
+  });
 });
