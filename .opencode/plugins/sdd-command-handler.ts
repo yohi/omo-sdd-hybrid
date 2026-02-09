@@ -42,16 +42,34 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 feature: tool.schema.string().optional().describe(cmd.argumentHint || 'Feature name')
             },
             execute: async (args, context) => {
-                const feature = args.feature || '';
-                const promptContent = cmd.template.replace('{{feature}}', feature);
+                const argsList = (args.feature || '').split(/\s+/);
+                const fileArgs = argsList.filter(arg => arg.startsWith('@'));
+                const nonFileArgs = argsList.filter(arg => !arg.startsWith('@'));
+
+                const feature = nonFileArgs.join(' ').trim();
+                let promptFileArg = '';
+
+                if (fileArgs.length > 0) {
+                    const filePath = fileArgs[0].substring(1);
+                    promptFileArg = ` --promptFile "${filePath}"`;
+                }
+
+                let promptContent = cmd.template.replace('{{feature}}', feature);
+
+                if (promptFileArg) {
+                    promptContent = promptContent.replace(
+                        '</command-instruction>',
+                        `${promptFileArg}\n</command-instruction>`
+                    );
+                }
 
                 // Toast通知
                 if (ctx.client.tui?.showToast) {
                     await ctx.client.tui.showToast({
-                        body: { 
-                            message: `Executing /${cmd.name} ${feature}`.trim(), 
-                            variant: 'info', 
-                            duration: 3000 
+                        body: {
+                            message: `Executing /${cmd.name} ${feature}`.trim(),
+                            variant: 'info',
+                            duration: 3000
                         }
                     });
                 }
@@ -61,11 +79,11 @@ const SddCommandHandler: Plugin = async (ctx) => {
                     try {
                         await ctx.client.session.prompt({
                             path: { id: context.sessionID },
-                            body: { 
-                                parts: [{ 
-                                    type: "text", 
-                                    text: promptContent 
-                                }] 
+                            body: {
+                                parts: [{
+                                    type: "text",
+                                    text: promptContent
+                                }]
                             }
                         });
                         return `Command /${cmd.name} sent successfully.`;
@@ -73,10 +91,10 @@ const SddCommandHandler: Plugin = async (ctx) => {
                         const errMsg = error instanceof Error ? error.message : String(error);
                         if (ctx.client.tui?.showToast) {
                             await ctx.client.tui.showToast({
-                                body: { 
-                                    message: `Failed to execute /${cmd.name}: ${errMsg}`, 
-                                    variant: 'error', 
-                                    duration: 4000 
+                                body: {
+                                    message: `Failed to execute /${cmd.name}: ${errMsg}`,
+                                    variant: 'error',
+                                    duration: 4000
                                 }
                             });
                         }
@@ -185,24 +203,24 @@ const SddCommandHandler: Plugin = async (ctx) => {
             if (builtinCmd) {
                 const fileArgs = args.filter(arg => arg.startsWith('@'));
                 const nonFileArgs = args.filter(arg => !arg.startsWith('@'));
-                
+
                 let feature = nonFileArgs.join(' ').trim();
                 let promptFileArg = '';
-                
+
                 if (fileArgs.length > 0) {
                     const filePath = fileArgs[0].substring(1);
                     promptFileArg = ` --promptFile "${filePath}"`;
                 }
-                
+
                 let promptContent = builtinCmd.template.replace('{{feature}}', feature || '(not specified)');
-                
+
                 if (promptFileArg) {
                     promptContent = promptContent.replace(
                         '</command-instruction>',
                         `${promptFileArg}\n</command-instruction>`
                     );
                 }
-                
+
                 // メッセージの内容をプロンプト（指示書）そのものに書き換える
                 // これにより、AIはユーザーが「スラッシュコマンド」ではなく「長いプロンプト」を入力したと認識して処理を開始する
                 textPart.text = promptContent;
@@ -210,10 +228,10 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 // ユーザーへのフィードバック（オプション）
                 if (ctx.client.tui?.showToast) {
                     await ctx.client.tui.showToast({
-                        body: { 
-                            message: `Expanded /${normalizedCmd} command template.`, 
-                            variant: 'info', 
-                            duration: 2000 
+                        body: {
+                            message: `Expanded /${normalizedCmd} command template.`,
+                            variant: 'info',
+                            duration: 2000
                         }
                     });
                 }
@@ -233,16 +251,16 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 }
                 const action = args[0];
                 const feature = args[1];
-                
+
                 // アクションに対応するコマンド定義を探す (e.g. "profile")
                 const targetCmd = getBuiltinCommand(action);
                 if (targetCmd) {
-                     const prompt = targetCmd.template.replace('{{feature}}', feature);
-                     textPart.text = prompt;
+                    const prompt = targetCmd.template.replace('{{feature}}', feature);
+                    textPart.text = prompt;
                 } else {
                     const available = getAllBuiltinCommands().map(c => c.name).join(', ');
                     const errorMsg = `Unknown action: '${action}'. Available actions: ${available}`;
-                    
+
                     if (ctx.client.tui?.showToast) {
                         ctx.client.tui.showToast({
                             body: { message: errorMsg, variant: 'error', duration: 4000 }
