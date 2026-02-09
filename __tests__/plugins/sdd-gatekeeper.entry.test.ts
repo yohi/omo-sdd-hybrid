@@ -20,7 +20,7 @@ const mockStateResult = {
 describe('SddGatekeeper Entry Point', () => {
   test('handles tool event with undefined args gracefully', async () => {
     const mockReadState = mock(() => Promise.resolve(mockStateResult as any));
-    const mockReadGuardModeState = mock(() => Promise.resolve(null));
+    const mockReadGuardModeState = mock(() => Promise.resolve({ mode: 'block' }));
 
     const plugin = await SddGatekeeper({
       client: {} as any,

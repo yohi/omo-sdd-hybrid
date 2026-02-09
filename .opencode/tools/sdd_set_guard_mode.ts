@@ -2,13 +2,13 @@ import { tool } from '@opencode-ai/plugin';
 import { type GuardMode, writeGuardModeState } from '../lib/state-utils';
 
 export default tool({
-    description: 'ガードモードを設定します（warn または block）',
+    description: 'ガードモードを設定します（warn, block または disabled）',
     args: {
-        mode: tool.schema.string().describe('ガードモード: warn（警告のみ）または block（ブロック）')
+        mode: tool.schema.string().describe('ガードモード: warn（警告のみ）、block（ブロック）または disabled（無効）')
     },
     async execute({ mode }) {
-        if (mode !== 'warn' && mode !== 'block') {
-            return 'エラー: mode は "warn" または "block" を指定してください';
+        if (mode !== 'warn' && mode !== 'block' && mode !== 'disabled') {
+            return 'エラー: mode は "warn", "block" または "disabled" を指定してください';
         }
 
         const currentUser = process.env.USER || 'unknown';

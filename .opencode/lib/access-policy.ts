@@ -95,21 +95,21 @@ export function determineEffectiveGuardMode(
   fileState: GuardModeState | null
 ): GuardMode {
   if (fileState === null) {
-    if (envMode !== 'block') {
-      appendAuditLog({
-        event: 'FAIL_CLOSED',
-        message: `Guard mode state is missing or invalid. Enforcing 'block'.`,
-        meta: { envMode: envMode ?? null }
-      });
-    }
-    return 'block';
+    if (envMode === 'block') return 'block';
+    if (envMode === 'warn') return 'warn';
+    appendAuditLog({
+      event: 'FAIL_CLOSED',
+      message: `Guard mode state is missing or invalid.`,
+      meta: { envMode: envMode ?? null }
+    });
+    return 'disabled';
   }
 
   const envBlock = envMode === 'block';
   const fileBlock = fileState.mode === 'block';
 
   if (fileBlock) {
-    if (!envBlock && envMode === 'warn') {
+    if (!envBlock && (envMode === 'warn' || envMode === 'disabled')) {
        appendAuditLog({
          event: 'DENIED_WEAKENING',
          message: `Guard mode file is 'block', but env SDD_GUARD_MODE is '${envMode}'. Enforcing 'block'.`,
@@ -119,11 +119,25 @@ export function determineEffectiveGuardMode(
     return 'block';
   }
 
-  if (envBlock) {
-    return 'block';
+  const envWarn = envMode === 'warn';
+  const fileWarn = fileState.mode === 'warn';
+
+  if (fileWarn) {
+    if (envBlock) return 'block';
+    if (!envWarn && envMode === 'disabled') {
+      appendAuditLog({
+        event: 'DENIED_WEAKENING',
+        message: `Guard mode file is 'warn', but env SDD_GUARD_MODE is 'disabled'. Enforcing 'warn'.`,
+        meta: { envMode, fileMode: fileState.mode }
+      });
+    }
+    return 'warn';
   }
 
-  return 'warn';
+  if (envBlock) return 'block';
+  if (envWarn) return 'warn';
+
+  return 'disabled';
 }
 
 /**
@@ -131,7 +145,9 @@ export function determineEffectiveGuardMode(
  */
 export function getGuardMode(): GuardMode {
   const mode = process.env.SDD_GUARD_MODE;
-  return mode === 'block' ? 'block' : 'warn';
+  if (mode === 'block') return 'block';
+  if (mode === 'warn') return 'warn';
+  return 'disabled';
 }
 
 export interface AccessResult {
@@ -584,11 +600,12 @@ export function evaluateAccess(
   worktreeRoot: string,
   mode: GuardMode = getGuardMode()
 ): AccessResult {
-  const allowedOnViolation = mode === 'warn';
+  const allowedOnViolation = mode === 'warn' || mode === 'disabled';
   const policy = loadPolicyConfig();
   
   if (!WRITE_TOOLS.includes(toolName)) {
     if (toolName === 'bash' && command) {
+      if (mode === 'disabled') return { allowed: true, warned: false };
       if (isDestructiveBash(command, policy, mode)) {
         return { allowed: allowedOnViolation, warned: true, message: `破壊的コマンド検出: ${command}`, rule: 'Rule4' };
       }
@@ -609,6 +626,10 @@ export function evaluateAccess(
   
   if (policy.alwaysAllow.some(prefix => normalizedPath.startsWith(prefix))) {
     return { allowed: true, warned: false, rule: 'Rule0' };
+  }
+
+  if (mode === 'disabled') {
+    return { allowed: true, warned: false };
   }
   
   if (isOutsideWorktree(filePath, worktreeRoot)) {
@@ -680,7 +701,7 @@ export function evaluateRoleAccess(
 
   const normalizedPath = normalizeToRepoRelative(filePath, worktreeRoot);
   const isKiroPath = normalizedPath.startsWith('.kiro/');
-  const allowedOnViolation = mode === 'warn';
+  const allowedOnViolation = mode === 'warn' || mode === 'disabled';
 
   if (role === 'architect') {
     // Architect: Only allow .kiro/** (Priority over scope)

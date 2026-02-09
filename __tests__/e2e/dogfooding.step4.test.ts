@@ -64,7 +64,7 @@ describe('E2E: Hello World Scenario (Step 4)', () => {
 
     // 2. .kiro/** への書き込み試行 -> Blockされるべき
     // 絶対パスで指定する (Gatekeeper内部でnormalizeされるため)
-    const kiroFilePath = path.join(process.env.SDD_KIRO_DIR!, 'specs', 'hello-world', 'tasks.md');
+    const kiroFilePath = path.join(process.env.SDD_KIRO_DIR!, 'specs', 'hello-world', 'requirements.md');
     
     const editKiroEvent = {
       tool: {
@@ -74,7 +74,7 @@ describe('E2E: Hello World Scenario (Step 4)', () => {
     };
 
     // 期待: ROLE_DENIED (Implementerは.kiroを触れない)
-    await expect(beforeHook(editKiroEvent)).rejects.toThrow('ROLE_DENIED');
+    await expect(beforeHook(editKiroEvent as any, {} as any)).rejects.toThrow('ROLE_DENIED');
 
     // 3. 仕様変更申請 (sdd_request_spec_change)
     const reason = 'Cannot implement X without Y';
@@ -130,17 +130,13 @@ describe('E2E: Hello World Scenario (Step 4)', () => {
 
     // 期待: エラーにならない
     try {
-      await beforeHook(editKiroEvent);
+      await beforeHook(editKiroEvent as any, {} as any);
     } catch (e: any) {
       console.error('Unexpected error in Architect flow (.kiro edit):', e);
       throw e;
     }
 
-    // 3. src/** (通常コード) への書き込み試行 -> Blockされるべき
-    // 要件: "Architect は .kiro/** 以外への edit が ROLE_DENIED でブロックされる"
-    const srcFilePath = path.resolve(tmpDir, 'src/hello/main.ts'); // tmpDir配下の擬似パス
-    // 注意: setupTestStateで作られるのはディレクトリだけなので、srcディレクトリは存在しないが、
-    // Gatekeeperのチェックはパスベースなのでファイル実体はなくても動くはず（readState等はmock不要）
+    const srcFilePath = path.resolve(tmpDir, 'src/hello/main.ts');
     
     const editSrcEvent = {
       tool: {
@@ -152,6 +148,6 @@ describe('E2E: Hello World Scenario (Step 4)', () => {
     // 期待: ROLE_DENIED (Architectは実装コードを触れない)
     // 注意: Scopeに含まれていても Role で弾かれるかどうかがポイント
     // HW-ARCH の Scope は `src/hello/**` だが、Architectロールのポリシーにより弾かれるはず
-    await expect(beforeHook(editSrcEvent)).rejects.toThrow('ROLE_DENIED');
+    await expect(beforeHook(editSrcEvent as any, {} as any)).rejects.toThrow('ROLE_DENIED');
   });
 });

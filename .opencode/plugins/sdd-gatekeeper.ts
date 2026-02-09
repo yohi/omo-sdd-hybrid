@@ -22,23 +22,20 @@ const SddGatekeeper: Plugin = async (options) => {
 
   return {
     'tool.execute.before': async (input, output) => {
-      const toolInput = input.tool;
+      const toolInput = input?.tool;
       const name = typeof toolInput === 'string'
         ? toolInput
         : (toolInput as any)?.name || (toolInput as any)?.id || '';
 
-      const args = output.args;
-
+      const args = (input as any)?.args || (toolInput as any)?.args || (output as any)?.args;
+      
       const guardModeState = await readGuardModeState();
       const stateResult = await readState();
+      const effectiveMode = determineEffectiveGuardMode(process.env.SDD_GUARD_MODE, guardModeState);
 
-      // If SDD is not initialized (no guard mode config, no env var, no active state),
-      // bypass the gatekeeper checks completely.
-      if (!guardModeState && !process.env.SDD_GUARD_MODE && stateResult.status === 'not_found') {
+      if (effectiveMode === 'disabled') {
         return;
       }
-
-      const effectiveMode = determineEffectiveGuardMode(process.env.SDD_GUARD_MODE, guardModeState);
 
       if (name === 'multiedit' && args?.files) {
         const result = evaluateMultiEdit(args.files, stateResult, worktreeRoot, effectiveMode);

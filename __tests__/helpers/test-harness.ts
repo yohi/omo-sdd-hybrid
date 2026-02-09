@@ -9,7 +9,8 @@ export function setupTestState(): string {
   process.env.SDD_STATE_DIR = tmpDir;
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
-  process.env.SDD_TEST_MODE = 'true'; // Enable fast locks
+  process.env.SDD_TEST_MODE = 'true';
+  process.env.SDD_GUARD_MODE = 'warn';
   const tasksPath = process.env.SDD_TASKS_PATH;
   if (tasksPath) {
     fs.writeFileSync(tasksPath, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
@@ -26,6 +27,7 @@ export function cleanupTestState(): void {
   delete process.env.SDD_TASKS_PATH;
   delete process.env.SDD_KIRO_DIR;
   delete process.env.SDD_TEST_MODE;
+  delete process.env.SDD_GUARD_MODE;
 }
 
 export async function ensureNoBackups(): Promise<void> {

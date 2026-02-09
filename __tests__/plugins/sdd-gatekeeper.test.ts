@@ -19,6 +19,21 @@ const baseState = {
 };
 
 describe('sdd-gatekeeper evaluateAccess', () => {
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    originalEnv = process.env.SDD_GUARD_MODE;
+    process.env.SDD_GUARD_MODE = 'warn';
+  });
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.SDD_GUARD_MODE;
+    } else {
+      process.env.SDD_GUARD_MODE = originalEnv;
+    }
+  });
+
   describe('Rule 0: Always Allow specs/** and .opencode/**', () => {
     test('allows specs/tasks.md with no state', () => {
       const stateResult: StateResult = { status: 'not_found' };
@@ -48,7 +63,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
   describe('Rule 1: State Required', () => {
     test('warns when no state exists for src file', () => {
       const stateResult: StateResult = { status: 'not_found' };
-      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot);
+      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult as any, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('NO_ACTIVE_TASK');
@@ -64,10 +79,14 @@ describe('sdd-gatekeeper evaluateAccess', () => {
           activeTaskTitle: 'Test',
           allowedScopes: [], 
           startedAt: new Date().toISOString(),
-          startedBy: 'test'
+          startedBy: 'test',
+          validationAttempts: 0,
+          role: null,
+          tasksMdHash: '',
+          stateHash: ''
         } 
       };
-      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot);
+      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult as any, worktreeRoot);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('NO_ACTIVE_TASK');
     });
@@ -83,17 +102,17 @@ describe('sdd-gatekeeper evaluateAccess', () => {
         allowedScopes: ['src/auth/**'], 
         startedAt: new Date().toISOString(),
         startedBy: 'test'
-      } 
+      } as any
     };
 
     test('allows file within scope', () => {
-      const result = evaluateAccess('edit', 'src/auth/login.ts', undefined, validState, worktreeRoot);
+      const result = evaluateAccess('edit', 'src/auth/login.ts', undefined, validState as any, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
     });
 
     test('warns for file outside scope', () => {
-      const result = evaluateAccess('edit', 'src/pay/checkout.ts', undefined, validState, worktreeRoot);
+      const result = evaluateAccess('edit', 'src/pay/checkout.ts', undefined, validState as any, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('SCOPE_DENIED');
@@ -112,10 +131,14 @@ describe('sdd-gatekeeper evaluateAccess', () => {
           activeTaskTitle: 'Test',
           allowedScopes: ['**'], 
           startedAt: new Date().toISOString(),
-          startedBy: 'test'
+          startedBy: 'test',
+          validationAttempts: 0,
+          role: null,
+          tasksMdHash: '',
+          stateHash: ''
         } 
       };
-      const result = evaluateAccess('edit', '../secrets.txt', undefined, stateResult, worktreeRoot);
+      const result = evaluateAccess('edit', '../secrets.txt', undefined, stateResult as any, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('OUTSIDE_WORKTREE');
@@ -152,7 +175,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
   describe('State Corrupted', () => {
     test('warns for corrupted state on non-spec file', () => {
       const stateResult: StateResult = { status: 'corrupted', error: 'JSON parse error' };
-      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot);
+      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult as any, worktreeRoot);
       expect(result.allowed).toBe(false);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('STATE_CORRUPTED');
@@ -186,7 +209,7 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
       { filePath: 'src/auth/x.ts' },
       { filePath: 'src/pay/y.ts' }
     ];
-    const result = evaluateMultiEdit(files, stateResult, worktreeRoot);
+    const result = evaluateMultiEdit(files, stateResult as any, worktreeRoot, 'warn');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('1/2');
@@ -201,14 +224,18 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
         activeTaskTitle: 'Auth',
         allowedScopes: ['src/auth/**'], 
         startedAt: new Date().toISOString(),
-        startedBy: 'test'
+        startedBy: 'test',
+        validationAttempts: 0,
+        role: null,
+        tasksMdHash: '',
+        stateHash: ''
       } 
     };
     const files = [
       { filePath: 'src/auth/x.ts' },
       { filePath: 'src/auth/y.ts' }
     ];
-    const result = evaluateMultiEdit(files, stateResult, worktreeRoot);
+    const result = evaluateMultiEdit(files, stateResult as any, worktreeRoot, 'warn');
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(false);
   });
@@ -221,11 +248,15 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
         activeTaskTitle: 'Test',
         allowedScopes: ['**'], 
         startedAt: new Date().toISOString(),
-        startedBy: 'test'
+        startedBy: 'test',
+        validationAttempts: 0,
+        role: null,
+        tasksMdHash: '',
+        stateHash: ''
       } 
     };
     // @ts-ignore - Testing runtime validation
-    const result = evaluateMultiEdit("not-an-array", stateResult, worktreeRoot);
+    const result = evaluateMultiEdit("not-an-array", stateResult as any, worktreeRoot, 'warn');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('INVALID_ARGUMENTS');
@@ -259,13 +290,13 @@ describe('Role-based Access Control', () => {
 
   describe('Architect Role', () => {
     test('allows writing to .kiro/ directory (Priority over scope)', () => {
-      const result = evaluateRoleAccess('edit', '.kiro/specs/design.md', undefined, architectState, worktreeRoot);
+      const result = evaluateRoleAccess('edit', '.kiro/specs/design.md', undefined, architectState as any, worktreeRoot, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.rule).toBe('RoleAllowed');
     });
 
     test('denies writing to src/ directory (even if in scope)', () => {
-      const result = evaluateRoleAccess('edit', 'src/app.ts', undefined, architectState, worktreeRoot, 'block');
+      const result = evaluateRoleAccess('edit', 'src/app.ts', undefined, architectState as any, worktreeRoot, 'block');
       expect(result.allowed).toBe(false);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('ROLE_DENIED');
@@ -273,7 +304,7 @@ describe('Role-based Access Control', () => {
     });
     
     test('allows writing to specs/ (Rule0)', () => {
-      const result = evaluateRoleAccess('edit', 'specs/tasks.md', undefined, architectState, worktreeRoot);
+      const result = evaluateRoleAccess('edit', 'specs/tasks.md', undefined, architectState as any, worktreeRoot, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.rule).toBe('Rule0');
     });
@@ -281,7 +312,7 @@ describe('Role-based Access Control', () => {
 
   describe('Implementer Role', () => {
     test('denies writing to .kiro/ directory', () => {
-      const result = evaluateRoleAccess('edit', '.kiro/specs/design.md', undefined, implementerState, worktreeRoot, 'block');
+      const result = evaluateRoleAccess('edit', '.kiro/specs/design.md', undefined, implementerState as any, worktreeRoot, 'block');
       expect(result.allowed).toBe(false);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('ROLE_DENIED');
@@ -289,13 +320,13 @@ describe('Role-based Access Control', () => {
     });
 
     test('allows writing to allowed scope', () => {
-      const result = evaluateRoleAccess('edit', 'src/auth/login.ts', undefined, implementerState, worktreeRoot);
+      const result = evaluateRoleAccess('edit', 'src/auth/login.ts', undefined, implementerState as any, worktreeRoot, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
     });
     
     test('denies writing outside scope (standard behavior)', () => {
-      const result = evaluateRoleAccess('edit', 'src/other/feature.ts', undefined, implementerState, worktreeRoot, 'block');
+      const result = evaluateRoleAccess('edit', 'src/other/feature.ts', undefined, implementerState as any, worktreeRoot, 'block');
       expect(result.allowed).toBe(false);
       expect(result.message).toContain('SCOPE_DENIED');
     });

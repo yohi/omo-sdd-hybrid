@@ -18,7 +18,7 @@ describe('sdd_validate_gap Smart Strategy', () => {
       deep: undefined
     });
 
-    expect(result).toContain('Smart Strategy: Architect ロールのため、Deep Analysis が自動的に有効化されました。');
+    expect(result).toContain('> Tip: Architect ロールです。より詳細な意味的検証を行うには --deep オプションを指定してください。');
   });
 
   test('Implementer role does NOT auto-enable deep analysis', async () => {

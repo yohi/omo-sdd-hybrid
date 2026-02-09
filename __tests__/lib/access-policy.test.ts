@@ -48,6 +48,14 @@ describe('access-policy', () => {
   });
 
   describe('evaluateAccess', () => {
+    test('allows everything in disabled mode', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      
+      const result = evaluateAccess('edit', 'src/app.ts', undefined, { status: 'not_found' }, WORKTREE_ROOT, 'disabled');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
     test('allows non-write tools', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       
@@ -59,7 +67,7 @@ describe('access-policy', () => {
     test('allows ALWAYS_ALLOW paths', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       
-      const result = evaluateAccess('edit', 'specs/tasks.md', undefined, { status: 'not_found' }, WORKTREE_ROOT);
+      const result = evaluateAccess('edit', 'specs/tasks.md', undefined, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
       expect(result.rule).toBe('Rule0');
@@ -68,7 +76,7 @@ describe('access-policy', () => {
     test('allows .opencode/ paths', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       
-      const result = evaluateAccess('write', '.opencode/lib/test.ts', undefined, { status: 'not_found' }, WORKTREE_ROOT);
+      const result = evaluateAccess('write', '.opencode/lib/test.ts', undefined, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
       expect(result.rule).toBe('Rule0');
@@ -106,7 +114,7 @@ describe('access-policy', () => {
       
       const state = { ...baseState };
       
-      const result = evaluateAccess('edit', 'src/app.ts', undefined, { status: 'ok', state }, WORKTREE_ROOT);
+      const result = evaluateAccess('edit', 'src/app.ts', undefined, { status: 'ok', state }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
     });
@@ -198,7 +206,7 @@ describe('access-policy', () => {
       
       const state = { ...baseState, role: 'implementer' as const };
       
-      const result = evaluateRoleAccess('edit', '.kiro/specs/foo/tasks.md', undefined, { status: 'ok', state }, WORKTREE_ROOT);
+      const result = evaluateRoleAccess('edit', '.kiro/specs/foo/tasks.md', undefined, { status: 'ok', state }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
       expect(result.rule).toBe('RoleAllowed');
@@ -272,7 +280,7 @@ describe('access-policy', () => {
         { filePath: 'src/b.ts' },
       ];
       
-      const result = evaluateMultiEdit(files, { status: 'ok', state }, WORKTREE_ROOT);
+      const result = evaluateMultiEdit(files, { status: 'ok', state }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
     });
@@ -287,17 +295,25 @@ describe('access-policy', () => {
         { filePath: 'tests/b.test.ts' },
       ];
       
-      const result = evaluateMultiEdit(files, { status: 'ok', state }, WORKTREE_ROOT);
+      const result = evaluateMultiEdit(files, { status: 'ok', state }, WORKTREE_ROOT, 'warn');
       expect(result.warned).toBe(true);
     });
   });
 
   describe('getGuardMode', () => {
-    test('returns warn by default', async () => {
+    test('returns disabled by default', async () => {
       const { getGuardMode } = await import('../../.opencode/lib/access-policy');
       
       delete process.env.SDD_GUARD_MODE;
+      expect(getGuardMode()).toBe('disabled');
+    });
+
+    test('returns warn when set', async () => {
+      const { getGuardMode } = await import('../../.opencode/lib/access-policy');
+      
+      process.env.SDD_GUARD_MODE = 'warn';
       expect(getGuardMode()).toBe('warn');
+      delete process.env.SDD_GUARD_MODE;
     });
 
     test('returns block when set', async () => {
@@ -310,32 +326,59 @@ describe('access-policy', () => {
   });
 
   describe('determineEffectiveGuardMode', () => {
-    test('fail-closed (block) when state is missing', async () => {
+    test('default to disabled when state is missing', async () => {
       const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
-      expect(determineEffectiveGuardMode(undefined, null)).toBe('block');
-      expect(determineEffectiveGuardMode('warn', null)).toBe('block');
+      expect(determineEffectiveGuardMode(undefined, null)).toBe('disabled');
+      expect(determineEffectiveGuardMode('warn', null)).toBe('warn');
+      expect(determineEffectiveGuardMode('block', null)).toBe('block');
     });
 
     test('returns block if env is block', async () => {
       const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
-      expect(determineEffectiveGuardMode('block', null)).toBe('block');
       // Env block wins over file warn (strengthening)
       expect(determineEffectiveGuardMode('block', { mode: 'warn', updatedAt: '', updatedBy: '' })).toBe('block');
+      // Env block wins over file disabled
+      expect(determineEffectiveGuardMode('block', { mode: 'disabled', updatedAt: '', updatedBy: '' })).toBe('block');
     });
 
     test('returns block if file is block (weakening denied)', async () => {
       const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
-      // Env warn is ignored if file is block
+      // Env warn/disabled is ignored if file is block
       expect(determineEffectiveGuardMode('warn', { mode: 'block', updatedAt: '', updatedBy: '' })).toBe('block');
+      expect(determineEffectiveGuardMode('disabled', { mode: 'block', updatedAt: '', updatedBy: '' })).toBe('block');
       expect(determineEffectiveGuardMode(undefined, { mode: 'block', updatedAt: '', updatedBy: '' })).toBe('block');
+    });
+
+    test('returns warn if file is warn (disabled denied)', async () => {
+      const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+      // Env disabled is ignored if file is warn
+      expect(determineEffectiveGuardMode('disabled', { mode: 'warn', updatedAt: '', updatedBy: '' })).toBe('warn');
+      expect(determineEffectiveGuardMode(undefined, { mode: 'warn', updatedAt: '', updatedBy: '' })).toBe('warn');
+    });
+
+    test('allows disabled if both are disabled or undefined', async () => {
+      const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+      expect(determineEffectiveGuardMode(undefined, { mode: 'disabled', updatedAt: '', updatedBy: '' })).toBe('disabled');
+      expect(determineEffectiveGuardMode('disabled', { mode: 'disabled', updatedAt: '', updatedBy: '' })).toBe('disabled');
     });
   });
 
   describe('guard-mode audit log', () => {
+    test('writes audit log on weakening denial', async () => {
+      const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
+
+      determineEffectiveGuardMode('warn', { mode: 'block', updatedAt: '', updatedBy: '' });
+
+      const guardLogPath = path.join(getStateDir(), 'guard-mode.log');
+      expect(fs.existsSync(guardLogPath)).toBe(true);
+      const logContent = fs.readFileSync(guardLogPath, 'utf-8').trim();
+      expect(logContent).toContain('DENIED_WEAKENING');
+    });
+
     test('writes structured fail-closed entry', async () => {
       const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
 
-      determineEffectiveGuardMode('warn', null);
+      determineEffectiveGuardMode(undefined, null);
 
       const guardLogPath = path.join(getStateDir(), 'guard-mode.log');
       expect(fs.existsSync(guardLogPath)).toBe(true);
@@ -356,7 +399,7 @@ describe('access-policy', () => {
       try {
         const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
         for (let i = 0; i < 20; i += 1) {
-          determineEffectiveGuardMode('warn', null);
+          determineEffectiveGuardMode(undefined, null);
         }
 
         const guardLogPath = path.join(getStateDir(), 'guard-mode.log');
