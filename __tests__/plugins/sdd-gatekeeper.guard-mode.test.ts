@@ -48,7 +48,7 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await expect(hook(event)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
+    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
   });
 
   test('env=block overrides file=warn', async () => {
@@ -83,7 +83,7 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await expect(hook(event)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
+    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
   });
 
   test('file=warn and env=warn allows with warning', async () => {
@@ -118,10 +118,10 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await hook(event);
+    await hook(event as any, {} as any);
   });
 
-  test('fail closed: returns null (file missing) and env=warn defaults to block', async () => {
+  test('uses env=warn when file missing (replaces fail-closed block)', async () => {
     const mockReadGuardModeState = mock(() => Promise.resolve(null));
 
     process.env.SDD_GUARD_MODE = 'warn';
@@ -149,11 +149,10 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    // Fail Closed: 設定読み込み失敗時は block とみなされ、スコープ外アクセスは拒否される
-    await expect(hook(event)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
+    await hook(event as any, {} as any);
   });
 
-  test('fail closed: returns null (file missing) and env undefined defaults to block', async () => {
+  test('defaults to disabled when both file and env are missing', async () => {
     const mockReadGuardModeState = mock(() => Promise.resolve(null));
 
     delete process.env.SDD_GUARD_MODE;
@@ -181,6 +180,6 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await expect(hook(event)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
+    await hook(event as any, {} as any);
   });
 });

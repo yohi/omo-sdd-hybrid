@@ -600,15 +600,12 @@ export function evaluateAccess(
   worktreeRoot: string,
   mode: GuardMode = getGuardMode()
 ): AccessResult {
-  const allowedOnViolation = mode === 'warn';
+  const allowedOnViolation = mode === 'warn' || mode === 'disabled';
   const policy = loadPolicyConfig();
-  
-  if (mode === 'disabled') {
-    return { allowed: true, warned: false };
-  }
   
   if (!WRITE_TOOLS.includes(toolName)) {
     if (toolName === 'bash' && command) {
+      if (mode === 'disabled') return { allowed: true, warned: false };
       if (isDestructiveBash(command, policy, mode)) {
         return { allowed: allowedOnViolation, warned: true, message: `破壊的コマンド検出: ${command}`, rule: 'Rule4' };
       }
@@ -629,6 +626,10 @@ export function evaluateAccess(
   
   if (policy.alwaysAllow.some(prefix => normalizedPath.startsWith(prefix))) {
     return { allowed: true, warned: false, rule: 'Rule0' };
+  }
+
+  if (mode === 'disabled') {
+    return { allowed: true, warned: false };
   }
   
   if (isOutsideWorktree(filePath, worktreeRoot)) {
@@ -700,7 +701,7 @@ export function evaluateRoleAccess(
 
   const normalizedPath = normalizeToRepoRelative(filePath, worktreeRoot);
   const isKiroPath = normalizedPath.startsWith('.kiro/');
-  const allowedOnViolation = mode === 'warn';
+  const allowedOnViolation = mode === 'warn' || mode === 'disabled';
 
   if (role === 'architect') {
     // Architect: Only allow .kiro/** (Priority over scope)
