@@ -13,25 +13,23 @@ export default function SddConfigCommands(ctx: any) {
      */
     config: async (config: any) => {
       if (!config.command) {
-        config.command = [];
+        config.command = {};
       }
 
       // Builtin コマンド (profile, impl, validate) を注入
       const builtinCommands = getAllBuiltinCommands();
       for (const cmd of builtinCommands) {
-        config.command.push({
-          name: cmd.name,
+        config.command[cmd.name] = {
           description: cmd.description,
           template: cmd.template,
-        });
+        };
       }
 
       // guard コマンドを手動で追加
-      config.command.push({
-        name: "guard",
+      config.command["guard"] = {
         description: "Set Gatekeeper guard mode",
         template: "Gatekeeperのモード設定を変更します (引数: warn | block)",
-      });
+      };
 
       return config;
     },

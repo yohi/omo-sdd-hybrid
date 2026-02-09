@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'bun:test';
-// @ts-ignore: このファイルはまだ存在しないため（REDフェーズ）、TypeScriptのエラーを無視します
 import SddConfigCommands from '../../.opencode/plugins/sdd-config-commands.js';
 
 describe('SddConfigCommands', () => {
@@ -9,7 +8,7 @@ describe('SddConfigCommands', () => {
     
     // モックの config オブジェクト
     const mockConfig: any = {
-      command: []
+      command: {}
     };
 
     // config hook の実行
@@ -20,7 +19,7 @@ describe('SddConfigCommands', () => {
     }
 
     // 登録されたコマンド名の取得
-    const commandNames = mockConfig.command.map((cmd: any) => cmd.name);
+    const commandNames = Object.keys(mockConfig.command);
     
     // 指定された4つのコマンドが含まれているか検証
     expect(commandNames).toContain('profile');
