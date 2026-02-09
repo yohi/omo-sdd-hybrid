@@ -183,10 +183,25 @@ const SddCommandHandler: Plugin = async (ctx) => {
 
             // 2. コマンドが見つかった場合、テンプレートを展開してメッセージを置換する
             if (builtinCmd) {
-                const feature = args.join(' ').trim(); // 引数をfeatureとして結合
+                const fileArgs = args.filter(arg => arg.startsWith('@'));
+                const nonFileArgs = args.filter(arg => !arg.startsWith('@'));
                 
-                // テンプレート内のプレースホルダーを置換
-                const promptContent = builtinCmd.template.replace('{{feature}}', feature);
+                let feature = nonFileArgs.join(' ').trim();
+                let promptFileArg = '';
+                
+                if (fileArgs.length > 0) {
+                    const filePath = fileArgs[0].substring(1);
+                    promptFileArg = ` --promptFile "${filePath}"`;
+                }
+                
+                let promptContent = builtinCmd.template.replace('{{feature}}', feature || '(not specified)');
+                
+                if (promptFileArg) {
+                    promptContent = promptContent.replace(
+                        '</command-instruction>',
+                        `${promptFileArg}\n</command-instruction>`
+                    );
+                }
                 
                 // メッセージの内容をプロンプト（指示書）そのものに書き換える
                 // これにより、AIはユーザーが「スラッシュコマンド」ではなく「長いプロンプト」を入力したと認識して処理を開始する
