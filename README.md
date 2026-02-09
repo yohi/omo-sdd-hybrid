@@ -128,6 +128,7 @@ Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開�
 | `/profile` | **Architect** | 仕様策定・設計フェーズ。要件定義やタスク分解を行います。 |
 | `/impl` | **Implementer** | 実装フェーズ。スコープを厳守し、Vibe Coding を回避しながらコーディングします。 |
 | `/validate` | **Reviewer** | 検証フェーズ。仕様と実装の乖離（Gap）を厳格に分析します。 |
+| `/guard` | **Admin** | Gatekeeperのモード（warn/block/disabled）を切り替えます。 |
 
 #### 💡 高度な使い方 (Advanced Usage)
 
@@ -277,7 +278,59 @@ npx cc-sdd@latest --claude
 
 ### sdd_kiro コマンドリファレンス
 
-`sdd_kiro` は以下のサブコマンドをサポートします。通常はスラッシュコマンド経由でAgentが実行しますが、手動実行も可能です。
+`sdd_kiro` は Kiro 互換のコマンド統合エントリーポイントです。通常はスラッシュコマンド経由でAgentが実行しますが、手動実行も可能です。
+
+#### 機能開発 (Feature Development)
+
+| コマンド | 説明 |
+|---------|------|
+| `init` | 仕様書の雛形（Scaffold）を生成します。 |
+| `requirements` | 要件定義書（requirements.md）を生成します。 |
+| `design` | 設計書（design.md）を生成します。 |
+| `tasks` | 実装タスク（tasks.md）を生成します。 |
+| `impl` | 実装フェーズへ移行し、タスクロックを取得します。 |
+| `validate-gap` | 実装と仕様のギャップ分析を行います。 |
+| `validate-design` | 設計書の整合性レビューを行います。 |
+| `finalize` | **Hybrid Language Workflow**: 日本語仕様書を英語へ移行する準備を行います。 |
+
+#### コンテキスト管理 (Context Management)
+
+| コマンド | 説明 |
+|---------|------|
+| `steering` | プロジェクト全体の方向性（Steering Documents）を管理・閲覧します。 |
+| `profile` | 現在のロール（Architect/Implementer）に基づき、最適なプロンプトコンテキストを読み込みます。 |
+
+### 多言語対応ワークフロー (Hybrid Language Workflow)
+
+このプロジェクトでは、**日本語で思考し、英語で実装・記録する** ハイブリッドなワークフローをサポートしています。
+
+1. **日本語で仕様策定**:
+   `requirements`, `design` コマンドで日本語の仕様書を作成します。
+   
+2. **Finalize (確定と翻訳)**:
+   仕様が固まったら `finalize` コマンドを実行します。
+   
+   ```bash
+   sdd_kiro finalize --feature <feature-name>
+   ```
+   
+   - 既存の `.md` ファイルが `*_ja.md` にリネームされます。
+   - エージェントに対して、これらを英訳して正式な `.md` を再作成するよう指示が出されます。
+   
+3. **英語で実装**:
+   正式な英語の仕様書（Source of Truth）に基づいて実装を進めます（`impl`）。
+
+### ステアリングドキュメント (Steering Documents)
+
+プロジェクトの長期的な決定事項やアーキテクチャ方針を `.kiro/steering/` 配下で管理します。
+
+```bash
+# ドキュメントの更新・作成
+sdd_kiro steering --feature <doc-name> --prompt "内容..."
+
+# 一覧表示
+sdd_kiro steering
+```
 
 ### 意味的検証 (Semantic Verification)
 
