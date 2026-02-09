@@ -1,172 +1,107 @@
-# PROJECT KNOWLEDGE BASE
+# AGENTS.md - OmO-SDD-Hybrid Developer Guide
 
 **Context:** OmO-SDD-Hybrid (OpenCode Plugin)
 **Stack:** TypeScript, Bun, OpenCode API
-**Language:** Code=English, Comments/Docs=Japanese
+**Language:** Code=English, Comments/Docs/Commits=**JAPANESE** (Strict)
 
-## 1. OVERVIEW & STRUCTURE
-A plugin that physically prevents "Vibe Coding" (deviating from specifications) in the OpenCode environment.
-It adopts a "Hybrid" configuration where the source code is hidden within `.opencode/`.
-
-### Directory Structure
-```text
-omo-sdd-hybrid/
-├── .opencode/           # [CORE] Plugin implementation (Hidden Source)
-│   ├── plugins/         # Event Hooks (Gatekeeper, etc.)
-│   ├── tools/           # CLI Tools (sdd_start_task, etc.)
-│   ├── lib/             # Shared Logic & State Manager
-│   └── state/           # Runtime State (Gitignored)
-├── src/                 # [USER] SDD-managed code area
-├── specs/               # [USER] Task and specification definitions (Source of Truth)
-├── __tests__/           # [DEV] Tests (Mirrors the .opencode structure)
-└── package.json         # For development (Bun, Test, DevDeps)
-```
-
-## 2. COMMANDS (Build & Test)
+## 1. ENVIRONMENT & COMMANDS
 
 This project uses **Bun**. Please use `bun` commands instead of `npm` or `yarn`.
 
-### Test Execution
-```bash
-# Run all tests
-bun test
+- **Test**:
+  - `bun test`: Run all tests.
+  - `bun test:seq`: **Recommended**. Runs tests sequentially to prevent state/lock races.
+  - `bun test <path>`: Run specific test file.
+- **Build**: `bun run build` (Outputs to `dist/`).
+- **Lint**: No explicit command. Follow existing Prettier style.
 
-# Run tests for a specific file
-bun test __tests__/tools/sdd_start_task.test.ts
+## 2. CODE STYLE & CONVENTIONS
 
-# Sequential test execution (Recommended)
-# Since tests may depend on file locks or singleton states
-bun test:seq
-```
+- **Language Rules**:
+  - **Code (Variables, Functions, Classes)**: English, `camelCase`.
+  - **Comments / Documentation**: **JAPANESE** (Required for user readability).
+  - **Commit Messages**: **JAPANESE** (e.g., `feat: 認証機能を追加`).
+  - **Error Messages**: **JAPANESE** with Error Codes.
+    - Good: `throw new Error("E_TASK_NOT_FOUND: タスクが見つかりません")`
 
-### Build
-```bash
-# Build the plugin (outputs to dist/)
-bun run build
-```
+- **Implementation Rules**:
+  - **Imports**: Use relative paths for internal modules (e.g., `../lib/state-utils`).
+  - **State Management**: **NEVER** write to `.opencode/state/*.json` directly. Use `lib/state-utils` (`writeState`, `lockStateDir`) for atomic operations.
+  - **Tool Implementation**: Located in `.opencode/tools/`. Must be **Stateless** and **Idempotent**. No binary dependencies.
 
-### Lint / Format
-There is no explicit Lint command, but please follow the existing code style (Prettier-compliant).
+## 3. ARCHITECTURE (Hybrid Structure)
 
-## 3. CODE STYLE GUIDELINES
+- **`.opencode/plugins`**: Event hooks (e.g., `sdd-gatekeeper.ts` checks file access).
+- **`.opencode/tools`**: CLI commands loaded dynamically.
+- **`.opencode/lib`**: Shared logic and State Manager.
+- **`.opencode/state`**: Runtime state (Gitignored).
+- **`src/`**: User land (Subject to Scope restrictions).
 
-### Language & naming
-- **Code**: TypeScript
-  - **Note**: `tsconfig.json` has `"strict": false` for flexibility, but you MUST aim for type safety. Avoid `any`.
-- **Comments/Docs**: **ALL JAPANESE** (Required).
-  - **Reason**: To maximize readability for the development team and users (assumed to be in Japan).
-  - **Exception 1**: Variable and function names must be in English (camelCase).
-  - **Exception 2**: `AGENTS.md` (this file) and system prompts for LLMs must be in **English** (to optimize LLM understanding accuracy and context efficiency).
-- **File Names**: kebab-case (e.g., `state-utils.ts`, `sdd-gatekeeper.ts`).
+## 4. AGENT WORKFLOW (SDD Cycle)
 
-### Imports
-- **Relative Paths**: Import internal modules using relative paths (e.g., `../lib/state-utils`).
-- **Extensions**: Omit `.ts` extensions, but `.js` may be used for ESM compatibility (follow existing code).
-- **Grouping**: Standard libraries (`fs`, `path`) -> External libraries -> Internal modules.
+Agents MUST follow this cycle. Do not skip steps.
 
-### Error Handling
-- **Fail Fast**: Throw exceptions immediately for invalid states or arguments.
-- **Messages**: Error messages must be written in **Japanese**. Include clear reasons as they are displayed to the user.
-  - Bad: `throw new Error("Error")`
-  - Good: `throw new Error("E_TASK_NOT_FOUND: 指定されたタスクIDが見つかりません")`
-- **Prefix**: Recommended to use error code-like prefixes (e.g., `E_XXX:`).
+### Phase 1: Architect (Role: `architect`)
+**Goal**: Define "What to build" and "Where to allow edits".
+1. **Design**: Create/Update `.kiro/specs/*.md` (Requirements/Design).
+2. **Task Definition**: Update `specs/tasks.md`.
+3. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `tasks.md`.
+   - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
 
-### State Management (Critical)
-- **Stateless Logic**: Keep tools and plugins stateless.
-- **Persistence**: State is saved in `.opencode/state/*.json`.
-- **Atomic Writes**: State saving must always follow the "Write to temporary file -> Rename" sequence (automatically handled if `writeState` function is used).
-- **Locking**: Use `lockStateDir` for exclusive control to prevent race conditions.
+### Phase 2: Implementer (Role: `implementer`)
+**Goal**: Build "How it works" within Scope.
+1. **Start**: `sdd_start_task <TaskId>`. Activates the Scope.
+2. **Implement**: Edit ONLY files in `allowedScopes`.
+   - **Error**: `E_SCOPE_DENIED` means you touched a file outside scope.
+   - **Fix**: Ask Architect to update `specs/tasks.md` -> `sdd_end_task` -> `sdd_start_task`.
+3. **Verify**: Run `sdd_validate_gap` frequently.
 
-## 4. IMPLEMENTATION RULES
-
-### Tool Implementation (`.opencode/tools/`)
-- **Dynamic Load**: Tools are loaded dynamically at startup; therefore, side effects at the top level (immediate execution code) are prohibited.
-- **No Binaries**: Do not include binary dependencies. Complete implementation using pure TypeScript/JavaScript.
-- **Idempotency**: Maintain idempotency as much as possible.
-
-### Path Resolution Strategy
-- **Hybrid Support**: Tools may run from `dist/` (npm package) or `.opencode/tools/` (local dev).
-- **Robustness**: Do not rely solely on relative paths like `../../`. Use intelligent lookup strategies to find assets (like `.opencode/prompts/`) by traversing up from `import.meta.url` or `process.cwd()`.
-
-### Plugin Implementation (`.opencode/plugins/`)
-- **Performance**: Keep processing lightweight as it hooks into every tool execution.
-- **Fail Closed**: Security-related checks (Gatekeeper) must "Deny (Exception)" if they fail, rather than "Allow."
-
-### SDD Cycle Integration
-1. **Scope Check**: Always verify `activeTask` and `allowedScopes` before performing file operations.
-2. **Kiro Support**: File structures under `specs/` should consider compatibility with Kiro (cc-sdd).
+### Phase 3: Reviewer (Role: `validate`)
+**Goal**: Verify "Does it match specs?".
+1. **Validate**: `sdd_validate_gap --deep` (if enabled).
+2. **Test**: Ensure `bun test` passes.
+3. **Close**: `sdd_end_task` only after success.
 
 ## 5. TESTING GUIDELINES
-- **Mirror Testing**: Place test files in `__tests__` using the same directory structure as the source code.
-  - `.opencode/tools/foo.ts` -> `__tests__/tools/foo.test.ts`
-- **Mocking**: Mock file system operations (`fs`) and state management (`state-utils`) as needed, but integration tests may generate actual files.
-- **Cleanup**: Always clean up temporary files (e.g., `.opencode/state`) generated during tests.
+- **Mirror Structure**: `__tests__/tools/foo.test.ts` tests `.opencode/tools/foo.ts`.
+- **Mocking**: Mock `fs` and `state-utils` to avoid side effects.
+- **Cleanup**: Tests MUST clean up generated `.opencode/state` artifacts (use `afterEach`).
 
-## 6. ANTI-PATTERNS
-- **[FORBIDDEN]** Implementing core plugin functionality within code logic under `src/` (Reverse dependency).
-- **[FORBIDDEN]** Leaving `console.log` in the library layer (`lib/`). Use the `logger` module or leave it to the caller (tool layer).
-- **[FORBIDDEN]** English commit messages. Always write them in Japanese.
-- **[FORBIDDEN]** Overuse of `as any`. Maintain strict type safety despite loose config.
+## 6. ANTI-PATTERNS (Forbidden)
+- ❌ **English Comments/Commits**: Always use Japanese.
+- ❌ **Direct State Edit**: Modifying JSON in `.opencode/state` manually.
+- ❌ **Zombie Locks**: If `ELOCKED` occurs, use `sdd_force_unlock`.
+- ❌ **Reverse Dependency**: Core plugins depending on `src/` code.
 
-## 7. AI AGENT BEHAVIOR
-- **Response Language**: Responses to users must be in **Japanese**.
-- **Thinking**: Thinking processes can be in English, but the final output must be in Japanese.
-- **Proactive Fix**: If style violations in existing code (e.g., English comments) are found, convert them to Japanese during modification.
-- **Check AGENTS.md**: If specialized `AGENTS.md` files exist in subdirectories (e.g., `.opencode/tools`), refer to their specific rules as well.
-
-## 8. ARCHITECTURE DEEP DIVE
+## 7. ARCHITECTURE DEEP DIVE
 
 ### State Schema (`.opencode/state/current_context.json`)
-This state file is the single source of truth for the current session.
-- `activeTaskId`: The ID of the task currently in progress.
-- `allowedScopes`: An array of Glob patterns for which write access is permitted.
-- `role`: 'architect' or 'implementer'. Controls the permission level.
-- `stateHash`: HMAC-SHA256 signature for manual tampering detection.
+Single source of truth.
+- `activeTaskId`: Current Task ID.
+- `allowedScopes`: Array of Glob patterns (picomatch).
+- `role`: 'architect' or 'implementer'.
+- `stateHash`: HMAC-SHA256 signature for tampering detection.
 
-### Gatekeeper Logic (`sdd-gatekeeper.ts`)
-The Gatekeeper intercepts tool executions (`tool.execute.before`) and controls access with the following logic:
-1.  **Read State**: Loads the current context and guard mode settings.
-2.  **Check Tool**: Targets only modification tools such as `write`, `edit`, and `multiedit`.
-3.  **Validate Path**: Verifies if the target file path matches the `allowedScopes` (using picomatch).
-4.  **Enforce**: If there is no match, it blocks execution by throwing an `E_SCOPE_DENIED` exception.
+### Gatekeeper Logic
+Intercepts `tool.execute.before`.
+1. Loads State.
+2. Checks if target file matches `allowedScopes`.
+3. Throws `E_SCOPE_DENIED` if not matched.
 
-### Glob Patterns
-Uses the `picomatch` library.
-- `**`: Matches zero or more directories.
-- `src/**`: Allows all files under `src`.
-- `specs/tasks.md`: Allows only a specific file.
-
-## 9. TROUBLESHOOTING FOR AGENTS
+## 8. TROUBLESHOOTING
 
 ### "ELOCKED" Error
-- **Situation**: A `Failed to acquire lock` error occurs during test or tool execution.
-- **Cause**: A previous process crashed, leaving a residual lock file (`.opencode/state/.lock`).
-- **Resolution**:
-  1.  Run `sdd_force_unlock` to release the lock.
-  2.  Check for missing cleanup in `afterEach` within the test code.
+- **Cause**: Previous process crashed leaving `.opencode/state/.lock`.
+- **Resolution**: Run `sdd_force_unlock` (or `sdd_force_unlock --force true`).
 
 ### "Scope Denied" Error
-- **Situation**: Blocked by the Gatekeeper during code editing.
+- **Cause**: Editing file outside `allowedScopes`.
 - **Resolution**:
-  1.  Check the current scope with `sdd_show_context`.
-  2.  If necessary, correct the Scope definition in `specs/tasks.md`.
-  3.  To reflect changes, run `sdd_end_task` once, then run `sdd_start_task` again.
+  1. Check `sdd_show_context`.
+  2. Update `specs/tasks.md` Scope.
+  3. Restart task (`sdd_end_task` -> `sdd_start_task`).
 
-## 10. CI/CD & RELEASE PROCESS
-
-### Pipeline Overview
-- **Platform**: GitHub Actions
-- **Registry**: GitHub Packages (`npm.pkg.github.com`)
-- **Scope**: `@yohi`
-
-### Release Workflow
-The release process is **fully automated**.
-1.  **Trigger**: Push to `master` branch.
-2.  **Build**: `bun run build` is executed.
-3.  **Versioning**: The CI workflow **automatically increments the patch version** (e.g., 0.0.1 -> 0.0.2) based on the latest version in the registry.
-4.  **Publish**: The package is published to GitHub Packages.
-
-### Agent Rules
-- **[FORBIDDEN] Manual Version Bump**: Do NOT modify `version` in `package.json`. It is overwritten by CI.
-- **[FORBIDDEN] Manual Publish**: Do NOT run `npm publish` locally.
-- **[REQUIRED] CI Check**: Ensure `ci.yml` (tests) passes before merging to `master`.
+## 9. CI/CD & RELEASE
+- **Trigger**: Push to `master`.
+- **Versioning**: Automatic patch increment. **DO NOT** manually bump version.
+- **CI Check**: `scripts/sdd_ci_validate.ts` enforces Scope rules.
