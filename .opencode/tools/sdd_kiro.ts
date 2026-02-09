@@ -202,6 +202,7 @@ export default tool({
         const specFiles = ['requirements', 'design', 'tasks'];
         const renamedFiles: string[] = [];
         const missingFiles: string[] = [];
+        const errors: string[] = [];
         const jaContents: { name: string; content: string }[] = [];
 
         for (const name of specFiles) {
@@ -211,8 +212,12 @@ export default tool({
           if (fs.existsSync(srcPath)) {
             // 既に _ja.md が存在する場合はスキップ
             if (!fs.existsSync(destPath)) {
-              fs.renameSync(srcPath, destPath);
-              renamedFiles.push(`${name}.md → ${name}_ja.md`);
+              try {
+                fs.renameSync(srcPath, destPath);
+                renamedFiles.push(`${name}.md → ${name}_ja.md`);
+              } catch (error: any) {
+                errors.push(`リネーム失敗 (${name}.md → ${name}_ja.md): ${error.message}`);
+              }
             }
           } else if (!fs.existsSync(destPath)) {
             missingFiles.push(`${name}.md`);
@@ -220,13 +225,21 @@ export default tool({
 
           // _ja.md の内容を読み込み
           if (fs.existsSync(destPath)) {
-            const content = fs.readFileSync(destPath, 'utf-8');
-            jaContents.push({ name, content });
+            try {
+              const content = fs.readFileSync(destPath, 'utf-8');
+              jaContents.push({ name, content });
+            } catch (error: any) {
+              errors.push(`読み込み失敗 (${name}_ja.md): ${error.message}`);
+            }
           }
         }
 
         // 翻訳プロンプト生成
         let result = `✅ ファイナライズ完了: ${feature}\n\n`;
+
+        if (errors.length > 0) {
+          result += `❌ **エラー:**\n${errors.map(e => `- ${e}`).join('\n')}\n\n`;
+        }
 
         if (renamedFiles.length > 0) {
           result += `**リネーム済み:**\n${renamedFiles.map(f => `- ${f}`).join('\n')}\n\n`;
