@@ -6,7 +6,6 @@ import {
   evaluateRoleAccess,
   evaluateMultiEdit,
   determineEffectiveGuardMode,
-  WRITE_TOOLS,
   type AccessResult,
   type GuardMode,
 } from '../lib/access-policy';
@@ -34,7 +33,7 @@ const SddGatekeeper: Plugin = async (options) => {
       const stateResult = await readState();
       const effectiveMode = determineEffectiveGuardMode(process.env.SDD_GUARD_MODE, guardModeState);
 
-      if (effectiveMode === 'disabled' && stateResult.status === 'not_found' && !process.env.SDD_GUARD_MODE && !guardModeState) {
+      if (effectiveMode === 'disabled') {
         return;
       }
 

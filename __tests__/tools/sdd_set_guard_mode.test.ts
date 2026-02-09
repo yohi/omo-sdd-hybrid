@@ -6,16 +6,20 @@ import path from 'path';
 import sddSetGuardMode from '../../.opencode/tools/sdd_set_guard_mode';
 
 describe('sdd_set_guard_mode', () => {
+  let originalEnv: NodeJS.ProcessEnv;
+
   beforeEach(() => {
+    originalEnv = { ...process.env };
     setupTestState();
     const guardPath = getGuardModePath();
     if (fs.existsSync(guardPath)) fs.unlinkSync(guardPath);
   });
 
   afterEach(() => {
-    cleanupTestState();
     const guardPath = getGuardModePath();
     if (fs.existsSync(guardPath)) fs.unlinkSync(guardPath);
+    cleanupTestState();
+    process.env = originalEnv;
   });
 
   test('sets guard mode to warn', async () => {

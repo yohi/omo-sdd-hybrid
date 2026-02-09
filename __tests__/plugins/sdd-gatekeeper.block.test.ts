@@ -139,16 +139,15 @@ describe('sdd-gatekeeper block mode', () => {
     });
   });
 
-  describe('Default mode (warn) - backward compatibility', () => {
-    test('allows with warning when no mode specified (defaults to warn)', () => {
+  describe('Default mode (disabled)', () => {
+    test('allows without warning when no mode specified (defaults to disabled)', () => {
       const savedMode = process.env.SDD_GUARD_MODE;
       try {
         delete process.env.SDD_GUARD_MODE;
         const stateResult: StateResult = { status: 'not_found' };
         const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot);
         expect(result.allowed).toBe(true);
-        expect(result.warned).toBe(true);
-        expect(result.message).toContain('NO_ACTIVE_TASK');
+        expect(result.warned).toBe(false);
       } finally {
         if (savedMode !== undefined) {
           process.env.SDD_GUARD_MODE = savedMode;

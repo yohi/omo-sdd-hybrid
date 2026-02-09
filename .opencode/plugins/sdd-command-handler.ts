@@ -5,6 +5,35 @@ import { getBuiltinCommand, getAllBuiltinCommands } from "../lib/builtin-command
 import { writeGuardModeState, type GuardMode } from '../lib/state-utils';
 
 const SddCommandHandler: Plugin = async (ctx) => {
+    const updateGuardModeStateAndNotifyUser = async (mode: GuardMode): Promise<{ success: boolean; error?: string }> => {
+        try {
+            await writeGuardModeState({
+                mode,
+                updatedAt: new Date().toISOString(),
+                updatedBy: 'user'
+            });
+
+            if (ctx.client.tui?.showToast) {
+                try {
+                    await ctx.client.tui.showToast({
+                        body: { message: `Guard mode changed to ${mode}`, variant: 'info', duration: 3000 }
+                    });
+                } catch (e) { /* ignore toast errors */ }
+            }
+            return { success: true };
+        } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            if (ctx.client.tui?.showToast) {
+                try {
+                    await ctx.client.tui.showToast({
+                        body: { message: `Failed to update guard mode: ${errMsg}`, variant: 'error', duration: 4000 }
+                    });
+                } catch (e) { /* ignore toast errors */ }
+            }
+            return { success: false, error: errMsg };
+        }
+    };
+
     // 組み込みコマンドを Tool として定義・登録する
     const commandsAsTools = getAllBuiltinCommands().reduce<Record<string, ToolDefinition>>((acc, cmd) => {
         acc[cmd.name] = tool({
@@ -78,39 +107,34 @@ const SddCommandHandler: Plugin = async (ctx) => {
                 return errorMsg;
             }
 
-            try {
-                await writeGuardModeState({
-                    mode,
-                    updatedAt: new Date().toISOString(),
-                    updatedBy: 'user'
-                });
+            const result = await updateGuardModeStateAndNotifyUser(mode);
+            if (!result.success) {
+                return `Error: ${result.error}`;
+            }
 
-                if (ctx.client.tui?.showToast) {
-                    await ctx.client.tui.showToast({
-                        body: { message: `Guard mode changed to ${mode}`, variant: 'info', duration: 3000 }
-                    });
-                }
-
-                // AIエージェントに通知
-                if (context.sessionID && ctx.client.session?.prompt) {
+            // Notify AI agent (best effort)
+            if (context.sessionID && ctx.client.session?.prompt) {
+                try {
                     await ctx.client.session.prompt({
                         path: { id: context.sessionID },
                         body: {
                             parts: [{ type: 'text', text: `[System] User changed guard mode to '${mode}'.` }]
                         }
                     });
+                } catch (error) {
+                    const errMsg = error instanceof Error ? error.message : String(error);
+                    // Show error toast for notification failure but don't fail the command
+                    if (ctx.client.tui?.showToast) {
+                        try {
+                            await ctx.client.tui.showToast({
+                                body: { message: `Guard mode updated, but failed to notify agent: ${errMsg}`, variant: 'warning', duration: 4000 }
+                            });
+                        } catch (e) { /* ignore toast errors */ }
+                    }
                 }
-
-                return `Guard mode set to ${mode}`;
-            } catch (error) {
-                const errMsg = error instanceof Error ? error.message : String(error);
-                if (ctx.client.tui?.showToast) {
-                    await ctx.client.tui.showToast({
-                        body: { message: `Failed to update guard mode: ${errMsg}`, variant: 'error', duration: 4000 }
-                    });
-                }
-                return `Error: ${errMsg}`;
             }
+
+            return `Guard mode set to ${mode}`;
         }
     });
 
@@ -147,27 +171,9 @@ const SddCommandHandler: Plugin = async (ctx) => {
                     return;
                 }
 
-                try {
-                    await writeGuardModeState({
-                        mode,
-                        updatedAt: new Date().toISOString(),
-                        updatedBy: 'user'
-                    });
-
+                const result = await updateGuardModeStateAndNotifyUser(mode);
+                if (result.success) {
                     textPart.text = `[System] User changed guard mode to '${mode}'.`;
-
-                    if (ctx.client.tui?.showToast) {
-                        await ctx.client.tui.showToast({
-                            body: { message: `Guard mode changed to ${mode}`, variant: 'info', duration: 3000 }
-                        });
-                    }
-                } catch (error) {
-                    const errMsg = error instanceof Error ? error.message : String(error);
-                    if (ctx.client.tui?.showToast) {
-                        await ctx.client.tui.showToast({
-                            body: { message: `Failed to update guard mode: ${errMsg}`, variant: 'error', duration: 4000 }
-                        });
-                    }
                 }
                 return;
             }

@@ -27,6 +27,7 @@ export function cleanupTestState(): void {
   delete process.env.SDD_TASKS_PATH;
   delete process.env.SDD_KIRO_DIR;
   delete process.env.SDD_TEST_MODE;
+  delete process.env.SDD_GUARD_MODE;
 }
 
 export async function ensureNoBackups(): Promise<void> {
