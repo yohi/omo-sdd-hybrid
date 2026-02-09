@@ -51,7 +51,9 @@ const SddCommandHandler: Plugin = async (ctx) => {
 
                 if (fileArgs.length > 0) {
                     const filePath = fileArgs[0].substring(1);
-                    promptFileArg = ` --promptFile "${filePath}"`;
+                    if (filePath.trim() !== '') {
+                        promptFileArg = ` --promptFile "${filePath}"`;
+                    }
                 }
 
                 let promptContent = cmd.template.replace('{{feature}}', feature);
@@ -209,7 +211,9 @@ const SddCommandHandler: Plugin = async (ctx) => {
 
                 if (fileArgs.length > 0) {
                     const filePath = fileArgs[0].substring(1);
-                    promptFileArg = ` --promptFile "${filePath}"`;
+                    if (filePath.trim() !== '') {
+                        promptFileArg = ` --promptFile "${filePath}"`;
+                    }
                 }
 
                 let promptContent = builtinCmd.template.replace('{{feature}}', feature || '(not specified)');
