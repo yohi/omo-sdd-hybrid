@@ -181,7 +181,7 @@ export default tool({
 
       case 'impl':
         if (!feature) return 'エラー: feature は必須です';
-        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n**実装完了後:** \`validate-impl\` を実行して実装の検証を行いますか？\n\n- **[y]** 実装完了後に \`sdd_kiro validate ${feature}\` を実行\n- **[n]** 手動で検証する`;
+        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n実装完了後に sdd_kiro validate ${feature} を実行してください`;
 
       case 'validate-design':
         if (!feature) return 'エラー: feature は必須です';
