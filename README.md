@@ -128,6 +128,7 @@ Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開�
 | `/profile` | **Architect** | 仕様策定・設計フェーズ。要件定義やタスク分解を行います。 |
 | `/impl` | **Implementer** | 実装フェーズ。スコープを厳守し、Vibe Coding を回避しながらコーディングします。 |
 | `/validate` | **Reviewer** | 検証フェーズ。仕様と実装の乖離（Gap）を厳格に分析します。 |
+| `/guard` | **Admin** | Gatekeeperのモード（warn/block/disabled）を切り替えます。 |
 
 #### 💡 高度な使い方 (Advanced Usage)
 
@@ -250,7 +251,7 @@ AIと対話しながら「何を作るか」を固め、タスクを定義しま
 | `sdd_generate_tests` | requirements.md の受入条件からテストコードの雛形を生成します。 |
 | `sdd_lint_tasks` | .kiro/specs/*/tasks.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）。 |
 | `sdd_sync_kiro` | Kiro仕様とRoot tasks.md を同期します。 |
-| `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block）を切り替えます。 |
+| `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block/disabled）を切り替えます。 |
 | `sdd_force_unlock` | 【非常用】ロック状態を強制解除します。 |
 | `sdd_ci_runner` | CI環境での検証（tasks.md整合性、変更範囲ガード）を実行します。 |
 | `sdd_kiro` | Kiro互換のコマンドエントリーポイント。各機能の詳細は後述。 |
@@ -277,7 +278,59 @@ npx cc-sdd@latest --claude
 
 ### sdd_kiro コマンドリファレンス
 
-`sdd_kiro` は以下のサブコマンドをサポートします。通常はスラッシュコマンド経由でAgentが実行しますが、手動実行も可能です。
+`sdd_kiro` は Kiro 互換のコマンド統合エントリーポイントです。通常はスラッシュコマンド経由でAgentが実行しますが、手動実行も可能です。
+
+#### 機能開発 (Feature Development)
+
+| コマンド | 説明 |
+|---------|------|
+| `init` | 仕様書の雛形（Scaffold）を生成します。 |
+| `requirements` | 要件定義書（requirements.md）を生成します。 |
+| `design` | 設計書（design.md）を生成します。 |
+| `tasks` | 実装タスク（tasks.md）を生成します。 |
+| `impl` | 実装フェーズへ移行し、タスクロックを取得します。 |
+| `validate-gap` | 実装と仕様のギャップ分析を行います。 |
+| `validate-design` | 設計書の整合性レビューを行います。 |
+| `finalize` | **Hybrid Language Workflow**: 日本語仕様書を英語へ移行する準備を行います。 |
+
+#### コンテキスト管理 (Context Management)
+
+| コマンド | 説明 |
+|---------|------|
+| `steering` | プロジェクト全体の方向性（Steering Documents）を管理・閲覧します。 |
+| `profile` | 現在のロール（Architect/Implementer）に基づき、最適なプロンプトコンテキストを読み込みます。 |
+
+### 多言語対応ワークフロー (Hybrid Language Workflow)
+
+このプロジェクトでは、**日本語で思考し、英語で実装・記録する** ハイブリッドなワークフローをサポートしています。
+
+1. **日本語で仕様策定**:
+   `requirements`, `design` コマンドで日本語の仕様書を作成します。
+   
+2. **Finalize (確定と翻訳)**:
+   仕様が固まったら `finalize` コマンドを実行します。
+   
+   ```bash
+   sdd_kiro finalize --feature <feature-name>
+   ```
+   
+   - 既存の `.md` ファイルが `*_ja.md` にリネームされます。
+   - エージェントに対して、これらを英訳して正式な `.md` を再作成するよう指示が出されます。
+   
+3. **英語で実装**:
+   正式な英語の仕様書（Source of Truth）に基づいて実装を進めます（`impl`）。
+
+### ステアリングドキュメント (Steering Documents)
+
+プロジェクトの長期的な決定事項やアーキテクチャ方針を `.kiro/steering/` 配下で管理します。
+
+```bash
+# ドキュメントの更新・作成
+sdd_kiro steering --feature <doc-name> --prompt "内容..."
+
+# 一覧表示
+sdd_kiro steering
+```
 
 ### 意味的検証 (Semantic Verification)
 
@@ -432,7 +485,7 @@ sdd_force_unlock --force true
 
 | 変数 | 値 | 説明 |
 |------|-----|------|
-| `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外ファイル編集時の動作。`block` 推奨。環境変数より設定ファイル (`.opencode/state/guard-mode.json`) が優先されます（弱体化不可）。 |
+| `SDD_GUARD_MODE` | `warn` (default) / `block` / `disabled` | スコープ外ファイル編集時の動作。`block` 推奨。環境変数より設定ファイル (`.opencode/state/guard-mode.json`) が優先されます（弱体化不可）。 |
 | `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | `validate_gap` 実行時のテスト自動実行をスキップします。 |
 | `SDD_STATE_HMAC_KEY` | (自動生成) | state改ざん検知用のHMACキー。未設定の場合は `.opencode/state/state-hmac.key` を自動生成します。 |
 | `SDD_SCOPE_FORMAT` | `lenient` | `strict` に設定すると、Scope定義のバッククォート囲み（Scope: \`path/**\`）を強制します。 |
@@ -457,7 +510,11 @@ export SDD_STATE_HMAC_KEY="your-32bytes-hex-or-base64"
 
 ```bash
 # ガードモードを 'block' に設定（推奨）
+
 bun .opencode/tools/sdd_set_guard_mode.ts block
+
+# ガードモードを 'disabled' に設定（一時的な無効化）
+bun .opencode/tools/sdd_set_guard_mode.ts disabled
 ```
 
 - 設定は `.opencode/state/guard-mode.json` に保存されます。

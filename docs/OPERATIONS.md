@@ -60,7 +60,7 @@ OmO-SDD-Hybrid は OpenCode 環境内での「仕様に基づかない編集 (Vi
 `block` モード時に許可されていないファイルを編集しようとして拒否された場合。
 
 - **正しい対処**: `specs/tasks.md` を更新し、対象のファイルを `Scope` に追加してから `sdd_start_task` を再実行（一度 `sdd_end_task` が必要）してください。
-- **一時的な回避 (非推奨)**: `sdd_set_guard_mode warn` で警告モードに切り替えることも可能ですが、監査ログに記録されます。
+- **一時的な回避 (非推奨)**: `sdd_set_guard_mode warn` (または `disabled`) で警告モード（または無効化）に切り替えることも可能ですが、監査ログに記録されます。
 
 ## 設定リファレンス (Configuration Reference)
 
@@ -70,7 +70,7 @@ OmO-SDD-Hybrid は OpenCode 環境内での「仕様に基づかない編集 (Vi
 
 | 環境変数 | デフォルト値 | 説明 |
 |----------|--------------|------|
-| `SDD_GUARD_MODE` | `warn` | ガードモード。`warn` (警告のみ) または `block` (書き込み拒否)。設定ファイルが優先されます。 |
+| `SDD_GUARD_MODE` | `warn` | ガードモード。`warn` (警告のみ)、`block` (書き込み拒否)、または `disabled` (無効)。設定ファイルが優先されます。 |
 | `SDD_WORKTREE_ROOT` | (Git root) | 監視対象のルートディレクトリ。未設定時は Git リポジトリのルートを自動取得します。 |
 | `SDD_TASKS_PATH` | `specs/tasks.md` | タスク定義ファイルの場所。 |
 | `SDD_SCOPE_FORMAT` | `lenient` | Scope 定義の形式。`strict` に設定するとバッククォート囲み以外をエラーにします。 |
@@ -94,7 +94,7 @@ OmO-SDD-Hybrid は OpenCode 環境内での「仕様に基づかない編集 (Vi
 
 以下のパスに動作ポリシーが保存されます。
 
-- `.opencode/state/guard-mode.json`: `sdd_set_guard_mode` で設定された現在のガードモード。
+- `.opencode/state/guard-mode.json`: `sdd_set_guard_mode` で設定された現在のガードモード (`warn`/`block`/`disabled`)。
 - `.opencode/state/guard-mode.log`: ガードモード変更や弱体化試行の監査ログ。
 - `.opencode/state/current_context.json`: 現在アクティブなタスクとスコープのコンテキスト。
 - `.opencode/state/state-hmac.key`: 自動生成された HMAC キー（環境変数未指定時）。
