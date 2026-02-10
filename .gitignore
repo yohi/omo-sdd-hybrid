@@ -39,8 +39,8 @@ opencode/
 .opencode/state/.lock/
 !.opencode/state/.gitkeep
 
-# Sisyphus notepads (local work context)
-.sisyphus/notepads/
+# Sisyphus (local work context)
+.sisyphus
 
 # Serena agent state
 .serena/
