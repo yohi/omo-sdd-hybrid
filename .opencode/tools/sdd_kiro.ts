@@ -92,23 +92,28 @@ export default tool({
     }
 
     // 1. ロールの判定
-    const requiredRole = (command === 'impl') ? 'implementer' : 'architect';
-
-    // 2. 現在の状態を確認し、必要ならロールを切り替える
-    const stateResult = await readState();
-    if (stateResult.status === 'ok' || stateResult.status === 'recovered') {
-      const currentState = stateResult.state;
-      if (currentState.role !== requiredRole) {
-        // ロールを更新して書き戻す
-        await writeState({
-          ...currentState,
-          role: requiredRole
-        });
-      }
+    // finalize の場合は現状維持とする（Implementer作業の最後に行うことが多いため）
+    if (command === 'finalize') {
+      // no-op: ロール変更なし
     } else {
-      // タスクが開始されていない場合は、ロール切り替えは行わず（状態がないため）
-      // そのまま続行するか、エラーにするかはコマンドの性質に依存する
-      // ここでは仕様書生成などはタスク外でも許可されるべき（Architectの仕事）
+      const requiredRole = (command === 'impl') ? 'implementer' : 'architect';
+
+      // 2. 現在の状態を確認し、必要ならロールを切り替える
+      const stateResult = await readState();
+      if (stateResult.status === 'ok' || stateResult.status === 'recovered') {
+        const currentState = stateResult.state;
+        if (currentState.role !== requiredRole) {
+          // ロールを更新して書き戻す
+          await writeState({
+            ...currentState,
+            role: requiredRole
+          });
+        }
+      } else {
+        // タスクが開始されていない場合は、ロール切り替えは行わず（状態がないため）
+        // そのまま続行するか、エラーにするかはコマンドの性質に依存する
+        // ここでは仕様書生成などはタスク外でも許可されるべき（Architectの仕事）
+      }
     }
 
     // 3. コマンドの振り分け実行

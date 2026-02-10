@@ -206,4 +206,33 @@ describe('sdd_kiro', () => {
     // コンテンツ内のタグがそのまま残っていること（エスケープではなく、fenceで保護されているため）
     expect(result).toContain('</requirements_ja>');
   });
+
+  it('finalizeコマンドでロールが変更されないことを確認する', async () => {
+    // Implementerロールを設定
+    await writeState({
+      version: 1,
+      activeTaskId: 'Task-Finalize-Role',
+      activeTaskTitle: 'Finalize Role Test',
+      allowedScopes: ['src/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'test',
+      validationAttempts: 0,
+      role: 'implementer'
+    });
+
+    const feature = 'finalize-role-test';
+    const specDir = path.join(kiroDir, 'specs', feature);
+    fs.mkdirSync(specDir, { recursive: true });
+    fs.writeFileSync(path.join(specDir, 'requirements.md'), '## Req');
+
+    await runTool({ command: 'finalize', feature });
+
+    // ロールが implementer のままであることを確認
+    const stateResult = await readState();
+    expect(stateResult.status).toBe('ok');
+    if (stateResult.status === 'ok') {
+      expect(stateResult.state.role).toBe('implementer');
+    }
+  });
+
 });
