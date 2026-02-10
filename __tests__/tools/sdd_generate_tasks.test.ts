@@ -133,4 +133,57 @@ describe('sdd_generate_tasks', () => {
     expect(content).toContain(`smart-feature-5: コンポーネント実装: LogoutButton (Scope: \`src/**\`)`);
     expect(content).toContain(`smart-feature-6: ドキュメント更新 (Scope: \`.kiro/specs/smart-feature/**\`)`);
   });
+
+  it('content が指定された場合、requirements.md なしでも tasks.md を生成する', async () => {
+    const feature = 'custom-content';
+    const customContent = '# Custom Tasks\n- Task 1';
+    
+    // requirements.md を作成しない
+    const specDir = path.join(kiroDir, 'specs', feature);
+    fs.mkdirSync(specDir, { recursive: true });
+
+    const result = await runTool({ feature, content: customContent });
+    
+    expect(result).toContain(`✅ tasks.md を生成しました: ${feature} (Custom content)`);
+    
+    const tasksPath = path.join(specDir, 'tasks.md');
+    expect(fs.existsSync(tasksPath)).toBe(true);
+    
+    const content = fs.readFileSync(tasksPath, 'utf-8');
+    expect(content).toBe(customContent);
+  });
+
+  it('content 指定 + overwrite=false + 既存ファイルあり → スキップ', async () => {
+    const feature = 'custom-skip';
+    const customContent = '# Custom Content';
+    const oldContent = '# Old Content';
+    
+    const specDir = path.join(kiroDir, 'specs', feature);
+    fs.mkdirSync(specDir, { recursive: true });
+    fs.writeFileSync(path.join(specDir, 'tasks.md'), oldContent);
+
+    const result = await runTool({ feature, content: customContent, overwrite: false });
+    
+    expect(result).toContain('スキップ: tasks.md (既に存在します)');
+    
+    const content = fs.readFileSync(path.join(specDir, 'tasks.md'), 'utf-8');
+    expect(content).toBe(oldContent);
+  });
+
+  it('content 指定 + overwrite=true + 既存ファイルあり → 上書き', async () => {
+    const feature = 'custom-overwrite';
+    const customContent = '# New Custom Content';
+    const oldContent = '# Old Content';
+    
+    const specDir = path.join(kiroDir, 'specs', feature);
+    fs.mkdirSync(specDir, { recursive: true });
+    fs.writeFileSync(path.join(specDir, 'tasks.md'), oldContent);
+
+    const result = await runTool({ feature, content: customContent, overwrite: true });
+    
+    expect(result).toContain(`✅ tasks.md を生成しました: ${feature} (Custom content)`);
+    
+    const content = fs.readFileSync(path.join(specDir, 'tasks.md'), 'utf-8');
+    expect(content).toBe(customContent);
+  });
 });
