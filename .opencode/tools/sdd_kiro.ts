@@ -145,7 +145,9 @@ export default tool({
       }
 
       case 'init':
-        if (!feature) return 'エラー: feature は必須です';
+        if (!feature) {
+          return 'エラー: feature は必須です\n使用法: sdd_kiro init <feature>';
+        }
         return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
 
       case 'tasks':
