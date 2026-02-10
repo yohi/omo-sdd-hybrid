@@ -58,7 +58,18 @@ export default tool({
     }
 
     const today = new Date().toISOString().split('T')[0];
-    const appendContent = `\n\n## Change Log (${today}) - Merged from ${changeId}\n### Reason\n${reason}\n\n### Proposal\n${proposal}\n`;
+    const appendContent = `
+
+## Change Log (${today}) - Merged from ${changeId}
+
+### Reason
+
+${reason}
+
+### Proposal
+
+${proposal}
+`;
     
     fs.appendFileSync(targetFilePath, appendContent, 'utf-8');
 
@@ -74,7 +85,11 @@ export default tool({
         fs.mkdirSync(feedbackDir, { recursive: true });
     }
     const feedbackPath = path.join(feedbackDir, `FB-${changeId}`);
-    const feedbackContent = `# 仕様変更のマージ完了\n\n変更リクエスト ${changeId} は ${feature}/${target}.md にマージされました。\nご協力ありがとうございました。\n`;
+    const feedbackContent = `# 仕様変更のマージ完了
+
+変更リクエスト ${changeId} は ${feature}/${target}.md にマージされました。
+ご協力ありがとうございました。
+`;
     fs.writeFileSync(feedbackPath, feedbackContent, 'utf-8');
 
     return `仕様変更をマージしました:

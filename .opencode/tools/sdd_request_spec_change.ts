@@ -44,9 +44,11 @@ export default tool({
 - **Author**: Implementer
 
 ## Reason
+
 ${reason}
 
 ## Proposal
+
 ${proposal}
 `;
 
