@@ -157,7 +157,9 @@
     "dist",
     ".opencode/state",
     ".kiro/archive",
-    "__tests__/fixtures"
+    "__tests__/fixtures",
+    "tmp/**",
+    ".kiro_test_utils/**"
   ],
   // Custom rules (if any)
   "customRules": [],

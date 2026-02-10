@@ -64,8 +64,8 @@ export default tool({
 
 \`\`\`mermaid
 graph TD
-    User --\u003e|Action| ComponentA
-    ComponentA --\u003e|Call| ServiceB
+    User -->|Action| ComponentA
+    ComponentA -->|Call| ServiceB
 \`\`\`
 `;
 

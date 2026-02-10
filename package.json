@@ -17,7 +17,7 @@
     "prepublishOnly": "bun run build",
     "test": "bun test",
     "test:seq": "for f in $(find __tests__ -name \\\"*.test.ts\\\"); do bun test \\\"$f\\\"; done",
-    "lint:md": "markdownlint-cli2 \"**/*.md\" \"!node_modules\" \"!dist\""
+    "lint:md": "markdownlint-cli2 --config .markdownlint-cli2.jsonc \"**/*.md\" \"!node_modules\" \"!dist\""
   },
   "files": [
     "dist",
