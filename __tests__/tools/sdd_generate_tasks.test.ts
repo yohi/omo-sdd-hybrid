@@ -51,6 +51,7 @@ describe('sdd_generate_tasks', () => {
     
     const content = fs.readFileSync(tasksPath, 'utf-8');
     expect(content).toContain('# Tasks');
+    expect(content).toContain(`${feature}-1: .gitignore の作成・更新 (Scope: \`.gitignore\`)`);
     expect(content).toContain(`基本実装 (Scope: \`src/...\`)`);
   });
 
@@ -125,10 +126,11 @@ describe('sdd_generate_tasks', () => {
     const tasksPath = path.join(kiroDir, 'specs', feature, 'tasks.md');
     const content = fs.readFileSync(tasksPath, 'utf-8');
 
-    expect(content).toContain(`smart-feature-1: 実装: ログインができること (Scope: \`src/**\`, \`__tests__/**\`)`);
-    expect(content).toContain(`smart-feature-2: 実装: ログアウトができること (Scope: \`src/**\`, \`__tests__/**\`)`);
-    expect(content).toContain(`smart-feature-3: コンポーネント実装: LoginForm (Scope: \`src/**\`)`);
-    expect(content).toContain(`smart-feature-4: コンポーネント実装: LogoutButton (Scope: \`src/**\`)`);
-    expect(content).toContain(`smart-feature-5: ドキュメント更新 (Scope: \`.kiro/specs/smart-feature/**\`)`);
+    expect(content).toContain(`smart-feature-1: .gitignore の作成・更新 (Scope: \`.gitignore\`)`);
+    expect(content).toContain(`smart-feature-2: 実装: ログインができること (Scope: \`src/**\`, \`__tests__/**\`)`);
+    expect(content).toContain(`smart-feature-3: 実装: ログアウトができること (Scope: \`src/**\`, \`__tests__/**\`)`);
+    expect(content).toContain(`smart-feature-4: コンポーネント実装: LoginForm (Scope: \`src/**\`)`);
+    expect(content).toContain(`smart-feature-5: コンポーネント実装: LogoutButton (Scope: \`src/**\`)`);
+    expect(content).toContain(`smart-feature-6: ドキュメント更新 (Scope: \`.kiro/specs/smart-feature/**\`)`);
   });
 });
