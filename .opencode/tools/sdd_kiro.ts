@@ -38,7 +38,7 @@ function validateFeatureName(feature: string, baseDir: string) {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'steering', 'validate-design', 'validate-gap', 'validate', 'profile']).describe('実行するKiroコマンド'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'finalize', 'steering', 'validate-design', 'validate-gap', 'validate', 'profile']).describe('実行するKiroコマンド'),
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
@@ -92,23 +92,28 @@ export default tool({
     }
 
     // 1. ロールの判定
-    const requiredRole = (command === 'impl') ? 'implementer' : 'architect';
-
-    // 2. 現在の状態を確認し、必要ならロールを切り替える
-    const stateResult = await readState();
-    if (stateResult.status === 'ok' || stateResult.status === 'recovered') {
-      const currentState = stateResult.state;
-      if (currentState.role !== requiredRole) {
-        // ロールを更新して書き戻す
-        await writeState({
-          ...currentState,
-          role: requiredRole
-        });
-      }
+    // finalize の場合は現状維持とする（Implementer作業の最後に行うことが多いため）
+    if (command === 'finalize') {
+      // no-op: ロール変更なし
     } else {
-      // タスクが開始されていない場合は、ロール切り替えは行わず（状態がないため）
-      // そのまま続行するか、エラーにするかはコマンドの性質に依存する
-      // ここでは仕様書生成などはタスク外でも許可されるべき（Architectの仕事）
+      const requiredRole = (command === 'impl') ? 'implementer' : 'architect';
+
+      // 2. 現在の状態を確認し、必要ならロールを切り替える
+      const stateResult = await readState();
+      if (stateResult.status === 'ok' || stateResult.status === 'recovered') {
+        const currentState = stateResult.state;
+        if (currentState.role !== requiredRole) {
+          // ロールを更新して書き戻す
+          await writeState({
+            ...currentState,
+            role: requiredRole
+          });
+        }
+      } else {
+        // タスクが開始されていない場合は、ロール切り替えは行わず（状態がないため）
+        // そのまま続行するか、エラーにするかはコマンドの性質に依存する
+        // ここでは仕様書生成などはタスク外でも許可されるべき（Architectの仕事）
+      }
     }
 
     // 3. コマンドの振り分け実行
@@ -183,6 +188,92 @@ export default tool({
       case 'impl':
         if (!feature) return 'エラー: feature は必須です';
         return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n実装完了後に sdd_kiro validate ${feature} を実行してください`;
+
+      case 'finalize': {
+        if (!feature) return 'エラー: feature は必須です';
+
+        const baseDir = getKiroSpecsDir();
+        let targetDir: string;
+        try {
+          targetDir = validateFeatureName(feature, baseDir);
+        } catch (error: any) {
+          return `エラー: ${error.message}`;
+        }
+
+        if (!fs.existsSync(targetDir)) {
+          return `エラー: 機能ディレクトリが存在しません: ${feature}`;
+        }
+
+        const specFiles = ['requirements', 'design', 'tasks'];
+        const renamedFiles: string[] = [];
+        const missingFiles: string[] = [];
+        const errors: string[] = [];
+        const jaContents: { name: string; content: string }[] = [];
+
+        for (const name of specFiles) {
+          const srcPath = path.join(targetDir, `${name}.md`);
+          const destPath = path.join(targetDir, `${name}_ja.md`);
+
+          if (fs.existsSync(srcPath)) {
+            // 既に _ja.md が存在する場合はスキップ
+            if (!fs.existsSync(destPath)) {
+              try {
+                fs.renameSync(srcPath, destPath);
+                renamedFiles.push(`${name}.md → ${name}_ja.md`);
+              } catch (error: any) {
+                errors.push(`リネーム失敗 (${name}.md → ${name}_ja.md): ${error.message}`);
+              }
+            }
+          } else if (!fs.existsSync(destPath)) {
+            missingFiles.push(`${name}.md`);
+          }
+
+          // _ja.md の内容を読み込み
+          if (fs.existsSync(destPath)) {
+            try {
+              const content = fs.readFileSync(destPath, 'utf-8');
+              jaContents.push({ name, content });
+            } catch (error: any) {
+              errors.push(`読み込み失敗 (${name}_ja.md): ${error.message}`);
+            }
+          }
+        }
+
+        // 翻訳プロンプト生成
+        let result = `✅ ファイナライズ完了: ${feature}\n\n`;
+
+        if (errors.length > 0) {
+          result += `❌ **エラー:**\n${errors.map(e => `- ${e}`).join('\n')}\n\n`;
+        }
+
+        if (renamedFiles.length > 0) {
+          result += `**リネーム済み:**\n${renamedFiles.map(f => `- ${f}`).join('\n')}\n\n`;
+        }
+
+        if (missingFiles.length > 0) {
+          result += `⚠️ **見つからないファイル:** ${missingFiles.join(', ')}\n\n`;
+        }
+
+        result += `---\n\n**次のステップ:** 以下の日本語ファイルを英語に翻訳し、同名のファイル（_jaなし）を作成してください:\n\n`;
+
+        const safeDir = path.relative(process.cwd(), targetDir).replace(/\\/g, '/');
+
+        for (const { name, content } of jaContents) {
+          result += `### ${name}.md\n`;
+          result += `> ⚠️ **警告:** \`${safeDir}/${name}.md\` が既に存在する場合、以下の内容で上書きされます。必要に応じてバックアップを取得してください。\n\n`;
+          result += `\`${safeDir}/${name}_ja.md\` の内容を英語に翻訳して \`${safeDir}/${name}.md\` を作成してください。\n\n`;
+          
+          // プロンプト注入対策: コードブロックを使用し、コンテンツ内のバッククォートに応じてフェンス長を調整
+          const maxTicks = (content.match(/`{3,}/g) || [])
+            .map(match => match.length)
+            .reduce((a, b) => Math.max(a, b), 0);
+          const fence = '`'.repeat(Math.max(3, maxTicks + 1));
+
+          result += `${fence}markdown:${name}_ja\n${content}\n${fence}\n\n`;
+        }
+
+        return result;
+      }
 
       case 'validate-design':
         if (!feature) return 'エラー: feature は必須です';
