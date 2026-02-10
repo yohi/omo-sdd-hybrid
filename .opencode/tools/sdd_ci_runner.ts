@@ -165,7 +165,8 @@ function loadTaskScopes(): { scopes: string[]; sources: string[] } {
 
   logger.info(`✅ Scope 検証: OK (${sources.length} ファイルから読込み)`);
   sources.forEach((src) => {
-    logger.info(`  - ${src} (scope.md)`);
+    const type = path.basename(src);
+    logger.info(`  - ${src} (${type})`);
   });
 
   return {
