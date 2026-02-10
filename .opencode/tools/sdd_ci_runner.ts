@@ -1,5 +1,4 @@
 import { tool } from '@opencode-ai/plugin';
-import { resolveAllScopes } from '../lib/scope-resolver';
 import { parseSddTasks } from '../lib/tasks_markdown';
 import { matchesScope } from '../lib/glob-utils';
 import { spawnSync } from 'child_process';
@@ -12,7 +11,7 @@ import { logger } from '../lib/logger.js';
  * scripts/sdd_ci_validate.ts から呼び出されることを想定
  */
 
-const ALWAYS_ALLOW_PREFIXES = ['specs/', '.opencode/'];
+const ALWAYS_ALLOW_PREFIXES = ['specs/', '.opencode/', '.kiro/'];
 
 type RunnerOptions = {
   strict: boolean;
@@ -90,72 +89,60 @@ function getUntrackedFiles(): string[] {
 }
 
 function loadTaskScopes(): { scopes: string[]; sources: string[] } {
-  const defaultTasksPath = 'specs/tasks.md';
   const defaultKiroDir = '.kiro';
-  let tasksPath = process.env.SDD_TASKS_PATH || defaultTasksPath;
   let kiroDir = process.env.SDD_KIRO_DIR || defaultKiroDir;
-
-  if (!process.env.SDD_TASKS_PATH && !fs.existsSync(tasksPath) && fs.existsSync('../specs/tasks.md')) {
-    tasksPath = '../specs/tasks.md';
-  }
 
   if (!process.env.SDD_KIRO_DIR && !fs.existsSync(path.join(kiroDir, 'specs')) && fs.existsSync('../.kiro/specs')) {
     kiroDir = '../.kiro';
   }
 
-  const tasksExists = fs.existsSync(tasksPath);
   const scopeRoot = path.join(kiroDir, 'specs');
-  const scopeExists = fs.existsSync(scopeRoot) && fs.readdirSync(scopeRoot, { withFileTypes: true })
+  if (!fs.existsSync(scopeRoot)) {
+    throw new Error('Scope definition not found: .kiro/specs/**/scope.md');
+  }
+
+  const scopeFiles = fs.readdirSync(scopeRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .some((entry) => fs.existsSync(path.join(scopeRoot, entry.name, 'scope.md')));
+    .map((entry) => path.join(scopeRoot, entry.name, 'scope.md'))
+    .filter((scopePath) => fs.existsSync(scopePath));
 
-  if (!tasksExists && !scopeExists) {
-    throw new Error('Tasks definition not found: specs/tasks.md');
+  if (scopeFiles.length === 0) {
+    throw new Error('Scope definition not found: .kiro/specs/**/scope.md');
   }
 
-  if (tasksExists) {
-    const tasksContent = fs.readFileSync(tasksPath, 'utf-8');
-    const parsed = parseSddTasks(tasksContent, { validateScopes: true });
+  const scopes: string[] = [];
+  const sources: string[] = [];
+
+  for (const scopePath of scopeFiles) {
+    const scopeContent = fs.readFileSync(scopePath, 'utf-8');
+    const parsed = parseSddTasks(scopeContent, { validateScopes: true });
     if (parsed.errors.length > 0) {
-      throw new Error('tasks.md Validation Failed');
-    }
-  }
-
-  const originalTasksPath = process.env.SDD_TASKS_PATH;
-  const originalKiroDir = process.env.SDD_KIRO_DIR;
-
-  process.env.SDD_TASKS_PATH = tasksPath;
-  process.env.SDD_KIRO_DIR = kiroDir;
-
-  let result: ReturnType<typeof resolveAllScopes>;
-  try {
-    result = resolveAllScopes();
-  } finally {
-    if (originalTasksPath === undefined) {
-      delete process.env.SDD_TASKS_PATH;
-    } else {
-      process.env.SDD_TASKS_PATH = originalTasksPath;
+      throw new Error(`scope.md Validation Failed: ${scopePath}`);
     }
 
-    if (originalKiroDir === undefined) {
-      delete process.env.SDD_KIRO_DIR;
-    } else {
-      process.env.SDD_KIRO_DIR = originalKiroDir;
+    const fileScopes = parsed.tasks.flatMap((task) => task.scopes);
+    if (fileScopes.length === 0) {
+      continue;
     }
+
+    scopes.push(...fileScopes);
+    sources.push(scopePath);
   }
 
-  if (result.scopes.length === 0) {
-    throw new Error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
+  if (scopes.length === 0) {
+    throw new Error('❌ scope.md に有効な Scope が定義されていません');
   }
 
-  logger.info(`✅ Scope 検証: OK (${result.sources.length} ファイルから読込み)`);
-  result.sources.forEach(src => {
-    logger.info(`  - ${src.path} (${src.type})`);
+  const uniqueScopes = Array.from(new Set(scopes));
+
+  logger.info(`✅ Scope 検証: OK (${sources.length} ファイルから読込み)`);
+  sources.forEach((src) => {
+    logger.info(`  - ${src} (scope.md)`);
   });
 
   return {
-    scopes: result.scopes,
-    sources: result.sources.map(s => s.path)
+    scopes: uniqueScopes,
+    sources
   };
 }
 
@@ -188,14 +175,14 @@ function validateScopeGuard(files: string[], scopes: string[], options: RunnerOp
 }
 
 const sddCiRunnerTool = tool({
-  description: 'CI検証ランナー（tasks.md/scope.md整合性チェックおよび変更範囲ガード）',
+  description: 'CI検証ランナー（scope.md整合性チェックおよび変更範囲ガード）',
   args: {},
   async execute() {
     logger.info('--- SDD CI Runner ---');
 
     const options = parseCliFlags(process.argv.slice(2));
 
-    // 1. tasks.md / scope.md の構文チェック
+    // 1. scope.md の構文チェック
     const { scopes } = loadTaskScopes();
 
     // 2. 変更ファイルのスコープチェック
