@@ -29,7 +29,7 @@
 ## EDITING RULES
 SDDサイクルにおける本ディレクトリの運用ルール：
 
-1. **Define Task**: 作業前に `tasks.md` に新しいタスクブロックを作成する。
+1. **Define Task**: 作業前に `.kiro/specs/<feature>/scope.md` (推奨) または `tasks.md` に新しいタスクブロックを作成する。
 2. **Set Scope**: 変更予定のファイルパスを `Scope` に明記する。
    - *重要*: Scopeに含まれないファイルは、タスク開始後も書き込みがブロックされる。
 3. **Start**: コマンドラインから `sdd_start_task <ID>` を実行する。

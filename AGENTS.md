@@ -54,7 +54,7 @@ Agents MUST follow this cycle. Do not skip steps.
 1. **Start**: `sdd_start_task <TaskId>`. Activates the Scope.
 2. **Implement**: Edit ONLY files in `allowedScopes`.
    - **Error**: `E_SCOPE_DENIED` means you touched a file outside scope.
-   - **Fix**: Ask Architect to update `specs/tasks.md` -> `sdd_end_task` -> `sdd_start_task`.
+   - **Fix**: Ask Architect to update the appropriate scope file (`.kiro/specs/<feature>/scope.md` or `specs/tasks.md`) -> `sdd_end_task` -> `sdd_start_task`.
 3. **Verify**: Run `sdd_validate_gap` frequently.
 
 ### Phase 3: Reviewer (Role: `validate`)
@@ -99,7 +99,7 @@ Intercepts `tool.execute.before`.
 - **Cause**: Editing file outside `allowedScopes`.
 - **Resolution**:
   1. Check `sdd_show_context`.
-  2. Update `specs/tasks.md` Scope.
+  2. Update the appropriate scope file (`.kiro/specs/<feature>/scope.md` or `specs/tasks.md`).
   3. Restart task (`sdd_end_task` -> `sdd_start_task`).
 
 ## 9. CI/CD & RELEASE
