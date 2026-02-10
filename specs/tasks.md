@@ -1,5 +1,6 @@
 # Tasks
 
+* [x] fix-tools-gitignore-instruction-1: タスク生成ツールに .gitignore の推奨設定を含める (Scope: `.opencode/tools/sdd_generate_tasks.ts`, `.opencode/tools/sdd_scaffold_specs.ts`, `specs/tasks.md`)
 * [ ] fix-config-1: opencode.jsoncの修正 (Scope: `opencode.jsonc`, `.opencode/**`)
 * [ ] readme-gitignore-update: README.mdに.gitignore設定セクションを追加 (Scope: `README.md`)
 * [x] docs-gitignore-1: .gitignore設定の追記 (Scope: `README.md`)

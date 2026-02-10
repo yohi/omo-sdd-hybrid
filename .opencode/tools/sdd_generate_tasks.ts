@@ -159,7 +159,7 @@ export default tool({
     let taskCount = 1;
 
     // プロジェクト初期化タスク: .gitignore の作成・更新を常に最初に配置
-    tasksContent += `* [ ] ${feature}-${taskCount++}: .gitignore の作成・更新 (Scope: \`.gitignore\`)\n`;
+    tasksContent += `* [ ] ${feature}-${taskCount++}: .gitignore の作成・更新 (推奨設定: .opencode/state/*, .env) (Scope: \`.gitignore\`)\n`;
 
     if (criteria.length > 0) {
       for (const c of criteria) {
