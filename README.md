@@ -23,6 +23,26 @@
 - OpenCode Permission設定を迂回する攻撃
 - 悪意のあるユーザーによる手動ファイル編集
 
+## .gitignore 設定
+
+セキュリティと状態管理の整合性を保つため、以下のパスを `.gitignore` に追加することを強く推奨します。
+
+```ignore
+# SDD State (Runtime data)
+.opencode/state/
+.opencode/*.lock
+
+# Secrets
+.env
+.npmrc (認証トークンを直接記述する場合)
+
+# Kiro Build Artifacts
+.kiro/build/
+```
+
+- **`.opencode/state/`**: エージェントの現在のタスクコンテキストやガード状態が保存されます。マシン間で共有すると不整合の原因となるため、無視対象とします。
+- **`.env`**: `NODE_AUTH_TOKEN` などの機密情報を含みます。
+
 ## インストール
 
 プロジェクトの `opencode.json` (または `opencode.jsonc`) にプラグイン定義を追加することでインストールできます。
