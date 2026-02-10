@@ -22,11 +22,6 @@ build/
 .DS_Store
 Thumbs.db
 
-# Sisyphus session state (PC-specific)
-.sisyphus/boulder.json
-
-# Note: .sisyphus/plans/ and .sisyphus/notepads/ are committed
-# for team collaboration and context preservation
 
 # Temporary OpenCode clone
 opencode/
