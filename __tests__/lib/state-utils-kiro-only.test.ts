@@ -2,16 +2,20 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { writeState, readState, clearState, getStatePath, getStateDir } from '../../.opencode/lib/state-utils';
+import { writeState, readState, clearState } from '../../.opencode/lib/state-utils';
 
 describe('state-utils: Kiro統合のみ（specs/tasks.md不在時の動作）', () => {
   let tmpDir: string;
   let originalCwd: string;
-  let originalEnv: NodeJS.ProcessEnv;
+  const envKeysToRestore = ['SDD_STATE_DIR', 'SDD_TASKS_PATH'];
+  const originalEnvValues = new Map<string, string | undefined>();
 
   beforeEach(() => {
     originalCwd = process.cwd();
-    originalEnv = { ...process.env };
+    
+    for (const key of envKeysToRestore) {
+      originalEnvValues.set(key, process.env[key]);
+    }
 
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omo-sdd-state-kiro-'));
     process.chdir(tmpDir);
@@ -22,7 +26,17 @@ describe('state-utils: Kiro統合のみ（specs/tasks.md不在時の動作）', 
   afterEach(async () => {
     await clearState();
     process.chdir(originalCwd);
-    process.env = originalEnv;
+    
+    for (const key of envKeysToRestore) {
+      const originalValue = originalEnvValues.get(key);
+      if (originalValue === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = originalValue;
+      }
+    }
+    originalEnvValues.clear();
+    
     if (fs.existsSync(tmpDir)) {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
