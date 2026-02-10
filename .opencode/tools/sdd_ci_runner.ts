@@ -117,7 +117,7 @@ function loadTaskScopes(): { scopes: string[]; sources: string[] } {
     .filter((scopePath) => fs.existsSync(scopePath));
 
   if (scopeFiles.length === 0) {
-    throw new Error('Scope definition not found: .kiro/specs/**/scope.md');
+    throw new Error(`Scope definition not found: ${scopeRoot}/**/scope.md`);
   }
 
   const scopes: string[] = [];
