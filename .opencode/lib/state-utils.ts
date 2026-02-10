@@ -101,7 +101,9 @@ export function computeTasksMdHashFromContent(content: string): string {
 function readTasksMdHash(): string {
   const tasksPath = getTasksPath();
   if (!fs.existsSync(tasksPath)) {
-    throw new Error(`E_TASKS_NOT_FOUND: ${tasksPath} が見つかりません`);
+    // Kiro統合のみを使用している場合、specs/tasks.mdは存在しない可能性がある
+    // その場合は空文字列のハッシュを返す（.kiro/specs/*/scope.mdのみでタスク管理）
+    return computeTasksMdHashFromContent('');
   }
   const content = fs.readFileSync(tasksPath, 'utf-8');
   return computeTasksMdHashFromContent(content);
