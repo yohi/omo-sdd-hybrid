@@ -92,13 +92,23 @@ function loadTaskScopes(): { scopes: string[]; sources: string[] } {
   const defaultKiroDir = '.kiro';
   let kiroDir = process.env.SDD_KIRO_DIR || defaultKiroDir;
 
-  if (!process.env.SDD_KIRO_DIR && !fs.existsSync(path.join(kiroDir, 'specs')) && fs.existsSync('../.kiro/specs')) {
-    kiroDir = '../.kiro';
+  // path.resolve を使用してCWD非依存のパス解決を行う
+  if (!process.env.SDD_KIRO_DIR) {
+    const defaultPath = path.resolve(kiroDir, 'specs');
+    const fallbackPath = path.resolve('../.kiro/specs');
+    
+    if (!fs.existsSync(defaultPath) && fs.existsSync(fallbackPath)) {
+      kiroDir = path.resolve('../.kiro');
+    } else {
+      kiroDir = path.resolve(kiroDir);
+    }
+  } else {
+    kiroDir = path.resolve(kiroDir);
   }
 
   const scopeRoot = path.join(kiroDir, 'specs');
   if (!fs.existsSync(scopeRoot)) {
-    throw new Error('Scope definition not found: .kiro/specs/**/scope.md');
+    throw new Error(`Scope definition not found: ${scopeRoot}/**/scope.md`);
   }
 
   const scopeFiles = fs.readdirSync(scopeRoot, { withFileTypes: true })
