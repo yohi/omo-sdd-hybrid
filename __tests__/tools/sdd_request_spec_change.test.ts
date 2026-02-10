@@ -45,8 +45,8 @@ describe('sdd_request_spec_change', () => {
     
     const content = fs.readFileSync(path.join(pendingChangesDir, files[0]), 'utf-8');
     expect(content).toContain('Task ID**: Task-1');
-    expect(content).toContain('## Reason\nNeed refactoring');
-    expect(content).toContain('## Proposal\nSplit module X');
+    expect(content).toContain('## Reason\n\nNeed refactoring');
+    expect(content).toContain('## Proposal\n\nSplit module X');
   });
 
   test('throws E_PERMISSION_DENIED for architect', async () => {
