@@ -115,6 +115,12 @@ describe('sdd_kiro', () => {
     }
   });
 
+  it('initコマンドでfeature引数がない場合にエラーメッセージを返す', async () => {
+    const result = await runTool({ command: 'init' });
+    expect(result).toContain('エラー: feature は必須です');
+    expect(result).toContain('使用法: sdd_kiro init <feature>');
+  });
+
   it('profileコマンドでプロファイルファイルの内容を返す（パス解決テスト）', async () => {
     // モック用のプロファイルファイルを作成
     const profileDir = path.join(tmpDir, '.opencode', 'prompts');
