@@ -92,7 +92,19 @@ describe('sdd_start_task', () => {
     
     fs.unlinkSync(getStatePath());
 
+    await sddStartTask.default.execute({ taskId: 'Task-1', role: 'Architect' as any }, {} as any);
+    state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('architect');
+
+    fs.unlinkSync(getStatePath());
+
     await sddStartTask.default.execute({ taskId: 'Task-1', role: '  implementer  ' as any }, {} as any);
+    state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('implementer');
+
+    fs.unlinkSync(getStatePath());
+
+    await sddStartTask.default.execute({ taskId: 'Task-1', role: 'IMPLEMENTER' as any }, {} as any);
     state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
     expect(state.role).toBe('implementer');
   });
