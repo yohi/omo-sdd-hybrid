@@ -8,8 +8,8 @@
 開発者はここで「何を」「どこで」行うかを宣言し、システム（Gatekeeper）はその宣言に基づいてファイルアクセス権限を動的に制御する。
 コードを書く前に、必ずここでの定義が必要となる（Specs First）。
 
-## FILE TYPES (tasks.md)
-最も重要なファイルは `tasks.md` である。
+## FILE TYPES (tasks.md / scope.md)
+最も重要なファイルは `tasks.md`（レガシー）と `.kiro/specs/<feature>/scope.md`（新形式）である。
 
 ### tasks.md structure
 各タスクは以下の要素を持つ（Markdownのチェックボックスリスト形式）：
@@ -19,10 +19,12 @@
 - **Scope**: このタスクで変更を許可するファイルパス（括弧内にGlobパターン記述）
 
 ```markdown
-# Tasks
+# Tasks  (または Scopes)
 * [ ] Task-1: Feature X Implementation (Scope: `src/feature-x/**/*.ts`, `specs/feature-x.md`)
 * [x] Task-2: Bug Fix Y (Scope: `src/utils.ts`)
 ```
+
+**推奨**: 新規タスクは `.kiro/specs/<feature>/scope.md` に配置してください。`specs/tasks.md` は後方互換性のため残されています。
 
 ## EDITING RULES
 SDDサイクルにおける本ディレクトリの運用ルール：
@@ -37,8 +39,8 @@ SDDサイクルにおける本ディレクトリの運用ルール：
 ## RELATION TO Kiro (cc-sdd integration)
 このディレクトリは、Gatekeeperシステム（コードネーム: Kiro）に対する「入力ソース」である。
 
-- **Truth Source**: Kiroは `specs/tasks.md` を唯一の正解（Source of Truth）として扱う。
-- **Permission Mapping**: Kiroはここの `Scope` 定義を読み取り、OSレベルまたはエディタレベルでの書き込みロック/アンロックを判定する。
+- **Truth Source**: Kiroは `.kiro/specs/<feature>/scope.md` を優先し、見つからない場合は `specs/tasks.md` をフォールバックとして扱う。
+- **Permission Mapping**: Kiroはこれらファイルの `Scope` 定義を読み取り、OSレベルまたはエディタレベルでの書き込みロック/アンロックを判定する。
 - **Validation**: `sdd_validate_gap` コマンドは、ここの定義と実際のコード変更の乖離を検出する。
 
 > "Code follows Specs. Specs live here."
