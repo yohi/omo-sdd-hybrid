@@ -106,48 +106,67 @@ function loadTaskScopes(): { scopes: string[]; sources: string[] } {
     kiroDir = path.resolve(kiroDir);
   }
 
-  const scopeRoot = path.join(kiroDir, 'specs');
-  if (!fs.existsSync(scopeRoot)) {
-    throw new Error(`Scope definition not found: ${scopeRoot}/**/scope.md`);
-  }
-
-  const scopeFiles = fs.readdirSync(scopeRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(scopeRoot, entry.name, 'scope.md'))
-    .filter((scopePath) => fs.existsSync(scopePath));
-
-  if (scopeFiles.length === 0) {
-    throw new Error(`Scope definition not found: ${scopeRoot}/**/scope.md`);
-  }
-
   const scopes: string[] = [];
   const sources: string[] = [];
 
-  for (const scopePath of scopeFiles) {
-    const scopeContent = fs.readFileSync(scopePath, 'utf-8');
-    const parsed = parseSddTasks(scopeContent, { validateScopes: true });
+  const scopeRoot = path.join(kiroDir, 'specs');
+  let kiroScopesFound = false;
+
+  if (fs.existsSync(scopeRoot)) {
+    const scopeFiles = fs.readdirSync(scopeRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(scopeRoot, entry.name, 'scope.md'))
+      .filter((scopePath) => fs.existsSync(scopePath));
+
+    for (const scopePath of scopeFiles) {
+      const scopeContent = fs.readFileSync(scopePath, 'utf-8');
+      const parsed = parseSddTasks(scopeContent, { validateScopes: true });
+      if (parsed.errors.length > 0) {
+        throw new Error(`scope.md Validation Failed: ${scopePath}`);
+      }
+
+      const fileScopes = parsed.tasks.flatMap((task) => task.scopes);
+      if (fileScopes.length > 0) {
+        scopes.push(...fileScopes);
+        sources.push(scopePath);
+        kiroScopesFound = true;
+      }
+    }
+  }
+
+  // Legacy/Compatibility: specs/tasks.md からも Scope を読み込む
+  const envTasksPath = process.env.SDD_TASKS_PATH;
+  if (envTasksPath && !fs.existsSync(path.resolve(envTasksPath))) {
+    throw new Error(`E_CONFIG_ERROR: SDD_TASKS_PATH で指定されたファイルが見つかりません: ${envTasksPath}`);
+  }
+
+  const tasksPath = envTasksPath ? path.resolve(envTasksPath) : path.resolve('../specs/tasks.md');
+  if (fs.existsSync(tasksPath)) {
+    const tasksContent = fs.readFileSync(tasksPath, 'utf-8');
+    const parsed = parseSddTasks(tasksContent, { validateScopes: true });
+    
     if (parsed.errors.length > 0) {
-      throw new Error(`scope.md Validation Failed: ${scopePath}`);
+      logger.warn(`⚠️ tasks.md Validation Warnings: ${tasksPath}`);
+      parsed.errors.forEach(e => logger.warn(`  Line ${e.line}: ${e.reason}`));
     }
 
-    const fileScopes = parsed.tasks.flatMap((task) => task.scopes);
-    if (fileScopes.length === 0) {
-      continue;
+    const tasksScopes = parsed.tasks.flatMap(t => t.scopes);
+    if (tasksScopes.length > 0) {
+      scopes.push(...tasksScopes);
+      sources.push(tasksPath);
     }
-
-    scopes.push(...fileScopes);
-    sources.push(scopePath);
   }
 
   if (scopes.length === 0) {
-    throw new Error('❌ scope.md に有効な Scope が定義されていません');
+    throw new Error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
   }
 
   const uniqueScopes = Array.from(new Set(scopes));
 
   logger.info(`✅ Scope 検証: OK (${sources.length} ファイルから読込み)`);
   sources.forEach((src) => {
-    logger.info(`  - ${src} (scope.md)`);
+    const type = path.basename(src);
+    logger.info(`  - ${src} (${type})`);
   });
 
   return {

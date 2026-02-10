@@ -133,7 +133,7 @@ ${prompt || 'この機能の目的と概要を記述してください。'}
         name: 'tasks.md',
         content: `# Tasks
 
-* [ ] ${feature}-1: .gitignore の作成・更新 (Scope: \`.gitignore\`)
+* [ ] ${feature}-1: .gitignore の作成・更新 (推奨設定: .opencode/state/*, .env) (Scope: \`.gitignore\`)
 * [ ] ${feature}-2: 基本実装 (Scope: \`src/...\`)
 * [ ] ${feature}-3: テスト実装 (Scope: \`__tests__/...\`)
 `
