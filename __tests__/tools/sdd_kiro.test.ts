@@ -198,6 +198,10 @@ describe('sdd_kiro', () => {
     // コンテンツが含まれていること
     expect(result).toContain('意地悪な閉じタグ');
 
+    // 4. 上書き警告の確認
+    expect(result).toContain('⚠️ **警告:**');
+    expect(result).toContain('requirements.md` が既に存在する場合、以下の内容で上書きされます');
+
     // 期待値: 4つ以上のバッククォートで囲まれていること（内部に3つのバッククォートがあるため）
     // 正規表現で確認: ````markdown:requirements_ja ... content ... ````
     const fencePattern = /````markdown:requirements_ja[\s\S]*?````/;

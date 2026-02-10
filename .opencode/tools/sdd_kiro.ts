@@ -260,6 +260,7 @@ export default tool({
 
         for (const { name, content } of jaContents) {
           result += `### ${name}.md\n`;
+          result += `> ⚠️ **警告:** \`${safeDir}/${name}.md\` が既に存在する場合、以下の内容で上書きされます。必要に応じてバックアップを取得してください。\n\n`;
           result += `\`${safeDir}/${name}_ja.md\` の内容を英語に翻訳して \`${safeDir}/${name}.md\` を作成してください。\n\n`;
           
           // プロンプト注入対策: コードブロックを使用し、コンテンツ内のバッククォートに応じてフェンス長を調整
