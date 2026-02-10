@@ -44,16 +44,17 @@ Agents MUST follow this cycle. Do not skip steps.
 ### Phase 1: Architect (Role: `architect`)
 **Goal**: Define "What to build" and "Where to allow edits".
 1. **Design**: Create/Update `.kiro/specs/*.md` (Requirements/Design).
-2. **Task Definition**: Update `specs/tasks.md`.
-3. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `tasks.md`.
+2. **Task Definition**: Update `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
+3. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in task files.
    - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
+   - Scopes can be defined in `.kiro/specs/<feature>/scope.md` (preferred) or `specs/tasks.md` (legacy).
 
 ### Phase 2: Implementer (Role: `implementer`)
 **Goal**: Build "How it works" within Scope.
 1. **Start**: `sdd_start_task <TaskId>`. Activates the Scope.
 2. **Implement**: Edit ONLY files in `allowedScopes`.
    - **Error**: `E_SCOPE_DENIED` means you touched a file outside scope.
-   - **Fix**: Ask Architect to update `specs/tasks.md` -> `sdd_end_task` -> `sdd_start_task`.
+   - **Fix**: Ask Architect to update the appropriate scope file (`.kiro/specs/<feature>/scope.md` or `specs/tasks.md`) -> `sdd_end_task` -> `sdd_start_task`.
 3. **Verify**: Run `sdd_validate_gap` frequently.
 
 ### Phase 3: Reviewer (Role: `validate`)
@@ -98,7 +99,7 @@ Intercepts `tool.execute.before`.
 - **Cause**: Editing file outside `allowedScopes`.
 - **Resolution**:
   1. Check `sdd_show_context`.
-  2. Update `specs/tasks.md` Scope.
+  2. Update the appropriate scope file (`.kiro/specs/<feature>/scope.md` or `specs/tasks.md`).
   3. Restart task (`sdd_end_task` -> `sdd_start_task`).
 
 ## 9. CI/CD & RELEASE
