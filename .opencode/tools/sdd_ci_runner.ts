@@ -143,6 +143,30 @@ function loadTaskScopes(): { scopes: string[]; sources: string[] } {
     throw new Error('❌ scope.md に有効な Scope が定義されていません');
   }
 
+  // Legacy/Compatibility: specs/tasks.md からも Scope を読み込む
+  const tasksPath = process.env.SDD_TASKS_PATH ? path.resolve(process.env.SDD_TASKS_PATH) : path.resolve('../specs/tasks.md');
+  if (fs.existsSync(tasksPath)) {
+    const tasksContent = fs.readFileSync(tasksPath, 'utf-8');
+    const parsed = parseSddTasks(tasksContent, { validateScopes: true });
+    
+    // パースエラーがあっても、有効なタスクがあればそのScopeは採用する（あるいはエラーにするか？CIなら厳密にすべきか）
+    // ここではエラーがあればログに出しつつ、有効なものは使う方針で。
+    if (parsed.errors.length > 0) {
+      logger.warn(`⚠️ tasks.md Validation Warnings: ${tasksPath}`);
+      parsed.errors.forEach(e => logger.warn(`  Line ${e.line}: ${e.reason}`));
+    }
+
+    const tasksScopes = parsed.tasks.flatMap(t => t.scopes);
+    if (tasksScopes.length > 0) {
+      scopes.push(...tasksScopes);
+      sources.push(tasksPath);
+    }
+  }
+
+  if (scopes.length === 0) {
+    throw new Error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
+  }
+
   const uniqueScopes = Array.from(new Set(scopes));
 
   logger.info(`✅ Scope 検証: OK (${sources.length} ファイルから読込み)`);
