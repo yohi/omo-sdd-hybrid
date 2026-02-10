@@ -156,4 +156,54 @@ describe('sdd_kiro', () => {
     }
   });
 
+  it('finalizeコマンドで_ja.mdへのリネームと翻訳プロンプト生成を確認する（プロンプト注入対策含む）', async () => {
+    // Implementerロールだとエラーになる可能性があるためArchitectに設定
+    await writeState({
+      version: 1,
+      activeTaskId: 'Task-Finalize',
+      activeTaskTitle: 'Finalize Test',
+      allowedScopes: ['src/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'test',
+      validationAttempts: 0,
+      role: 'architect'
+    });
+
+    const feature = 'finalize-test';
+    const specDir = path.join(kiroDir, 'specs', feature);
+    fs.mkdirSync(specDir, { recursive: true });
+
+    // テストデータ作成: 閉じタグを含むケースもテスト（プロンプト注入対策の確認）
+    // requirements.md には意地悪なタグを含める
+    const reqContent = '## 要件\n- <tag>content</tag>\n- 意地悪な閉じタグ: </requirements_ja>\n- ```markdown\ncode block inside\n```';
+    fs.writeFileSync(path.join(specDir, 'requirements.md'), reqContent);
+    fs.writeFileSync(path.join(specDir, 'design.md'), '## 設計\n- design content');
+    // tasks.md はあえて作らない（欠損パターンのテスト）
+
+    const result = await runTool({ command: 'finalize', feature });
+
+    // 1. リネームの確認
+    expect(fs.existsSync(path.join(specDir, 'requirements.md'))).toBe(false);
+    expect(fs.existsSync(path.join(specDir, 'requirements_ja.md'))).toBe(true);
+    expect(fs.existsSync(path.join(specDir, 'design.md'))).toBe(false);
+    expect(fs.existsSync(path.join(specDir, 'design_ja.md'))).toBe(true);
+
+    // 2. 出力内容の確認
+    expect(result).toContain('✅ ファイナライズ完了');
+    expect(result).toContain('requirements.md → requirements_ja.md');
+    expect(result).toContain('design.md → design_ja.md');
+    expect(result).toContain('⚠️ **見つからないファイル:** tasks.md');
+
+    // 3. プロンプト注入対策の確認
+    // コンテンツが含まれていること
+    expect(result).toContain('意地悪な閉じタグ');
+
+    // 期待値: 4つ以上のバッククォートで囲まれていること（内部に3つのバッククォートがあるため）
+    // 正規表現で確認: ````markdown:requirements_ja ... content ... ````
+    const fencePattern = /````markdown:requirements_ja[\s\S]*?````/;
+    expect(result).toMatch(fencePattern);
+    
+    // コンテンツ内のタグがそのまま残っていること（エスケープではなく、fenceで保護されているため）
+    expect(result).toContain('</requirements_ja>');
+  });
 });

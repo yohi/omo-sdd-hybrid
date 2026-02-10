@@ -256,7 +256,14 @@ export default tool({
         for (const { name, content } of jaContents) {
           result += `### ${name}.md\n`;
           result += `\`${safeDir}/${name}_ja.md\` の内容を英語に翻訳して \`${safeDir}/${name}.md\` を作成してください。\n\n`;
-          result += `<${name}_ja>\n${content}\n</${name}_ja>\n\n`;
+          
+          // プロンプト注入対策: コードブロックを使用し、コンテンツ内のバッククォートに応じてフェンス長を調整
+          const maxTicks = (content.match(/`{3,}/g) || [])
+            .map(match => match.length)
+            .reduce((a, b) => Math.max(a, b), 0);
+          const fence = '`'.repeat(Math.max(3, maxTicks + 1));
+
+          result += `${fence}markdown:${name}_ja\n${content}\n${fence}\n\n`;
         }
 
         return result;
