@@ -55,13 +55,13 @@ describe('sdd_report_bug', () => {
     const content = fs.readFileSync(path.join(bugsDir, files[0]), 'utf-8');
     expect(content).toContain('# Bug: Login fails with 500 error');
     expect(content).toContain('**Task ID**: Task-1');
-    expect(content).toContain('## 概要\nLogin fails with 500 error');
-    expect(content).toContain('## 再現手順\n1. Go to /login\n2. Enter valid credentials');
-    expect(content).toContain('## 期待結果\nRedirect to dashboard');
-    expect(content).toContain('## 実結果\nShows 500 page');
-    expect(content).toContain('## ログ抜粋\n```text\nError: Connection refused\n```');
-    expect(content).toContain('## 影響範囲\nHigh');
-    expect(content).toContain('## 推奨修正案（推測）\nCheck DB connection');
+    expect(content).toContain('## 概要\n\nLogin fails with 500 error');
+    expect(content).toContain('## 再現手順\n\n1. Go to /login\n2. Enter valid credentials');
+    expect(content).toContain('## 期待結果\n\nRedirect to dashboard');
+    expect(content).toContain('## 実結果\n\nShows 500 page');
+    expect(content).toContain('## ログ抜粋\n\n```text\nError: Connection refused\n```');
+    expect(content).toContain('## 影響範囲\n\nHigh');
+    expect(content).toContain('## 推奨修正案（推測）\n\nCheck DB connection');
   });
 
   test('handles optional arguments gracefully', async () => {
@@ -88,9 +88,9 @@ describe('sdd_report_bug', () => {
     const content = fs.readFileSync(path.join(bugsDir, files[0]), 'utf-8');
 
     expect(content).toContain('# Bug: Minimal bug report');
-    expect(content).toContain('## 再現手順\n(未記入)');
-    expect(content).toContain('## 期待結果\n(未記入)');
-    expect(content).toContain('## ログ抜粋\n```text\n(なし)\n```');
+    expect(content).toContain('## 再現手順\n\n(未記入)');
+    expect(content).toContain('## 期待結果\n\n(未記入)');
+    expect(content).toContain('## ログ抜粋\n\n```text\n(なし)\n```');
   });
 
   test('sanitizes filename correctly', async () => {

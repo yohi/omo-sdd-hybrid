@@ -55,10 +55,13 @@ export default tool({
     let designContent = `# Design: ${feature}
 
 ## アーキテクチャ概要
+
 この機能の技術的な実現方針を記述します。
 
 ## コンポーネント設計
+
 ### Mermaid Diagram
+
 \`\`\`mermaid
 graph TD
     User -->|Action| ComponentA
@@ -69,6 +72,7 @@ graph TD
     if (['api', 'endpoint', 'backend'].some(k => searchStr.includes(k))) {
       designContent += `
 ## API Endpoints
+
 - エンドポイントの定義とリクエスト/レスポンス形式
 `;
     }
@@ -76,6 +80,7 @@ graph TD
     if (['ui', 'frontend', 'component', 'page'].some(k => searchStr.includes(k))) {
       designContent += `
 ## Component Structure
+
 - UIコンポーネントの構成と階層構造
 `;
     }
@@ -83,15 +88,18 @@ graph TD
     if (['db', 'database', 'schema', 'model'].some(k => searchStr.includes(k))) {
       designContent += `
 ## Database Schema
+
 - データモデル定義と永続化戦略
 `;
     }
 
     designContent += `
 ## データ構造
+
 - 主要なインターフェースや型定義
 
 ## 依存関係
+
 - 外部APIやライブラリへの依存
 `;
 
@@ -101,17 +109,20 @@ graph TD
         content: `# Requirements: ${feature}
 
 ## 概要
+
 ${prompt || 'この機能の目的と概要を記述してください。'}
 
 ## ユーザーストーリー
-- **役割** <ユーザー>
-- **やりたいこと** <アクション>
-- **理由・メリット** <目的/価値>
+
+- **役割** \u003cユーザー\u003e
+- **やりたいこと** \u003cアクション\u003e
+- **理由・メリット** \u003c目的/価値\u003e
 
 ## 受入条件 (EARS)
-- **前提** <前提条件>
-- **もし** <トリガー/操作>
-- **ならば** <期待される結果>
+
+- **前提** \u003c前提条件\u003e
+- **もし** \u003cトリガー/操作\u003e
+- **ならば** \u003c期待される結果\u003e
 `
       },
       {

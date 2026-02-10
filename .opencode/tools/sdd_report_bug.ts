@@ -68,26 +68,33 @@ export default tool({
 - **Author**: ${state.role || 'Unknown'}
 
 ## 概要
+
 ${title}
 
 ## 再現手順
+
 ${reproSteps || '(未記入)'}
 
 ## 期待結果
+
 ${expected || '(未記入)'}
 
 ## 実結果
+
 ${actual || '(未記入)'}
 
 ## ログ抜粋
+
 \`\`\`text
 ${logs || '(なし)'}
 \`\`\`
 
 ## 影響範囲
+
 ${impact || '(未記入)'}
 
 ## 推奨修正案（推測）
+
 ${suggestion || '(なし)'}
 `;
 
