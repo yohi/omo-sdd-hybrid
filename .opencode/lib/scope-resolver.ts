@@ -48,7 +48,7 @@ function listKiroFeatures(): string[] {
   try {
     const entries = fs.readdirSync(specsDir, { withFileTypes: true });
     return entries
-      .filter(e => e.isDirectory())
+      .filter(e => e.isDirectory() && !e.isSymbolicLink())
       .map(e => e.name);
   } catch (error) {
     logger.error('Failed to list Kiro features:', error);
