@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v4
         with:
@@ -17,7 +17,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.0.0
+          bun-version: 1.2.19
 
       - name: Install Plugin Dependencies
         working-directory: .opencode
@@ -27,7 +27,7 @@ jobs:
         run: bun install
 
       - name: Run Tests
-        run: bun test
+        run: bun test:seq
 
       - name: Run SDD Validation
         run: bun run scripts/sdd_ci_validate.ts

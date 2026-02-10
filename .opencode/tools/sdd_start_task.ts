@@ -1,6 +1,9 @@
 import { tool } from '@opencode-ai/plugin';
+import fs from 'fs';
+import path from 'path';
 import { writeState } from '../lib/state-utils';
 import { resolveTask } from '../lib/scope-resolver';
+import { parseSddTasks } from '../lib/tasks_markdown';
 import { selectRoleForTask } from '../lib/agent-selector';
 import { logger } from '../lib/logger.js';
 
@@ -17,6 +20,45 @@ export default tool({
     const resolved = resolveTask(taskId);
 
     if (!resolved) {
+      const tasksPath = process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+      const kiroSpecsDir = path.join(process.env.SDD_KIRO_DIR || '.kiro', 'specs');
+
+      let hasScopeMd = false;
+      if (fs.existsSync(kiroSpecsDir)) {
+        try {
+          const features = fs.readdirSync(kiroSpecsDir, { withFileTypes: true });
+          hasScopeMd = features
+            .filter((entry) => entry.isDirectory())
+            .some((entry) => fs.existsSync(path.join(kiroSpecsDir, entry.name, 'scope.md')));
+        } catch {
+          hasScopeMd = false;
+        }
+      }
+
+      if (!fs.existsSync(tasksPath) && !hasScopeMd) {
+        throw new Error('E_TASKS_NOT_FOUND: tasks.md が見つかりません');
+      }
+
+      if (fs.existsSync(tasksPath)) {
+        try {
+          const content = fs.readFileSync(tasksPath, 'utf-8');
+          const { errors } = parseSddTasks(content, { validateScopes: true });
+          const relatedError = errors.find((error) => error.content.includes(`${taskId}:`));
+          if (relatedError?.reason.includes('Scope が空です')) {
+            throw new Error(`E_SCOPE_MISSING: ${taskId} に Scope が定義されていません`);
+          }
+          if (relatedError?.reason.includes('フォーマットエラー')) {
+            throw new Error(
+              `E_SCOPE_FORMAT: ${taskId} の Scope 形式が不正です。バッククォートで囲んでください: (Scope: \`path/**\`)`
+            );
+          }
+        } catch (error) {
+          if (error instanceof Error && error.message.startsWith('E_')) {
+            throw error;
+          }
+        }
+      }
+
       throw new Error(
         `E_TASK_NOT_FOUND: ${taskId} が見つかりません。\n` +
         `.kiro/specs/*/scope.md または specs/tasks.md を確認してください。`
