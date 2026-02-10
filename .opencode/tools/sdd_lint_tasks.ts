@@ -5,7 +5,7 @@ import { parseSddTasks } from '../lib/tasks_markdown';
 
 const KIRO_BASE_DIR = '.kiro/specs';
 const ROOT_PATH = 'specs';
-const TASK_FILES = ['tasks.md', 'scope.md'];
+const TASK_FILES = ['scope.md', 'tasks.md'];
 
 function resolveWithinBases(targetPath: string, baseDirs: string[]): string {
   if (targetPath.includes('\0') || targetPath.includes('..')) {
@@ -74,7 +74,6 @@ function getTasksPaths(feature?: string): { candidates: string[]; required: stri
   if (feature) {
     const featurePaths = resolveFeaturePaths(feature, kiroBaseResolved);
     candidates.push(...featurePaths);
-    required.push(...featurePaths);
   } else {
     candidates.push(...listKiroPaths(kiroBaseResolved));
   }
@@ -124,7 +123,7 @@ export default tool({
     });
 
     if (existingPaths.length === 0) {
-      return 'エラー: 対象の tasks.md が見つかりません';
+      return `エラー: 対象のタスクファイル (${TASK_FILES.join(' または ')}) が見つかりません`;
     }
 
     const errorBlocks: string[] = [];
