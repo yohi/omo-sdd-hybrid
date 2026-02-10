@@ -115,6 +115,12 @@ describe('sdd_kiro', () => {
     }
   });
 
+  it('finalizeコマンドで無効な機能名を拒否する（パス・トラバーサル防止）', async () => {
+    const result = await runTool({ command: 'finalize', feature: '../bad-path' });
+    expect(result).toContain('エラー');
+    expect(result).toContain('無効な機能名');
+  });
+
   it('initコマンドでfeature引数がない場合にエラーメッセージを返す', async () => {
     const result = await runTool({ command: 'init' });
     expect(result).toContain('エラー: feature は必須です');
