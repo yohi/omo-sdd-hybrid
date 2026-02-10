@@ -60,8 +60,8 @@ Agents **MUST** follow this cycle. Do not skip steps.
 ### Phase 1: Architect (Role: `architect`)
 **Goal**: Define "What to build" and "Where to allow edits".
 1. **Design**: Create/Update `.kiro/specs/*.md` (Requirements/Design).
-2. **Task Definition**: Update `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
-3. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in task files.
+2. **Task Definition**: Update `specs/tasks.md` or `.kiro/specs/<feature>/tasks.md`.
+3. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
    - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
 
 ### Phase 2: Implementer (Role: `implementer`)
