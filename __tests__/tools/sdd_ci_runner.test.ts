@@ -61,6 +61,10 @@ describe('sdd_ci_runner', () => {
     const tasksMdDst = path.join(targetDir, '.opencode', 'lib', 'tasks_markdown.ts');
     fs.copyFileSync(tasksMdSrc, tasksMdDst);
 
+    const scopeResolverSrc = path.join(realOpenCodeDir, 'lib', 'scope-resolver.ts');
+    const scopeResolverDst = path.join(targetDir, '.opencode', 'lib', 'scope-resolver.ts');
+    fs.copyFileSync(scopeResolverSrc, scopeResolverDst);
+
     const globUtilsSrc = path.join(realOpenCodeDir, 'lib', 'glob-utils.ts');
     const globUtilsDst = path.join(targetDir, '.opencode', 'lib', 'glob-utils.ts');
     fs.copyFileSync(globUtilsSrc, globUtilsDst);
@@ -220,6 +224,8 @@ describe('sdd_ci_runner', () => {
     fs.copyFileSync(stubSrc, path.join(newTmpDir, '.opencode', 'lib', 'plugin-stub.ts'));
     const tasksMdSrc = path.join(realOpenCodeDir, 'lib', 'tasks_markdown.ts');
     fs.copyFileSync(tasksMdSrc, path.join(newTmpDir, '.opencode', 'lib', 'tasks_markdown.ts'));
+    const scopeResolverSrc = path.join(realOpenCodeDir, 'lib', 'scope-resolver.ts');
+    fs.copyFileSync(scopeResolverSrc, path.join(newTmpDir, '.opencode', 'lib', 'scope-resolver.ts'));
     const globUtilsSrc = path.join(realOpenCodeDir, 'lib', 'glob-utils.ts');
     fs.copyFileSync(globUtilsSrc, path.join(newTmpDir, '.opencode', 'lib', 'glob-utils.ts'));
 

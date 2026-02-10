@@ -27,7 +27,7 @@ jobs:
         run: bun install
 
       - name: Run Tests
-        run: bun test
+        run: bun test:seq
 
       - name: Run SDD Validation
         run: bun run scripts/sdd_ci_validate.ts
