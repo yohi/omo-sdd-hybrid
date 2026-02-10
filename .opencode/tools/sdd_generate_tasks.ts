@@ -133,6 +133,9 @@ export default tool({
     let tasksContent = `# Tasks\n\n`;
     let taskCount = 1;
 
+    // プロジェクト初期化タスク: .gitignore の作成・更新を常に最初に配置
+    tasksContent += `* [ ] ${feature}-${taskCount++}: .gitignore の作成・更新 (Scope: \`.gitignore\`)\n`;
+
     if (criteria.length > 0) {
       for (const c of criteria) {
         tasksContent += `* [ ] ${feature}-${taskCount++}: 実装: ${c} (Scope: \`src/**\`, \`__tests__/**\`)\n`;
@@ -146,9 +149,8 @@ export default tool({
     }
 
     if (criteria.length === 0 && components.length === 0) {
-      tasksContent += `* [ ] ${feature}-1: 基本実装 (Scope: \`src/...\`)\n`;
-      tasksContent += `* [ ] ${feature}-2: テスト実装 (Scope: \`__tests__/...\`)\n`;
-      taskCount = 3;
+      tasksContent += `* [ ] ${feature}-${taskCount++}: 基本実装 (Scope: \`src/...\`)\n`;
+      tasksContent += `* [ ] ${feature}-${taskCount++}: テスト実装 (Scope: \`__tests__/...\`)\n`;
     }
 
     tasksContent += `* [ ] ${feature}-${taskCount++}: ドキュメント更新 (Scope: \`.kiro/specs/${feature}/**\`)\n`;
