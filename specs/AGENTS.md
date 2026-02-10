@@ -11,7 +11,7 @@
 ## FILE TYPES (tasks.md / scope.md)
 最も重要なファイルは `tasks.md`（レガシー）と `.kiro/specs/<feature>/scope.md`（新形式）である。
 
-### tasks.md structure
+### Task Definition Format
 各タスクは以下の要素を持つ（Markdownのチェックボックスリスト形式）：
 - **Checkbox**: ステータスを表す (`[ ]`=TODO/IN_PROGRESS, `[x]`=DONE)
 - **ID**: 一意の識別子（例: `Task-1`）
@@ -33,7 +33,7 @@ SDDサイクルにおける本ディレクトリの運用ルール：
 2. **Set Scope**: 変更予定のファイルパスを `Scope` に明記する。
    - *重要*: Scopeに含まれないファイルは、タスク開始後も書き込みがブロックされる。
 3. **Start**: コマンドラインから `sdd_start_task <ID>` を実行する。
-   - この時点で `tasks.md` の内容はシステムにロードされ、Gatekeeperが有効化される。
+   - この時点で定義されたScope（`scope.md` または `tasks.md`）の内容はシステムにロードされ、Gatekeeperが有効化される。
 4. **Refine**: 仕様詳細（`.md`）もこのディレクトリに配置し、Scopeに含めて管理することを推奨する。
 
 ## RELATION TO Kiro (cc-sdd integration)
