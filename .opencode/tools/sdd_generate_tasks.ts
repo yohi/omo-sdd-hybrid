@@ -103,8 +103,12 @@ export default tool({
 
     // content が提供されている場合は、requirements.md/design.md のチェックをスキップして直接書き込む
     if (content && content.trim() !== '') {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
+      try {
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+      } catch (error: any) {
+        return `エラー: ディレクトリ作成に失敗しました (${error.message})`;
       }
 
       if (fs.existsSync(tasksPath) && !overwrite) {
