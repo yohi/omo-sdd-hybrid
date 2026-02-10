@@ -1,9 +1,7 @@
 import { tool } from '@opencode-ai/plugin';
-import { parseSddTasks } from '../lib/tasks_markdown';
+import { resolveAllScopes } from '../lib/scope-resolver';
 import { matchesScope } from '../lib/glob-utils';
 import { spawnSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
 import { logger } from '../lib/logger.js';
 
 /**
@@ -88,32 +86,22 @@ function getUntrackedFiles(): string[] {
   return result.stdout.split('\n').filter(line => line.trim().length > 0);
 }
 
-function loadTaskScopes(): string[] {
-  const tasksPath = path.resolve('..', 'specs', 'tasks.md');
+function loadTaskScopes(): { scopes: string[]; sources: string[] } {
+  const result = resolveAllScopes();
 
-  if (!fs.existsSync(tasksPath)) {
-    throw new Error(`❌ Tasks definition not found: ${tasksPath}`);
+  if (result.scopes.length === 0) {
+    throw new Error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
   }
 
-  const content = fs.readFileSync(tasksPath, 'utf-8');
-  const { tasks, errors } = parseSddTasks(content);
+  logger.info(`✅ Scope 検証: OK (${result.sources.length} ファイルから読込み)`);
+  result.sources.forEach(src => {
+    logger.info(`  - ${src.path} (${src.type})`);
+  });
 
-  if (errors.length > 0) {
-    const errorMsg = [
-      '\n❌ tasks.md Validation Failed:',
-      ...errors.map(e => `  Line ${e.line}: ${e.reason}${e.content ? ` ("${e.content}")` : ''}`)
-    ].join('\n');
-    throw new Error(errorMsg);
-  }
-
-  logger.info('✅ tasks.md Validation: OK');
-
-  const scopes = tasks.flatMap(task => task.scopes).map(scope => scope.trim()).filter(scope => scope.length > 0);
-  if (scopes.length === 0) {
-    throw new Error('❌ tasks.md に有効な Scope が定義されていません');
-  }
-
-  return scopes;
+  return {
+    scopes: result.scopes,
+    sources: result.sources.map(s => s.path)
+  };
 }
 
 function validateScopeGuard(files: string[], scopes: string[], options: RunnerOptions, untrackedFiles: string[]) {
@@ -145,15 +133,15 @@ function validateScopeGuard(files: string[], scopes: string[], options: RunnerOp
 }
 
 const sddCiRunnerTool = tool({
-  description: 'CI検証ランナー（tasks.md整合性チェックおよび変更範囲ガード）',
+  description: 'CI検証ランナー（tasks.md/scope.md整合性チェックおよび変更範囲ガード）',
   args: {},
   async execute() {
     logger.info('--- SDD CI Runner ---');
 
     const options = parseCliFlags(process.argv.slice(2));
 
-    // 1. tasks.md の構文チェック
-    const scopes = loadTaskScopes();
+    // 1. tasks.md / scope.md の構文チェック
+    const { scopes } = loadTaskScopes();
 
     // 2. 変更ファイルのスコープチェック
     const changedFiles = getChangedFiles();

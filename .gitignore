@@ -22,11 +22,6 @@ build/
 .DS_Store
 Thumbs.db
 
-# Sisyphus session state (PC-specific)
-.sisyphus/boulder.json
-
-# Note: .sisyphus/plans/ and .sisyphus/notepads/ are committed
-# for team collaboration and context preservation
 
 # Temporary OpenCode clone
 opencode/
@@ -39,8 +34,8 @@ opencode/
 .opencode/state/.lock/
 !.opencode/state/.gitkeep
 
-# Sisyphus notepads (local work context)
-.sisyphus/notepads/
+# Sisyphus (local work context)
+.sisyphus
 
 # Serena agent state
 .serena/

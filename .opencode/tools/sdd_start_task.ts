@@ -1,18 +1,10 @@
 import { tool } from '@opencode-ai/plugin';
-import { writeState, getTasksPath } from '../lib/state-utils';
-import fs from 'fs';
-import { parseSddTasks } from '../lib/tasks_markdown';
+import { writeState } from '../lib/state-utils';
+import { resolveTask } from '../lib/scope-resolver';
 import { selectRoleForTask } from '../lib/agent-selector';
 import { logger } from '../lib/logger.js';
 
-export class ScopeFormatError extends Error {
-  taskId?: string;
-  constructor(message: string, taskId?: string) {
-    super(message);
-    this.name = 'ScopeFormatError';
-    this.taskId = taskId;
-  }
-}
+
 
 export default tool({
   description: 'タスクを開始し、編集可能なスコープを設定します',
@@ -21,56 +13,29 @@ export default tool({
     role: tool.schema.string().optional().describe('ロールを指定 (architect | implementer)')
   },
   async execute({ taskId, role }) {
-    const tasksPath = getTasksPath();
-    if (!fs.existsSync(tasksPath)) {
-      throw new Error(`E_TASKS_NOT_FOUND: ${tasksPath} が見つかりません`);
-    }
-    
-    const content = fs.readFileSync(tasksPath, 'utf-8');
+    // scope-resolver を使用してタスクを解決
+    const resolved = resolveTask(taskId);
 
-    const result = parseSddTasks(content, { validateScopes: false });
-    if (result.errors.length > 0) {
-      logger.error('[SDD] tasks.md のパースに失敗しました', {
-        tasksPath,
-        errors: result.errors,
-      });
+    if (!resolved) {
       throw new Error(
-        `E_TASKS_PARSE_ERROR: ${tasksPath} の解析に失敗しました。\n` +
-          result.errors.map(e => `- L${e.line}: ${e.reason} (${e.content})`).join('\n')
+        `E_TASK_NOT_FOUND: ${taskId} が見つかりません。\n` +
+        `.kiro/specs/*/scope.md または specs/tasks.md を確認してください。`
       );
     }
 
-    const { tasks } = result;
-    
-    try {
-      if (process.env.SDD_SCOPE_FORMAT === 'strict') {
-        for (const t of tasks) {
-          const rawText = t.rawScopeText ? t.rawScopeText.trim() : '';
-          const isJustBackticks = rawText.replace(/`/g, '').trim().length === 0;
+    const { task, source, feature } = resolved;
+    const sourceInfo = source === 'scope.md'
+      ? `${source} (feature: ${feature})`
+      : source;
 
-          if (t.scopes.length === 0 && rawText.length > 0 && !isJustBackticks) {
-            throw new ScopeFormatError(`Scope must be enclosed in backticks: ${t.rawScopeText}`, t.id);
-          }
-        }
-      }
-    } catch (error: any) {
-      if (error instanceof ScopeFormatError) {
-        const failingTaskInfo = error.taskId ? `タスク ${error.taskId}` : 'いずれかのタスク';
-        throw new Error(`E_SCOPE_FORMAT: ${failingTaskInfo} の Scope 形式が不正です（リクエストされたタスク: ${taskId}）。\nバッククォートで囲んでください: (Scope: \`path/**\`)\n現在の環境: SDD_SCOPE_FORMAT=${process.env.SDD_SCOPE_FORMAT || 'lenient'}\n元のエラー: ${error.message}`);
-      }
-      throw error;
-    }
-    
-    const task = tasks.find(t => t.id === taskId);
-    
-    if (!task) {
-      throw new Error(`E_TASK_NOT_FOUND: ${taskId} が見つかりません`);
-    }
-    
+    logger.info(`[SDD] タスク ${taskId} を ${sourceInfo} から解決しました`);
+
+    // 既に完了済みチェックは残す
+
     if (task.checked) {
       throw new Error(`E_TASK_ALREADY_DONE: ${taskId} は既に完了しています`);
     }
-    
+
     if (task.scopes.length === 0) {
       const rawScope = task.rawScopeText?.trim();
       if (rawScope && rawScope.replace(/`/g, '').trim().length > 0) {
@@ -90,7 +55,7 @@ export default tool({
     } else {
       determinedRole = await selectRoleForTask(task);
     }
-    
+
     await writeState({
       version: 1,
       activeTaskId: task.id,
@@ -101,8 +66,8 @@ export default tool({
       validationAttempts: 0,
       role: determinedRole
     });
-    
-    return `タスク開始: ${task.id}
+
+    return `タスク開始: ${task.id} (source: ${sourceInfo})
 タイトル: ${task.description}
 ロール: ${determinedRole}
 許可スコープ: ${task.scopes.join(', ')}

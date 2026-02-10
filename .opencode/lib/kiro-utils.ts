@@ -10,6 +10,7 @@ export interface KiroSpec {
   requirements: string | null;
   design: string | null;
   tasks: string | null;
+  scope: string | null;
   specJson: Record<string, unknown> | null;
 }
 
@@ -124,6 +125,7 @@ export function loadKiroSpec(featureName: string): KiroSpec | null {
     requirements: readOptionalFile('requirements.md'),
     design: readOptionalFile('design.md'),
     tasks: readOptionalFile('tasks.md'),
+    scope: readOptionalFile('scope.md'),
     specJson: readOptionalJson('spec.json'),
   };
 }

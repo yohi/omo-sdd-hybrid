@@ -4,7 +4,8 @@ import path from 'path';
 import { parseSddTasks } from '../lib/tasks_markdown';
 
 const KIRO_BASE_DIR = '.kiro/specs';
-const ROOT_TASKS_PATH = 'specs/tasks.md';
+const ROOT_PATH = 'specs';
+const TASK_FILES = ['scope.md', 'tasks.md'];
 
 function resolveWithinBases(targetPath: string, baseDirs: string[]): string {
   if (targetPath.includes('\0') || targetPath.includes('..')) {
@@ -21,16 +22,24 @@ function resolveWithinBases(targetPath: string, baseDirs: string[]): string {
   return resolvedTarget;
 }
 
-function resolveFeatureTasksPath(featureName: string, kiroBaseResolved: string): string {
+function resolveFeaturePaths(featureName: string, kiroBaseResolved: string): string[] {
   if (featureName.includes('\0') || featureName.includes('..')) {
     throw new Error('Invalid feature name: contains forbidden characters or segments');
   }
 
-  const candidatePath = path.join(KIRO_BASE_DIR, featureName, 'tasks.md');
-  return resolveWithinBases(candidatePath, [kiroBaseResolved]);
+  return TASK_FILES
+    .map(filename => path.join(KIRO_BASE_DIR, featureName, filename))
+    .map(candidatePath => {
+      try {
+        return resolveWithinBases(candidatePath, [kiroBaseResolved]);
+      } catch {
+        return null;
+      }
+    })
+    .filter((p): p is string => p !== null);
 }
 
-function listKiroTasksPaths(kiroBaseResolved: string): string[] {
+function listKiroPaths(kiroBaseResolved: string): string[] {
   if (!fs.existsSync(kiroBaseResolved)) {
     return [];
   }
@@ -44,7 +53,7 @@ function listKiroTasksPaths(kiroBaseResolved: string): string[] {
 
   return entries
     .filter(entry => entry.isDirectory())
-    .map(entry => resolveFeatureTasksPath(entry.name, kiroBaseResolved))
+    .flatMap(entry => resolveFeaturePaths(entry.name, kiroBaseResolved))
     .filter(candidate => fs.existsSync(candidate));
 }
 
@@ -63,15 +72,22 @@ function getTasksPaths(feature?: string): { candidates: string[]; required: stri
   }
 
   if (feature) {
-    const featurePath = resolveFeatureTasksPath(feature, kiroBaseResolved);
-    candidates.push(featurePath);
-    required.push(featurePath);
+    const featurePaths = resolveFeaturePaths(feature, kiroBaseResolved);
+    candidates.push(...featurePaths);
   } else {
-    candidates.push(...listKiroTasksPaths(kiroBaseResolved));
+    candidates.push(...listKiroPaths(kiroBaseResolved));
   }
 
-  const rootTasksPath = resolveWithinBases(ROOT_TASKS_PATH, [specsBaseResolved]);
-  candidates.push(rootTasksPath);
+  // Root の tasks.md と scope.md も追加
+  TASK_FILES.forEach(filename => {
+    const rootPath = path.join(ROOT_PATH, filename);
+    try {
+      const resolved = resolveWithinBases(rootPath, [specsBaseResolved]);
+      candidates.push(resolved);
+    } catch {
+      // Ignore if resolution fails
+    }
+  });
 
   const uniqueCandidates = Array.from(new Set(candidates));
   const uniqueRequired = Array.from(new Set(required));
@@ -80,7 +96,7 @@ function getTasksPaths(feature?: string): { candidates: string[]; required: stri
 }
 
 export default tool({
-  description: '.kiro/specs/**/tasks.md と specs/tasks.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）',
+  description: '.kiro/specs/**/tasks.md, .kiro/specs/**/scope.md および specs/*.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）',
   args: {
     feature: tool.schema.string().optional().describe('検証する機能名（.kiro/specs/配下のディレクトリ名）')
   },
@@ -107,7 +123,7 @@ export default tool({
     });
 
     if (existingPaths.length === 0) {
-      return 'エラー: 対象の tasks.md が見つかりません';
+      return `エラー: 対象のタスクファイル (${TASK_FILES.join(' または ')}) が見つかりません`;
     }
 
     const errorBlocks: string[] = [];
