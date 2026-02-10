@@ -251,7 +251,7 @@ AIと対話しながら「何を作るか」を固め、タスクを定義しま
 | `sdd_generate_tests` | requirements.md の受入条件からテストコードの雛形を生成します。 |
 | `sdd_lint_tasks` | .kiro/specs/*/tasks.md のフォーマットを検証し、問題を報告します（Markdown ASTベース）。 |
 | `sdd_sync_kiro` | Kiro仕様とRoot tasks.md を同期します。 |
-| `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block）を切り替えます。 |
+| `sdd_set_guard_mode` | Gatekeeperの動作モード（warn/block/disabled）を切り替えます。 |
 | `sdd_force_unlock` | 【非常用】ロック状態を強制解除します。 |
 | `sdd_ci_runner` | CI環境での検証（tasks.md整合性、変更範囲ガード）を実行します。 |
 | `sdd_kiro` | Kiro互換のコマンドエントリーポイント。各機能の詳細は後述。 |
@@ -485,7 +485,7 @@ sdd_force_unlock --force true
 
 | 変数 | 値 | 説明 |
 |------|-----|------|
-| `SDD_GUARD_MODE` | `warn` (default) / `block` | スコープ外ファイル編集時の動作。`block` 推奨。環境変数より設定ファイル (`.opencode/state/guard-mode.json`) が優先されます（弱体化不可）。 |
+| `SDD_GUARD_MODE` | `warn` (default) / `block` / `disabled` | スコープ外ファイル編集時の動作。`block` 推奨。環境変数より設定ファイル (`.opencode/state/guard-mode.json`) が優先されます（弱体化不可）。 |
 | `SDD_SKIP_TEST_EXECUTION` | `true` / `false` | `validate_gap` 実行時のテスト自動実行をスキップします。 |
 | `SDD_STATE_HMAC_KEY` | (自動生成) | state改ざん検知用のHMACキー。未設定の場合は `.opencode/state/state-hmac.key` を自動生成します。 |
 | `SDD_SCOPE_FORMAT` | `lenient` | `strict` に設定すると、Scope定義のバッククォート囲み（Scope: \`path/**\`）を強制します。 |
@@ -510,7 +510,11 @@ export SDD_STATE_HMAC_KEY="your-32bytes-hex-or-base64"
 
 ```bash
 # ガードモードを 'block' に設定（推奨）
+
 bun .opencode/tools/sdd_set_guard_mode.ts block
+
+# ガードモードを 'disabled' に設定（一時的な無効化）
+bun .opencode/tools/sdd_set_guard_mode.ts disabled
 ```
 
 - 設定は `.opencode/state/guard-mode.json` に保存されます。
