@@ -36,7 +36,10 @@ export default tool({
       }
 
       if (!fs.existsSync(tasksPath) && !hasScopeMd) {
-        throw new Error('E_TASKS_NOT_FOUND: tasks.md が見つかりません');
+        throw new Error(
+          'E_TASKS_NOT_FOUND: tasks.md が見つかりません。\n' +
+          'sdd_kiro init または sdd_generate_tasks を実行してタスクを生成してください。'
+        );
       }
 
       if (fs.existsSync(tasksPath)) {
@@ -90,10 +93,11 @@ export default tool({
 
     let determinedRole: 'architect' | 'implementer' | null = null;
     if (role) {
-      if (role !== 'architect' && role !== 'implementer') {
+      const normalizedRole = role.toLowerCase().trim();
+      if (normalizedRole !== 'architect' && normalizedRole !== 'implementer') {
         throw new Error(`E_INVALID_ROLE: role must be 'architect' or 'implementer', got ${role}`);
       }
-      determinedRole = role as 'architect' | 'implementer';
+      determinedRole = normalizedRole as 'architect' | 'implementer';
     } else {
       determinedRole = await selectRoleForTask(task);
     }

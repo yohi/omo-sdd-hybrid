@@ -18,8 +18,9 @@ function validateFeatureName(feature: string, baseDir: string) {
   }
 
   const resolvedPath = path.resolve(baseDir, feature);
+  const relative = path.relative(baseDir, resolvedPath);
   
-  if (!resolvedPath.startsWith(baseDir)) {
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error('無効な機能名: パストラバーサルが検出されました');
   }
 
@@ -86,9 +87,10 @@ export default tool({
   description: 'requirements.md と design.md から tasks.md を生成します',
   args: {
     feature: tool.schema.string().describe('機能名'),
-    overwrite: tool.schema.boolean().optional().describe('既存の tasks.md を上書きするかどうか（デフォルト: false）')
+    overwrite: tool.schema.boolean().optional().describe('既存の tasks.md を上書きするかどうか（デフォルト: false）'),
+    content: tool.schema.string().optional().describe('タスクファイルの内容（指定された場合は自動生成をスキップしてこの内容を書き込みます）')
   },
-  async execute({ feature, overwrite }) {
+  async execute({ feature, overwrite, content }) {
     const baseDir = getKiroSpecsDir();
     
     let targetDir: string;
@@ -98,13 +100,36 @@ export default tool({
       return `エラー: ${error.message}`;
     }
 
+    const tasksPath = path.join(targetDir, 'tasks.md');
+
+    // content が提供されている場合は、requirements.md/design.md のチェックをスキップして直接書き込む
+    if (content && content.trim() !== '') {
+      try {
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+      } catch (error: any) {
+        return `エラー: ディレクトリ作成に失敗しました (${error.message})`;
+      }
+
+      if (fs.existsSync(tasksPath) && !overwrite) {
+        return `スキップ: tasks.md (既に存在します)\n\n既存ファイルを上書きするには、引数 'overwrite: true' を指定してください。`;
+      }
+
+      try {
+        fs.writeFileSync(tasksPath, content, 'utf-8');
+        return `✅ tasks.md を生成しました: ${feature} (Custom content)`;
+      } catch (error: any) {
+        return `エラー: tasks.md の書き込みに失敗しました (${error.message})`;
+      }
+    }
+
     if (!fs.existsSync(targetDir)) {
        return `エラー: 機能ディレクトリが見つかりません (${targetDir})`;
     }
 
     const reqPath = path.join(targetDir, 'requirements.md');
     const designPath = path.join(targetDir, 'design.md');
-    const tasksPath = path.join(targetDir, 'tasks.md');
 
     const missingFiles: string[] = [];
     if (!fs.existsSync(reqPath)) missingFiles.push('requirements.md');

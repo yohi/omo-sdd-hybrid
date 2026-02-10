@@ -82,12 +82,46 @@ describe('sdd_start_task', () => {
     expect(state.role).toBe('architect');
   });
 
-  test('assigns explicitly provided role', async () => {
+  test('assigns explicitly provided role (case-insensitive)', async () => {
     fs.writeFileSync(tasksPath, '* [ ] Task-1: Test (Scope: `src/**`)');
     const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
-    await sddStartTask.default.execute({ taskId: 'Task-1', role: 'architect' }, {} as any);
-    const state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    
+    await sddStartTask.default.execute({ taskId: 'Task-1', role: 'ARCHITECT' as any }, {} as any);
+    let state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
     expect(state.role).toBe('architect');
+    
+    fs.unlinkSync(getStatePath());
+
+    await sddStartTask.default.execute({ taskId: 'Task-1', role: 'Architect' as any }, {} as any);
+    state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('architect');
+
+    fs.unlinkSync(getStatePath());
+
+    await sddStartTask.default.execute({ taskId: 'Task-1', role: '  implementer  ' as any }, {} as any);
+    state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('implementer');
+
+    fs.unlinkSync(getStatePath());
+
+    await sddStartTask.default.execute({ taskId: 'Task-1', role: 'IMPLEMENTER' as any }, {} as any);
+    state = JSON.parse(fs.readFileSync(getStatePath(), 'utf-8'));
+    expect(state.role).toBe('implementer');
+  });
+
+  test('throws E_TASKS_NOT_FOUND with helpful message when tasks.md missing', async () => {
+    if (fs.existsSync(tasksPath)) {
+      fs.unlinkSync(tasksPath);
+    }
+    const sddStartTask = await import('../../.opencode/tools/sdd_start_task');
+    
+    try {
+      await sddStartTask.default.execute({ taskId: 'Task-1' }, {} as any);
+      expect(true).toBe(false);
+    } catch (e) {
+      expect((e as Error).message).toContain('E_TASKS_NOT_FOUND');
+      expect((e as Error).message).toContain('sdd_kiro init');
+    }
   });
 
   test('throws for invalid role', async () => {

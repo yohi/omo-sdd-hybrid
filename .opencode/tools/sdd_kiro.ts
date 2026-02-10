@@ -27,8 +27,9 @@ function validateFeatureName(feature: string, baseDir: string) {
   }
 
   const resolvedPath = path.resolve(baseDir, feature);
+  const relative = path.relative(baseDir, resolvedPath);
 
-  if (!resolvedPath.startsWith(baseDir)) {
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error('無効な機能名: パストラバーサルが検出されました');
   }
 
@@ -145,7 +146,9 @@ export default tool({
       }
 
       case 'init':
-        if (!feature) return 'エラー: feature は必須です';
+        if (!feature) {
+          return 'エラー: feature は必須です\n使用法: sdd_kiro init <feature>';
+        }
         return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
 
       case 'tasks':
