@@ -36,6 +36,25 @@ function validateFeatureName(feature: string, baseDir: string) {
   return resolvedPath;
 }
 
+const currentFile = fileURLToPath(import.meta.url);
+let realCurrentFile: string;
+try {
+  realCurrentFile = fs.realpathSync(currentFile);
+} catch (e) {
+  realCurrentFile = currentFile;
+}
+const packageRoot = path.resolve(path.dirname(realCurrentFile), '../..');
+
+const checkIsFromPackage = (p: string) => {
+  try {
+    const resolved = fs.realpathSync(p);
+    const relative = path.relative(packageRoot, resolved);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
+  } catch (e) {
+    return false;
+  }
+};
+
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
@@ -297,53 +316,19 @@ export default tool({
 
         const localPath = path.resolve('.opencode/prompts/profile.md');
         let profilePath = localPath;
-        let isFromPackage = false; // パッケージ内から解決されたかどうか
+        let isFromPackage = false;
 
-        // npmパッケージとして実行されている場合のパス解決
-        // dist/tools/sdd_kiro.js から見て、../../.opencode/prompts/profile.md
-        // または、バンドル構成によって位置が変わる可能性があるため、上層を探索する
         if (!fs.existsSync(profilePath)) {
           try {
-            const currentFile = fileURLToPath(import.meta.url);
-            let searchDir = path.dirname(currentFile);
+            let searchDir = path.dirname(realCurrentFile);
             const root = path.parse(searchDir).root;
 
-            // 最大5階層、またはルートに到達するまで探索
             for (let i = 0; i < 5; i++) {
               const candidate = path.join(searchDir, '.opencode/prompts/profile.md');
               if (fs.existsSync(candidate)) {
-                // node_modules内にある場合のみパッケージファイルとして扱う
-                const resolvedCandidate = path.resolve(candidate);
-                const nodeModulesPattern = path.sep + 'node_modules' + path.sep;
-                if (resolvedCandidate.includes(nodeModulesPattern)) {
-                  profilePath = candidate;
-                  isFromPackage = true;
-                  break;
-                }
-                // node_modules外のファイルは通常のセキュリティチェック対象
                 profilePath = candidate;
-                isFromPackage = false;
+                isFromPackage = checkIsFromPackage(candidate);
                 break;
-              }
-
-              // .opencodeディレクトリ自体を探して、その中のpromptsを見る
-              const opencodeDir = path.join(searchDir, '.opencode');
-              if (fs.existsSync(opencodeDir) && fs.statSync(opencodeDir).isDirectory()) {
-                const p = path.join(opencodeDir, 'prompts/profile.md');
-                if (fs.existsSync(p)) {
-                  // node_modules内にある場合のみパッケージファイルとして扱う
-                  const resolvedP = path.resolve(p);
-                  const nodeModulesPattern = path.sep + 'node_modules' + path.sep;
-                  if (resolvedP.includes(nodeModulesPattern)) {
-                    profilePath = p;
-                    isFromPackage = true;
-                    break;
-                  }
-                  // node_modules外のファイルは通常のセキュリティチェック対象
-                  profilePath = p;
-                  isFromPackage = false;
-                  break;
-                }
               }
 
               const parent = path.dirname(searchDir);
@@ -351,8 +336,10 @@ export default tool({
               searchDir = parent;
             }
           } catch (e) {
-            // import.meta.url アクセスエラー等の場合
+            // エラー時はデフォルト(localPath)のまま
           }
+        } else {
+          isFromPackage = checkIsFromPackage(localPath);
         }
 
         if (!fs.existsSync(profilePath)) {
@@ -360,8 +347,8 @@ export default tool({
         }
 
         // セキュリティチェック:
-        // - ローカルファイル使用時のみプロジェクトルート外・シンボリックリンクをチェック
-        // - パッケージ内ファイルはパッケージの一部として信頼できるためスキップ
+        // - パッケージ外のファイル（ユーザー作成）のみプロジェクトルート外・シンボリックリンクをチェック
+        // - パッケージ内ファイルは信頼できるためスキップ
         if (!isFromPackage) {
           try {
             const projectRoot = fs.realpathSync(process.cwd());

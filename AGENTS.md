@@ -102,6 +102,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 - ❌ **Zombie Locks**: If `ELOCKED` persists >1min, use `sdd_force_unlock`.
 - ❌ **Scope Bypass**: Trying to edit file outside scope without updating `tasks.md`.
 - ❌ **Vibe Coding**: Writing code without a corresponding Task or Spec.
+- ❌ **Missing .gitignore**: Always include a task to create or update `.gitignore` during project setup.
 
 ## 8. AGENT OPERATIONAL PROTOCOL
 
