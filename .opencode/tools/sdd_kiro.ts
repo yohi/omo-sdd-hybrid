@@ -227,14 +227,14 @@ export default tool({
         // finalize 時は全ての仕様ファイルが揃っていることを前提とする
         // 第2引数の changedFiles は空配列でOK（ファイル存在チェックとタスク完了チェックのみしたい）
         const spec = loadKiroSpec(feature);
-        if (!spec) {
+        if (spec) {
+          const consistencyResult = await analyzeDocConsistency(spec);
+          if (consistencyResult.status === 'issues') {
+            const issuesList = consistencyResult.issues.map(i => `- ${i}`).join('\n');
+            return `❌ エラー: 仕様書の整合性に問題が見つかりました。\n\n${issuesList}\n\nこれらの問題を修正してから再度 finalize を実行してください。`;
+          }
+        } else {
           return `❌ エラー: 指定された機能 '${feature}' の仕様が見つかりません。`;
-        }
-
-        const consistencyResult = await analyzeDocConsistency(spec);
-        if (consistencyResult.status === 'issues') {
-          const issuesList = consistencyResult.issues.map(i => `- ${i}`).join('\n');
-          return `❌ エラー: 仕様書の整合性に問題が見つかりました。\n\n${issuesList}\n\nこれらの問題を修正してから再度 finalize を実行してください。`;
         }
 
         const gapResult = analyzeKiroGap(feature, []);

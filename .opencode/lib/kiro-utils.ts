@@ -131,6 +131,35 @@ export function loadKiroSpec(featureName: string): KiroSpec | null {
   };
 }
 
+function generateTaskSuggestions(
+  suggestions: string[],
+  specTasks: string,
+  changedFiles: string[]
+): void {
+  // チェックボックス形式のタスクのみを抽出（番号付きリストを除外）
+  const taskLines = specTasks.split('\n').filter(line =>
+    line.match(/^\s*[-\*]\s*\[[ x]\]/i)
+  );
+
+  const completedTasks = taskLines.filter(line => line.match(/\[x\]/i)).length;
+  const totalTasks = taskLines.length;
+
+  if (totalTasks === 0) {
+    return;
+  }
+
+  // 変更がある場合、または未完了タスクがある場合に情報を表示
+  if (changedFiles.length === 0 && completedTasks >= totalTasks) {
+    return;
+  }
+
+  suggestions.push(`タスク進捗: ${completedTasks}/${totalTasks} 完了`);
+
+  if (completedTasks < totalTasks) {
+    suggestions.push('未完了のタスクがあります。tasks.md を確認してください');
+  }
+}
+
 export function analyzeKiroGap(featureName: string, changedFiles: string[]): KiroGapResult {
   const spec = loadKiroSpec(featureName);
 
@@ -165,24 +194,7 @@ export function analyzeKiroGap(featureName: string, changedFiles: string[]): Kir
   }
 
   if (spec.tasks) {
-    // チェックボックス形式のタスクのみを抽出（番号付きリストを除外）
-    const taskLines = spec.tasks.split('\n').filter(line =>
-      line.match(/^\s*[-\*]\s*\[[ x]\]/i)
-    );
-
-    const completedTasks = taskLines.filter(line => line.match(/\[x\]/i)).length;
-    const totalTasks = taskLines.length;
-
-    if (totalTasks > 0) {
-      // 変更がある場合、または未完了タスクがある場合に情報を表示
-      if (changedFiles.length > 0 || completedTasks < totalTasks) {
-          suggestions.push(`タスク進捗: ${completedTasks}/${totalTasks} 完了`);
-
-          if (completedTasks < totalTasks) {
-            suggestions.push('未完了のタスクがあります。tasks.md を確認してください');
-          }
-      }
-    }
+    generateTaskSuggestions(suggestions, spec.tasks, changedFiles);
   }
 
   const status = gaps.length === 0 ? 'found' :
@@ -544,10 +556,10 @@ export async function analyzeDocConsistency(spec: KiroSpec): Promise<{ status: '
     return { status: 'ok', issues: [] };
   }
 
-  const prompt = `Analyze consistency between Requirements and Design. 
-Report any missing requirements in design, contradictions, or logic errors. 
-Output a bullet list of issues in Japanese (日本語).
-If no issues are found, reply with "No issues found".
+  const prompt = `要件定義書(requirements.md)と基本設計書(design.md)の整合性を分析してください。
+設計書で不足している要件、矛盾、または論理的なエラーを報告してください。
+検出された問題点を日本語の箇条書き形式で出力してください。
+問題が見つからない場合は、 "No issues found" とのみ返答してください。
 
 ### Requirements
 ${spec.requirements}
@@ -565,7 +577,7 @@ ${spec.tasks || 'Not provided'}
       { role: 'user', content: prompt }
     ]);
 
-    if (!response || response.includes('No issues found')) {
+    if (!response || response.trim() === 'No issues found') {
       return { status: 'ok', issues: [] };
     }
 
