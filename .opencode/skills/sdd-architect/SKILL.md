@@ -10,41 +10,73 @@ priority: 10
 - 新機能の開発を開始するとき
 - 仕様書を作成・更新するとき
 
-## 手順（MUST）
+## 手順（MUST）— Phase A〜D フロー
 
--1. **Profile（`/profile` 実行時のみ）**
-   - `/profile` コマンドで起動した場合、`profile.md` のインタビュープロトコルに従い要件を収集する
-   - インタビュー完了後、プロファイルドキュメントをユーザーに提示して **STOP**
-   - **禁止**: `sdd_scaffold_specs`、`sdd_sync_kiro`、ファイル/ディレクトリ生成の自動実行
-   - ユーザーが明示的に次のアクションを指示するまで待機する
-   - `/profile` の責務は「要件収集と初期ドキュメント生成」のみ。仕様策定は別フェーズである
+### Phase A: インタビュー（`/profile` 実行時のみ）
 
-0. **Steering 確認**
+0. `/profile` コマンドで起動した場合、`profile.md` のインタビュープロトコルに従い要件を収集する
+1. インタビュー完了後、プロファイルドキュメントをユーザーに提示して **STOP**
+2. **禁止**: `sdd_scaffold_specs`、`sdd_sync_kiro`、ファイル/ディレクトリ生成、validate-gap/validate-design の自動実行
+3. ユーザーが明示的に「OK」「進めて」等の承認を与えるまで待機する
+4. ユーザー承認後 → Phase B に遷移
+
+### Phase B: 仕様策定（ユーザー承認後に遷移）
+
+以下のステップを順番に実行する。**validate-gap / validate-design / lint_tasks は各コマンド内でプログラム的に自動連鎖実行される。**
+
+1. **Steering 確認**
    - `sdd_kiro steering` を実行して既存のドキュメントを確認
    - 新機能の開発方針が全体の方向性（Product/Tech/Structure）と合致しているか確認
    - 必要に応じて `sdd_kiro steering --feature <doc-name> --prompt "..."` で更新
+   - 結果をユーザーに報告する
 
-1. **specs ディレクトリ作成**
-   - `specs/<feature>/` ディレクトリを作成
+2. **specs ディレクトリ作成**
+   - `sdd_kiro init --feature <feature>` を実行
 
-2. **Requirements 作成**
-   - `specs/<feature>/requirements.md` を作成
-   - ユーザーと対話しながら要件を明確化
-   - **重要**: 作成後、必ず `sdd_kiro validate-gap <feature>` を実行して既存実装とのギャップを確認する
+3. **Requirements 作成 + validate-gap（自動連鎖）**
+   - `sdd_kiro requirements --feature <feature>` を実行
+   - validate-gap がプログラム内で自動実行され、結果が返される
+   - Greenfield（`src/` が空）の場合、validate-gap は自動スキップされ、その旨が報告される
+   - validate-gap 結果に問題がある場合、requirements.md を修正して再実行する（最大3回）
+   - ★ **ユーザー確認**: requirements の内容と validate-gap 結果をユーザーに報告し、承認を得る
 
-3. **Design 作成**
-   - `specs/<feature>/design.md` を作成
-   - 影響ファイル（Impacted Files）を明記
-   - **重要**: 作成後、必ず `sdd_kiro validate-design <feature>` を実行して設計の整合性を確認する
+4. **Design 作成 + validate-design（自動連鎖）**
+   - `sdd_kiro design --feature <feature>` を実行
+   - validate-design がプログラム内で自動実行され、結果が返される
+   - validate-design 結果に問題がある場合、design.md を修正して再実行する（最大3回）
+   - 影響ファイル（Impacted Files）を明記すること
+   - ★ **ユーザー確認**: design の内容と validate-design 結果をユーザーに報告し、承認を得る
 
-4. **Tasks 作成**
-   - `specs/tasks.md` にタスクを追加
-   - **配置ルール**: `specs/tasks.md` はリポジトリ全体のタスクリスト用。機能固有のタスクは `specs/<feature>/tasks.md` に配置する（例: `specs/auth/tasks.md`）。複数機能にまたがるタスクや統合タスクは `specs/tasks.md` を使用する
-   - 各タスクに `(Scope: ...)` を **必ず** 付ける（上記の形式ルールと配置ルールを併せて適用）
+5. **Tasks 作成 + lint_tasks（自動連鎖）**
+   - `sdd_kiro tasks --feature <feature>` を実行
+   - lint_tasks がプログラム内で自動実行され、フォーマット検証結果が返される
+   - **配置ルール**: `specs/tasks.md` はリポジトリ全体のタスクリスト用。機能固有のタスクは `specs/<feature>/tasks.md` に配置する
+   - 各タスクに `(Scope: ...)` を **必ず** 付ける
    - 形式: `* [ ] Task-N: タイトル (Scope: \`glob1\`, \`glob2\`)`
+   - ★ **ユーザー確認**: tasks の内容をユーザーに報告し、承認を得る
 
-5. **Finalize (多言語対応)**
-   - 仕様が固まったら、最後に `sdd_kiro finalize <feature>` を実行する
+### Phase C: PR 作成
+
+6. **ブランチ作成・コミット・PR作成**
+   - `feature/<feature-name>` ブランチを作成する
+   - 仕様書一式（requirements.md, design.md, tasks.md, scope.md 等）をコミットする
+   - `gh pr create` で PR を作成し、URL をユーザーに報告する
+   - **コミットメッセージ**: 日本語で記述（例: `feat: <feature> の仕様書一式を作成`）
+
+<!-- TODO: 将来対応 — CodeRabbit CLI チェック
+7. **CodeRabbit CLI チェック（将来実装予定）**
+   - PR 作成前に `cr review` を実行して仕様書の品質をチェックする
+   - NG の場合は修正ループを回す
+   - 参考: https://www.coderabbit.ai/ja/cli
+-->
+
+**セッション終了**: PR 作成後、このセッションは終了。レビュー対応は人間または別セッションで行う。
+
+### Phase D: 確定（ユーザー手動実行）
+
+7. **Finalize（PR承認後にユーザーが手動実行）**
+   - PR のレビュー・承認が完了した後、ユーザーが `/finalize` を実行する
+   - `sdd_kiro finalize --feature <feature>` が3文書の整合チェックを行う
    - 日本語の仕様書が `*_ja.md` にリネームされ、英語への翻訳準備が整う
    - 生成されたプロンプトに従い、英語の仕様書（Source of Truth）を作成する
 
@@ -72,4 +104,6 @@ Implementer が `sdd_request_spec_change` で生成した申請を処理する�
 
 ## 重要なルール
 - Scope は最小権限で設定する（`src/**` のような広い範囲は避ける）
-- ユーザー承認を得るまで次のステップに進まない
+- ★ マークのステップでは必ずユーザーの承認を待つこと
+- validate 結果に問題がある場合は修正して再実行すること（最大3回まで。超過時はユーザー判断に委ねる）
+- 各ステップの結果（validate-gap / validate-design / lint_tasks）は必ずユーザーに報告する
