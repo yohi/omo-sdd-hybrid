@@ -21,6 +21,7 @@ We do not "just write code". We define specs, lock the scope, and then implement
 - **Code Symbols**: English, `camelCase` (e.g., `updateState`).
 - **Comments / Docs**: **JAPANESE** (日本語). Mandatory for user understanding.
 - **Commit Messages**: **JAPANESE** (e.g., `feat: 排他制御ロジックを修正`).
+- **Communication**: **JAPANESE ONLY**. The user is a Japanese speaker. Do NOT explain or ask questions in English.
 - **Error Messages**: **JAPANESE** with Error Codes.
   - ✅ `throw new Error("E_TASK_NOT_FOUND: タスクが見つかりません")`
   - ❌ `throw new Error("Task not found")`
@@ -59,9 +60,10 @@ Agents **MUST** follow this cycle. Do not skip steps.
 
 ### Phase 1: Architect (Role: `architect`)
 **Goal**: Define "What to build" and "Where to allow edits".
-1. **Design**: Create/Update `.kiro/specs/*.md` (Requirements/Design).
-2. **Task Definition**: Update `specs/tasks.md` or `.kiro/specs/<feature>/tasks.md`.
-3. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
+1. **Steering**: Review/Update project direction. **REPORT** status to user.
+2. **Design**: Create/Update `.kiro/specs/*.md`. Run `validate-gap` and `validate-design`. **IF FAIL**: Loop/Fix until passed. **REPORT** result. **STOP & CONFIRM** with user.
+3. **Task Definition**: Update `specs/tasks.md`. **STOP & CONFIRM** with user.
+4. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
    - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
 
 ### Phase 2: Implementer (Role: `implementer`)
@@ -110,6 +112,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 2. **Respect Locks**: If `ELOCKED`, wait 5s and retry. Do not force unlock immediately.
 3. **Validation**: Before `sdd_end_task`, run `sdd_validate_gap` to ensure clean state.
 4. **Communication**: Report progress in **Japanese**.
+5. **Interaction**: Use `question` tool (TUI) for choices if available.
 
 ## 9. CI/CD & RELEASE
 - **Trigger**: Push to `master`.
