@@ -4,6 +4,7 @@ import { extractRequirements, extractDesign, type ExtractedRequirement } from '.
 import { analyzeCoverage, formatCoverageReport, type CoverageResult } from './coverage-analyzer';
 import { findSemanticGaps, type SemanticAnalysisResult } from './semantic-search';
 import { logger } from './logger.js';
+import { getChatCompletion, isLlmEnabled } from './llm-provider';
 
 export interface KiroSpec {
   featureName: string;
@@ -130,6 +131,35 @@ export function loadKiroSpec(featureName: string): KiroSpec | null {
   };
 }
 
+function generateTaskSuggestions(
+  suggestions: string[],
+  specTasks: string,
+  changedFiles: string[]
+): void {
+  // チェックボックス形式のタスクのみを抽出（番号付きリストを除外）
+  const taskLines = specTasks.split('\n').filter(line =>
+    line.match(/^\s*[-\*]\s*\[[ x]\]/i)
+  );
+
+  const completedTasks = taskLines.filter(line => line.match(/\[x\]/i)).length;
+  const totalTasks = taskLines.length;
+
+  if (totalTasks === 0) {
+    return;
+  }
+
+  // 変更がある場合、または未完了タスクがある場合に情報を表示
+  if (changedFiles.length === 0 && completedTasks >= totalTasks) {
+    return;
+  }
+
+  suggestions.push(`タスク進捗: ${completedTasks}/${totalTasks} 完了`);
+
+  if (completedTasks < totalTasks) {
+    suggestions.push('未完了のタスクがあります。tasks.md を確認してください');
+  }
+}
+
 export function analyzeKiroGap(featureName: string, changedFiles: string[]): KiroGapResult {
   const spec = loadKiroSpec(featureName);
 
@@ -163,22 +193,8 @@ export function analyzeKiroGap(featureName: string, changedFiles: string[]): Kir
     suggestions.push('/kiro:spec-tasks を実行してタスクを生成してください');
   }
 
-  if (spec.tasks && changedFiles.length > 0) {
-    // チェックボックス形式のタスクのみを抽出（番号付きリストを除外）
-    const taskLines = spec.tasks.split('\n').filter(line =>
-      line.match(/^\s*[-\*]\s*\[[ x]\]/i)
-    );
-
-    const completedTasks = taskLines.filter(line => line.match(/\[x\]/i)).length;
-    const totalTasks = taskLines.length;
-
-    if (totalTasks > 0) {
-      suggestions.push(`タスク進捗: ${completedTasks}/${totalTasks} 完了`);
-
-      if (completedTasks < totalTasks) {
-        suggestions.push('未完了のタスクがあります。tasks.md を確認してください');
-      }
-    }
+  if (spec.tasks) {
+    generateTaskSuggestions(suggestions, spec.tasks, changedFiles);
   }
 
   const status = gaps.length === 0 ? 'found' :
@@ -470,18 +486,21 @@ export function updateSteeringDoc(name: string, content: string): boolean {
 }
 
 export interface DesignAnalysisResult {
-  status: 'ok' | 'missing_req' | 'missing_design';
+  status: 'ok' | 'missing_req' | 'missing_design' | 'inconsistent' | 'error';
   issues: string[];
+  suggestions: string[];
 }
 
 export function analyzeDesignConsistency(featureName: string): DesignAnalysisResult {
   const spec = loadKiroSpec(featureName);
   const issues: string[] = [];
+  const suggestions: string[] = [];
 
   if (!spec) {
     return {
       status: 'missing_req',
-      issues: [`Feature '${featureName}' spec not found`]
+      issues: [`Feature '${featureName}' spec not found`],
+      suggestions: []
     };
   }
 
@@ -493,7 +512,7 @@ export function analyzeDesignConsistency(featureName: string): DesignAnalysisRes
     issues.push('design.md not found');
   }
 
-  let status: 'ok' | 'missing_req' | 'missing_design' = 'ok';
+  let status: 'ok' | 'missing_req' | 'missing_design' | 'inconsistent' | 'error' = 'ok';
 
   if (!spec.requirements) {
     status = 'missing_req';
@@ -503,6 +522,76 @@ export function analyzeDesignConsistency(featureName: string): DesignAnalysisRes
 
   return {
     status,
-    issues
+    issues,
+    suggestions
   };
+}
+
+export async function analyzeDesignConsistencyDeep(featureName: string): Promise<DesignAnalysisResult> {
+  const baseResult = analyzeDesignConsistency(featureName);
+  if (baseResult.status !== 'ok') {
+    return baseResult;
+  }
+
+  const spec = loadKiroSpec(featureName)!;
+  const analysis = await analyzeDocConsistency(spec);
+
+  if (analysis.status === 'issues') {
+    return {
+      status: 'inconsistent',
+      issues: analysis.issues,
+      suggestions: ['設計書(design.md)を見直し、要件との不整合を解消してください。']
+    };
+  }
+
+  return baseResult;
+}
+
+export async function analyzeDocConsistency(spec: KiroSpec): Promise<{ status: 'ok' | 'issues', issues: string[] }> {
+  if (!isLlmEnabled()) {
+    return { status: 'ok', issues: [] };
+  }
+
+  if (!spec.requirements || !spec.design) {
+    return { status: 'ok', issues: [] };
+  }
+
+  const prompt = `要件定義書(requirements.md)と基本設計書(design.md)の整合性を分析してください。
+設計書で不足している要件、矛盾、または論理的なエラーを報告してください。
+検出された問題点を日本語の箇条書き形式で出力してください。
+問題が見つからない場合は、 "No issues found" とのみ返答してください。
+
+### Requirements
+${spec.requirements}
+
+### Design
+${spec.design}
+
+### Tasks (Optional Context)
+${spec.tasks || 'Not provided'}
+`;
+
+  try {
+    const response = await getChatCompletion([
+      { role: 'system', content: 'You are an expert system architect performing specification consistency analysis.' },
+      { role: 'user', content: prompt }
+    ]);
+
+    if (!response || response.trim() === 'No issues found') {
+      return { status: 'ok', issues: [] };
+    }
+
+    const issues = response.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.startsWith('-') || line.startsWith('*') || line.match(/^\d+\./))
+      .map(line => line.replace(/^[-*\d.]+\s*/, ''));
+
+    return { 
+      status: issues.length > 0 ? 'issues' : 'ok', 
+      issues 
+    };
+  } catch (error) {
+    logger.error('Failed to analyze doc consistency:', error);
+    return { status: 'ok', issues: [] };
+  }
 }
