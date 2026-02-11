@@ -48,7 +48,8 @@ const packageRoot = path.resolve(path.dirname(realCurrentFile), '../..');
 const checkIsFromPackage = (p: string) => {
   try {
     const resolved = fs.realpathSync(p);
-    return resolved.startsWith(packageRoot);
+    const relative = path.relative(packageRoot, resolved);
+    return !relative.startsWith('..') && !path.isAbsolute(relative);
   } catch (e) {
     return false;
   }
