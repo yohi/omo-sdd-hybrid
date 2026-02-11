@@ -58,15 +58,44 @@ Use **Bun** for all operations.
 
 Agents **MUST** follow this cycle. Do not skip steps.
 
-### Phase 1: Architect (Role: `architect`)
-**Goal**: Define "What to build" and "Where to allow edits".
-1. **Steering**: Review/Update project direction. **REPORT** status to user.
-2. **Design**: Create/Update `.kiro/specs/*.md`. Run `validate-gap` and `validate-design`. **REPORT** status. **IF FAIL**: Loop/Fix/Regenerate until passed. **REPORT** result. **STOP & CONFIRM** with user.
-3. **Task Definition**: Update `specs/tasks.md`. **STOP & CONFIRM** with user.
-4. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
+### Phase A: Interview (Role: `architect`, via `/profile`)
+**Goal**: Collect requirements through structured interview.
+1. **Interview**: Follow `profile.md` protocol. Ask one topic at a time, wait for response.
+2. **Output**: Generate EARS-based profile document in Japanese.
+3. **STOP**: Present document to user. **DO NOT** proceed to Phase B without explicit user approval.
+   - **Forbidden in Phase A**: `sdd_scaffold_specs`, `sdd_sync_kiro`, file/directory creation, validation execution.
+
+### Phase B: Specification (Role: `architect`, after user approval)
+**Goal**: Define "What to build" with validated specs. `validate-gap` / `validate-design` / `lint_tasks` are **programmatically auto-chained** within each command.
+1. **Steering**: `sdd_kiro steering` — Review/Update project direction. **REPORT** to user.
+2. **Init**: `sdd_kiro init --feature <name>` — Create specs directory.
+3. **Requirements + validate-gap (auto-chained)**:
+   - `sdd_kiro requirements --feature <name>` — Creates requirements.md AND runs validate-gap internally.
+   - Greenfield (empty `src/`): validate-gap auto-skipped with notification.
+   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result. **★ STOP & CONFIRM** with user.
+4. **Design + validate-design (auto-chained)**:
+   - `sdd_kiro design --feature <name>` — Creates design.md AND runs validate-design internally.
+   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result. **★ STOP & CONFIRM** with user.
+5. **Tasks + lint_tasks (auto-chained)**:
+   - `sdd_kiro tasks --feature <name>` — Creates tasks.md AND runs lint_tasks internally.
+   - **★ STOP & CONFIRM** with user.
+6. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
    - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
 
-### Phase 2: Implementer (Role: `implementer`)
+### Phase C: PR Creation (Role: `architect`)
+**Goal**: Create PR with spec documents for review.
+1. **Branch**: Create `feature/<name>` branch.
+2. **Commit**: Stage and commit spec files (Japanese commit message).
+3. **PR**: `gh pr create` and report URL to user.
+4. Session ends. Review handling is out of scope for this session.
+
+### Phase D: Finalize (Role: `architect`, user-initiated)
+**Goal**: Prepare for implementation after PR approval.
+1. **User runs**: `sdd_kiro finalize --feature <name>` (manual trigger after PR approval).
+2. **Consistency check**: Validates 3-document consistency (requirements, design, tasks).
+3. **Translation prep**: Renames Japanese specs to `*_ja.md`, prompts for English translation.
+
+### Phase E: Implementer (Role: `implementer`)
 **Goal**: Build "How it works" within Scope.
 1. **Start**: `sdd_start_task <TaskId>`. Activates the Scope.
 2. **Implement**: Edit ONLY files in `allowedScopes`.
@@ -74,7 +103,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
    - **Fix**: Ask Architect to update the scope -> `sdd_end_task` -> `sdd_start_task`.
 3. **Verify**: Run `sdd_validate_gap` frequently.
 
-### Phase 3: Reviewer (Role: `validate`)
+### Phase F: Reviewer (Role: `validate`)
 **Goal**: Verify "Does it match specs?".
 1. **Validate**: `sdd_validate_gap --deep` (if enabled).
 2. **Test**: Ensure `bun test:seq` passes.
