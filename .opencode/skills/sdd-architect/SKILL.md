@@ -31,6 +31,11 @@ priority: 10
    - 各タスクに `(Scope: ...)` を **必ず** 付ける（上記の形式ルールと配置ルールを併せて適用）
    - 形式: `* [ ] Task-N: タイトル (Scope: \`glob1\`, \`glob2\`)`
 
+5. **Finalize (多言語対応)**
+   - 仕様が固まったら、最後に `sdd_kiro finalize <feature>` を実行する
+   - 日本語の仕様書が `*_ja.md` にリネームされ、英語への翻訳準備が整う
+   - 生成されたプロンプトに従い、英語の仕様書（Source of Truth）を作成する
+
 ## 運用（Ops）
 
 ### 仕様変更リクエストの処理（Pending Changes）
