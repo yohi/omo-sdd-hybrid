@@ -12,6 +12,11 @@ priority: 10
 
 ## 手順（MUST）
 
+0. **Steering 確認**
+   - `sdd_kiro steering` を実行して既存のドキュメントを確認
+   - 新機能の開発方針が全体の方向性（Product/Tech/Structure）と合致しているか確認
+   - 必要に応じて `sdd_kiro steering --feature <doc-name> --prompt "..."` で更新
+
 1. **specs ディレクトリ作成**
    - `specs/<feature>/` ディレクトリを作成
 
