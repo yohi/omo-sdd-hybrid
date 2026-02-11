@@ -27,7 +27,7 @@ function validateFeatureName(feature: string, baseDir: string) {
 }
 
 export default tool({
-  description: '機能仕様書の雛形（requirements.md, design.md, tasks.md）を生成します',
+  description: '機能仕様書の雛形（requirements.md, design.md, tasks.md）を生成します。タスク一覧には必須の初期化タスク（.gitignore作成等）が含まれており、これらを維持する必要があります。',
   args: {
     feature: tool.schema.string().describe('機能名（ディレクトリ名として使用。英字開始の英数字記号のみ）'),
     prompt: tool.schema.string().optional().describe('要件の概要や指示（requirements.mdに追記されます）'),

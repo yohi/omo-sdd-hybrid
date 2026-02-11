@@ -84,7 +84,7 @@ function extractComponents(content: string): string[] {
 }
 
 export default tool({
-  description: 'requirements.md と design.md から tasks.md を生成します',
+  description: 'requirements.md と design.md から tasks.md を生成します。必須の初期化タスク（.gitignore作成等）は自動的に含まれます。',
   args: {
     feature: tool.schema.string().describe('機能名'),
     overwrite: tool.schema.boolean().optional().describe('既存の tasks.md を上書きするかどうか（デフォルト: false）'),
