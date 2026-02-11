@@ -251,4 +251,34 @@ describe('sdd_kiro', () => {
     }
   });
 
+  it('validate-implコマンドでロールが変更されないことを確認する', async () => {
+    // Implementerロールを設定
+    await writeState({
+      version: 1,
+      activeTaskId: 'Task-Validate-Impl',
+      activeTaskTitle: 'Validate Impl Test',
+      allowedScopes: ['src/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'test',
+      validationAttempts: 0,
+      role: 'implementer'
+    });
+
+    // 変更前はvalidateGapの結果を返すため、gitコマンドが失敗する前提でエラーになる可能性がある
+    // しかし、ここではロールの変更だけを確認したい。
+    // executeの結果は問わず、Stateのroleだけを確認する。
+    try {
+      await runTool({ command: 'validate-impl', feature: 'test-impl' });
+    } catch (e) {
+      // エラーは無視（git環境などによる失敗は許容）
+    }
+
+    // ロールが implementer のままであることを確認
+    const stateResult = await readState();
+    expect(stateResult.status).toBe('ok');
+    if (stateResult.status === 'ok') {
+      expect(stateResult.state.role).toBe('implementer');
+    }
+  });
+
 });
