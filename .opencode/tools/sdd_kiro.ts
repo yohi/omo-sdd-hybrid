@@ -1,5 +1,5 @@
 import { tool } from '@opencode-ai/plugin';
-import { readState, writeState } from '../lib/state-utils';
+import { readState, writeState, State } from '../lib/state-utils';
 import { updateSteeringDoc, listSteeringDocs, analyzeKiroGap, loadKiroSpec, analyzeDocConsistency } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,6 +10,7 @@ import scaffoldSpecs from './sdd_scaffold_specs';
 import generateTasks from './sdd_generate_tasks';
 import validateDesign from './sdd_validate_design';
 import validateGap from './sdd_validate_gap';
+import { validateGapInternal } from './sdd_validate_gap';
 import lintTasks from './sdd_lint_tasks';
 
 function getKiroSpecsDir() {
@@ -231,7 +232,24 @@ export default tool({
           } else {
             result += `🔍 **validate-gap を自動実行中...**\n\n`;
             try {
-              const gapResult = await validateGap.execute({ kiroSpec: feature }, context);
+              // Phase B ではタスク未開始のため、State チェックをバイパスして validateGapInternal を直接呼び出す
+              const syntheticState: State = {
+                version: 1,
+                activeTaskId: feature,
+                activeTaskTitle: `Phase B: ${feature}`,
+                allowedScopes: [],
+                startedAt: new Date().toISOString(),
+                startedBy: 'sdd_kiro',
+                validationAttempts: 0,
+                role: 'architect',
+                tasksMdHash: '',
+                stateHash: '',
+              };
+              const gapResult = await validateGapInternal(syntheticState, {
+                kiroSpec: feature,
+                skipTests: true,
+                currentAttempts: 0,
+              });
               result += `### validate-gap 結果\n\n${gapResult}\n`;
             } catch (error: any) {
               result += `⚠️ validate-gap の実行に失敗しました: ${error.message}\n`;

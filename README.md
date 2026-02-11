@@ -196,11 +196,11 @@ AIと対話しながら「何を作りたいか」を明確化します。
 
 2. **インタビュー形式の要件収集**:
    `/profile` を実行すると、AIがインタビュープロトコルに従って段階的に質問します。
-   - **Phase 1**: 意図とスコープ（何を作るか、認証要件など）
-   - **Phase 2**: 技術選定（言語、フレームワーク、DB など）
-   - **Phase 3**: 環境とテスト（Devcontainer構成、テスト戦略）
+   - **Step 1**: 意図とスコープ（何を作るか、認証要件など）
+   - **Step 2**: 技術選定（言語、フレームワーク、DB など）
+   - **Step 3**: 環境とテスト（Devcontainer構成、テスト戦略）
 
-   各フェーズで1つのトピックについて質問し、回答を待ちます。環境に構造化質問ツール（選択肢UI等）があれば自動的に使用し、なければテキスト形式で推奨選択肢を提示します。
+   各ステップで1つのトピックについて質問し、回答を待ちます。環境に構造化質問ツール（選択肢UI等）があれば自動的に使用し、なければテキスト形式で推奨選択肢を提示します。
 
    全インタビュー完了後、**EARS記法**に基づく初期化プロファイル（要件定義ドラフト、Devcontainer設定、テスト戦略）を日本語で生成します。
 
@@ -208,7 +208,7 @@ AIと対話しながら「何を作りたいか」を明確化します。
    プロファイルドキュメントをユーザーに提示し、承認を得たら Phase B に遷移します。
 
 #### Phase B: 仕様策定 — Requirements → Design → Tasks
-ユーザーの承認後、仕様書一式を作成・検証します。**validate-gap / validate-design / lint_tasks は各コマンド内でプログラム的に自動連鎖実行されます。**
+ユーザーの承認後、仕様書一式を作成・検証します。**各 `sdd_kiro` サブコマンドが内部で対応する検証ツール（`sdd_validate_gap` / `sdd_validate_design` / `sdd_lint_tasks`）を自動連鎖実行します。**
 
 1. **ステアリング確認**:
    ```bash
@@ -221,25 +221,25 @@ AIと対話しながら「何を作りたいか」を明確化します。
    🤖 sdd_kiro init --feature <feature-name>
    ```
 
-3. **Requirements 作成 + validate-gap（自動連鎖）**:
+3. **Requirements 作成 + 自動検証（`sdd_validate_gap`）**:
    ```bash
    🤖 sdd_kiro requirements --feature <feature-name>
-   # → validate-gap が内部で自動実行され、結果がマージされて返される
+   # → 内部で sdd_validate_gap を自動実行し、結果がマージされて返される
    # → Greenfield（src/ が空）の場合は自動スキップ＋報告
    ```
-   ★ **ユーザー確認**: requirements + validate-gap 結果を報告し、承認を得る
+   ★ **ユーザー確認**: requirements + 検証結果を報告し、承認を得る
 
-4. **Design 作成 + validate-design（自動連鎖）**:
+4. **Design 作成 + 自動検証（`sdd_validate_design`）**:
    ```bash
    🤖 sdd_kiro design --feature <feature-name>
-   # → validate-design が内部で自動実行され、結果がマージされて返される
+   # → 内部で sdd_validate_design を自動実行し、結果がマージされて返される
    ```
-   ★ **ユーザー確認**: design + validate-design 結果を報告し、承認を得る
+   ★ **ユーザー確認**: design + 検証結果を報告し、承認を得る
 
-5. **Tasks 作成 + lint_tasks（自動連鎖）**:
+5. **Tasks 作成 + 自動検証（`sdd_lint_tasks`）**:
    ```bash
    🤖 sdd_kiro tasks --feature <feature-name>
-   # → lint_tasks が内部で自動実行され、フォーマット検証結果がマージされて返される
+   # → 内部で sdd_lint_tasks を自動実行し、フォーマット検証結果がマージされて返される
    ```
    ★ **ユーザー確認**: tasks 内容を報告し、承認を得る
 
