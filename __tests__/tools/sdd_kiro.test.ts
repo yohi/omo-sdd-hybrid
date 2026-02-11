@@ -163,6 +163,20 @@ describe('sdd_kiro', () => {
       expect(resultWithPrompt).toContain(profileContent);
       expect(resultWithPrompt).toContain('Additional Context');
       
+      // 外部ファイルの読み込みテスト (promptFile)
+      const externalDir = path.join(tmpDir, '../external');
+      if (!fs.existsSync(externalDir)) {
+        fs.mkdirSync(externalDir, { recursive: true });
+      }
+      const externalFile = path.join(externalDir, 'external.md');
+      const externalContent = '# External Content';
+      fs.writeFileSync(externalFile, externalContent);
+
+      const resultWithExternalFile = await runTool({ command: 'profile', promptFile: externalFile });
+      expect(resultWithExternalFile).toContain(profileContent);
+      expect(resultWithExternalFile).toContain(externalContent);
+
+      fs.rmSync(externalDir, { recursive: true, force: true });
     } finally {
       process.chdir(originalCwd);
     }
