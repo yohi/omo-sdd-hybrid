@@ -189,12 +189,20 @@ cc-sdd (Claude Code Spec-Driven Development) ツールを使用して開発を�
 
 # 完了後の制約（CRITICAL - NEVER VIOLATE）
 
-プロファイルドキュメントの生成・提示が完了したら、あなたの使命は **完了** です。
+プロファイルドキュメントの生成・提示が完了したら、あなたの使命は **Phase A: インタビュー** に限定されます。
 
-## 絶対に行ってはいけないこと（AUTO-EXECUTION BLACKLIST）
+## フェーズ遷移プロトコル（Phase Transition Protocol）
 
-以下のアクションを **自動的に** 実行することは禁止です。ユーザーが明示的に指示した場合のみ許可されます。
+### Phase A: インタビュー（現在のフェーズ）
 
+`/profile` 実行直後はこのフェーズです。**ユーザーの明示的な承認がない限り Phase B に遷移してはいけません。**
+
+**Phase A の責務:**
+1. プロファイルドキュメントをユーザーに提示する
+2. 「このプロファイルで仕様策定に進みますか？」とユーザーに確認する
+3. **STOP** — ユーザーが承認するまで待機する
+
+**Phase A で禁止されるアクション:**
 1. `sdd_scaffold_specs` の実行
 2. `sdd_sync_kiro` の実行
 3. ファイルの作成・書き込み（`package.json`, `manifest.json`, `devcontainer.json`, `.gitignore` 等）
@@ -203,14 +211,25 @@ cc-sdd (Claude Code Spec-Driven Development) ツールを使用して開発を�
 6. `sdd_kiro validate-design` / `sdd_kiro validate-gap` の実行
 7. その他、ファイルシステムへの一切の変更
 
-## 行うべきこと（MANDATORY）
+### Phase B: 仕様策定（ユーザー承認後に自動遷移）
 
-1. プロファイルドキュメントをユーザーに提示する
-2. 「このプロファイルで仕様策定に進みますか？」とユーザーに確認する
-3. **STOP** — ユーザーが明示的に次のアクションを指示するまで待機する
+ユーザーが「OK」「進めて」等の承認を与えた場合、Phase B に遷移し以下のフローを実行してください。
+**validate-gap / validate-design は `sdd_kiro requirements` / `sdd_kiro design` 実行時にプログラム的に自動連鎖実行されます。**
+
+1. `sdd_kiro steering` — ステアリング確認・報告
+2. `sdd_kiro init --feature <feature>` — specs ディレクトリ作成
+3. `sdd_kiro requirements --feature <feature>` — requirements.md 作成 + validate-gap 自動実行
+4. ★ ユーザーに requirements + validate-gap 結果を報告し確認を得る
+5. `sdd_kiro design --feature <feature>` — design.md 作成 + validate-design 自動実行
+6. ★ ユーザーに design + validate-design 結果を報告し確認を得る
+7. `sdd_kiro tasks --feature <feature>` — tasks.md 作成 + lint_tasks 自動実行
+8. ★ ユーザーに tasks 内容を報告し確認を得る
+9. ブランチ作成 → コミット → PR作成 → URL報告
+
+**重要**: 各 ★ マークのステップでは必ずユーザーの承認を待つこと。validate 結果に問題がある場合は修正して再実行すること（最大3回まで）。
 
 ## なぜこのルールが存在するか
 
-`/profile` はインタビューによる要件収集と初期ドキュメント生成のみが責務です。
-仕様書のスキャフォールド、ファイル生成、バリデーションは **別のフェーズ** の責務であり、
-ユーザーの明示的な指示なしに実行すると「Vibe Coding（仕様逸脱）」に該当します。
+`/profile` はインタビューによる要件収集と初期ドキュメント生成のみが責務です（Phase A）。
+仕様書のスキャフォールド、ファイル生成、バリデーションは **Phase B** の責務であり、
+ユーザーの明示的な承認なしに Phase B のアクションを実行すると「Vibe Coding（仕様逸脱）」に該当します。

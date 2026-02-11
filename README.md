@@ -180,11 +180,11 @@ Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開�
 
 ### 3. 参考開発フロー（SDDサイクル）
 
-プロジェクトのフェーズに合わせて、以下の3段階で開発を進めます。
+プロジェクトのフェーズに合わせて、以下の4段階で開発を進めます。
 **アイコンの意味**: 👤 ユーザーが実行 / 🤖 エージェントが自動実行
 
-#### Phase 1: Architect - 仕様策定とタスク分解
-AIと対話しながら「何を作るか」を固め、タスクを定義します。
+#### Phase A: インタビュー — 要件収集
+AIと対話しながら「何を作りたいか」を明確化します。
 
 1. **ロール切替**:
    ```bash
@@ -196,33 +196,98 @@ AIと対話しながら「何を作るか」を固め、タスクを定義しま
 
 2. **インタビュー形式の要件収集**:
    `/profile` を実行すると、AIがインタビュープロトコルに従って段階的に質問します。
-   - **Phase 1**: 意図とスコープ（何を作るか、認証要件など）
-   - **Phase 2**: 技術選定（言語、フレームワーク、DB など）
-   - **Phase 3**: 環境とテスト（Devcontainer構成、テスト戦略）
+   - **Step 1**: 意図とスコープ（何を作るか、認証要件など）
+   - **Step 2**: 技術選定（言語、フレームワーク、DB など）
+   - **Step 3**: 環境とテスト（Devcontainer構成、テスト戦略）
 
-   各フェーズで1つのトピックについて質問し、回答を待ちます。環境に構造化質問ツール（選択肢UI等）があれば自動的に使用し、なければテキスト形式で推奨選択肢を提示します。
+   各ステップで1つのトピックについて質問し、回答を待ちます。環境に構造化質問ツール（選択肢UI等）があれば自動的に使用し、なければテキスト形式で推奨選択肢を提示します。
 
    全インタビュー完了後、**EARS記法**に基づく初期化プロファイル（要件定義ドラフト、Devcontainer設定、テスト戦略）を日本語で生成します。
 
-3. **仕様策定 (Design)**:
-   対話を通じて仕様書（`.kiro/specs/`）を作成・洗練させます。以下のコマンドはエージェントが必要に応じて裏側で実行します。
+3. **ユーザー確認 → Phase B 遷移**:
+   プロファイルドキュメントをユーザーに提示し、承認を得たら Phase B に遷移します。
+
+#### Phase B: 仕様策定 — Requirements → Design → Tasks
+ユーザーの承認後、仕様書一式を作成・検証します。**各 `sdd_kiro` サブコマンドが内部で対応する検証ツール（`sdd_validate_gap` / `sdd_validate_design` / `sdd_lint_tasks`）を自動連鎖実行します。**
+
+1. **ステアリング確認**:
+   ```bash
+   🤖 sdd_kiro steering
+   ```
+   プロジェクト方針との整合性を確認・報告します。
+
+2. **specs ディレクトリ作成**:
    ```bash
    🤖 sdd_kiro init --feature <feature-name>
+   ```
+
+3. **Requirements 作成 + 自動検証（`sdd_validate_gap`）**:
+   ```bash
    🤖 sdd_kiro requirements --feature <feature-name>
-   🤖 sdd_kiro validate-gap --feature <feature-name> (MUST)
+   # → 内部で sdd_validate_gap を自動実行し、結果がマージされて返される
+   # → Greenfield（src/ が空）の場合は自動スキップ＋報告
+   ```
+   ★ **ユーザー確認**: requirements + 検証結果を報告し、承認を得る
+
+4. **Design 作成 + 自動検証（`sdd_validate_design`）**:
+   ```bash
    🤖 sdd_kiro design --feature <feature-name>
-   🤖 sdd_kiro validate-design --feature <feature-name> (MUST)
+   # → 内部で sdd_validate_design を自動実行し、結果がマージされて返される
    ```
+   ★ **ユーザー確認**: design + 検証結果を報告し、承認を得る
 
-4. **タスク定義 & Scope設定 (手動)**:
-   仕様が固まったらタスクを定義し、`specs/tasks.md` に **編集権限（Scope）** を記述します。これがGatekeeperの設定となります。
-   ```markdown
-   # specs/tasks.md
-   * [ ] <feature-name>: 機能の実装 (Scope: `src/features/<feature-name>/**`)
+5. **Tasks 作成 + 自動検証（`sdd_lint_tasks`）**:
+   ```bash
+   🤖 sdd_kiro tasks --feature <feature-name>
+   # → 内部で sdd_lint_tasks を自動実行し、フォーマット検証結果がマージされて返される
    ```
+   ★ **ユーザー確認**: tasks 内容を報告し、承認を得る
 
-#### Phase 2: Implementer - 実装
-許可された範囲（Scope）内で、仕様に忠実な実装を行います。
+> **重要**: 各 ★ マークのステップでは必ずユーザーの承認を待ちます。validate 結果に問題がある場合は修正して再実行します（最大3回まで）。
+
+#### Phase C: PR 作成
+
+仕様書一式の承認後、ブランチ作成 → コミット → PR作成 → URL報告を行います。
+
+```bash
+🤖 git checkout -b feature/<feature-name>
+🤖 git add .kiro/specs/<feature-name>/ specs/
+🤖 git commit -m "feat: <feature-name> の仕様書一式を作成"
+🤖 gh pr create --title "..." --body "..."
+```
+
+セッション終了。レビュー対応は人間または別セッションで行います。
+
+<!-- TODO: 将来的に CodeRabbit CLI (https://www.coderabbit.ai/ja/cli) によるPR作成前チェックを導入予定 -->
+
+#### Phase D: 確定 — Finalize
+
+PR のレビュー・承認が完了した後、ユーザーが手動で `sdd_kiro finalize` を実行します。
+
+```bash
+👤 sdd_kiro finalize --feature <feature-name>
+```
+
+**実行される処理:**
+1. **3文書の整合性チェック**: `requirements.md`, `design.md`, `tasks.md` の整合性を検証します。不整合がある場合はエラーで中断します。
+2. **未完了タスクのチェック**: `tasks.md` に未完了（`[ ]`）のタスクが残っている場合はエラーで中断します。
+3. **日本語仕様書のリネーム**: 各 `.md` ファイルを `*_ja.md` にリネームします（例: `requirements.md` → `requirements_ja.md`）。
+4. **翻訳プロンプトの生成**: `*_ja.md` の内容を元に、英語の仕様書（Source of Truth）を作成するための翻訳指示がエージェントに提示されます。
+
+**前提条件:**
+- PR がレビュー・承認済みであること
+- `requirements.md`, `design.md`, `tasks.md` の3文書がすべて揃っていること
+
+**finalize 後のフロー:**
+- エージェントが翻訳指示に従い、英語の `requirements.md`, `design.md`, `tasks.md` を新規作成します
+- 英語の仕様書が **Source of Truth** となり、以降の実装（`/impl`）はこれに基づいて行われます
+
+#### 💡 仕様変更が必要になったら？
+実装中に仕様の不備に気づいた場合、勝手にコードを変える（Vibe Coding）のではなく、**必ず Phase B (Architect) に戻って仕様書から修正**してください。これにより「ドキュメントとコードの乖離」を恒久的に防ぎます。
+
+### 4. 実装フロー（Implementer）
+
+仕様確定後、許可された範囲（Scope）内で実装を行います。
 
 1. **実装モード開始**:
    ```bash
@@ -251,7 +316,8 @@ AIと対話しながら「何を作るか」を固め、タスクを定義しま
    🤖 sdd_kiro validate-impl <feature-name>
    ```
 
-#### Phase 3: Reviewer - 検証と納品
+### 5. 検証フロー（Reviewer）
+
 実装完了後、客観的な視点で検証を行います。
 
 1. **検証モード開始**:
@@ -265,10 +331,8 @@ AIと対話しながら「何を作るか」を固め、タスクを定義しま
    *   🤖 `sdd_validate_gap --kiroSpec <feature-name> --deep` (Gap Analysis)
    *   🤖 `sdd_kiro validate-design --feature <feature-name>` (Design Check)
 
-#### 💡 仕様変更が必要になったら？
-実装中に仕様の不備に気づいた場合、勝手にコードを変える（Vibe Coding）のではなく、**必ず Phase 1 (Architect) に戻って仕様書から修正**してください。これにより「ドキュメントとコードの乖離」を恒久的に防ぎます。
+### 6. タスク終了
 
-#### Step 4: タスク終了
 全ての検証が完了したらタスクを終了し、ロックを解除します。これだけは **ユーザーが明示的に** 行うのが安全です（またはエージェントに頼んでも構いません）。
 ```bash
 👤 sdd_end_task
@@ -329,9 +393,9 @@ npx cc-sdd@latest --claude
 | コマンド | 説明 |
 |---------|------|
 | `init` | 仕様書の雛形（Scaffold）を生成します。 |
-| `requirements` | 要件定義書（requirements.md）を生成します。 |
-| `design` | 設計書（design.md）を生成します。 |
-| `tasks` | 実装タスク（tasks.md）を生成します。 |
+| `requirements` | 要件定義書（requirements.md）を生成し、validate-gap を自動連鎖実行します。 |
+| `design` | 設計書（design.md）を生成し、validate-design を自動連鎖実行します。 |
+| `tasks` | 実装タスク（tasks.md）を生成し、lint_tasks を自動連鎖実行します。 |
 | `impl` | 実装フェーズへ移行し、タスクロックを取得します。 |
 | `validate-gap` | 実装と仕様のギャップ分析を行います。 |
 | `validate-design` | 設計書の整合性レビューを行います。 |
