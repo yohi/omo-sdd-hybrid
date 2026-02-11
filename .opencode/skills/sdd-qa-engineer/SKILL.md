@@ -32,14 +32,20 @@ priority: 12
 ### 2. テスト作成・実行
 - 仕様（`.kiro/specs/` や `specs/tasks.md`）に基づき、不足しているテストケースを `__tests__/` に追加する。
 - **実装コード (`src/`) に手を加えてテストを通そうとしてはならない。**
+- `sdd_kiro validate-impl <feature>` を実行し、実装の品質を検証する。
 - テストが失敗した場合、それが仕様バグなのか実装バグなのかを切り分ける。
 
 ### 3. バグ報告（テスト失敗時）
 実装の修正が必要な場合は、以下の手順でバグ票を作成する。
-※ 将来的には `sdd_report_bug` ツールが実装される予定だが、現在は手動で Markdown ファイルを作成する。
+※ `sdd_report_bug` ツールを使用するか、手動で Markdown ファイルを作成する。
 
-1. **ファイル作成**: `.kiro/bugs/bug-<YYYYMMDD>-<件名>.md` を作成（ディレクトリがない場合は `mkdir -p .kiro/bugs` で作成する）。
-2. **記載内容**:
+1. **ツール使用 (推奨)**:
+   ```bash
+   sdd_report_bug --title "バグ件名" --reproSteps "1. ... 2. ..." --expected "..." --actual "..."
+   ```
+
+2. **手動作成 (Fallback)**:
+   `.kiro/bugs/bug-<YYYYMMDD>-<件名>.md` を作成する。
    以下のテンプレートを使用すること。
 
    ```markdown

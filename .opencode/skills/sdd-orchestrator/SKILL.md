@@ -22,10 +22,11 @@ priority: 15
 ```text
 ループ開始:
   1. `sdd_validate_gap` を実行
-  2. 結果を確認:
+  2. 実装完了状態なら `sdd_kiro validate-impl` も実行
+  3. 結果を確認:
      - 全項目 PASS → ループ終了、手順 3 へ
      - エラーあり → 修正して 1 に戻る
-  3. ループ回数が 5 回に達したら → 手順 4 へ
+  4. ループ回数が 5 回に達したら → 手順 4 へ
 ```
 
 #### 検証項目
@@ -35,6 +36,7 @@ priority: 15
 | スコープ検証 | 変更ファイルがすべて allowedScopes 内 |
 | Diagnostics | lsp_diagnostics でエラーなし |
 | テスト | 関連テストがすべて pass |
+| 実装検証 | validate-impl で問題なし |
 
 
 ### 3. 完了処理

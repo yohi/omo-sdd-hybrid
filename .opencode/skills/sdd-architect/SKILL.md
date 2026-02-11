@@ -18,10 +18,12 @@ priority: 10
 2. **Requirements 作成**
    - `specs/<feature>/requirements.md` を作成
    - ユーザーと対話しながら要件を明確化
+   - **重要**: 作成後、必ず `sdd_kiro validate-gap <feature>` を実行して既存実装とのギャップを確認する
 
 3. **Design 作成**
    - `specs/<feature>/design.md` を作成
    - 影響ファイル（Impacted Files）を明記
+   - **重要**: 作成後、必ず `sdd_kiro validate-design <feature>` を実行して設計の整合性を確認する
 
 4. **Tasks 作成**
    - `specs/tasks.md` にタスクを追加
