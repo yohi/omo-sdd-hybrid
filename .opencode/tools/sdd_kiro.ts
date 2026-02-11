@@ -10,6 +10,9 @@ import scaffoldSpecs from './sdd_scaffold_specs';
 import generateTasks from './sdd_generate_tasks';
 import validateDesign from './sdd_validate_design';
 import validateGap from './sdd_validate_gap';
+import { validateGapInternal } from './sdd_validate_gap';
+import lintTasks from './sdd_lint_tasks';
+import { State } from '../lib/state-utils';
 
 function getKiroSpecsDir() {
   const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
@@ -170,9 +173,34 @@ export default tool({
         }
         return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
 
-      case 'tasks':
+      case 'tasks': {
         if (!feature) return 'エラー: feature は必須です';
-        return await generateTasks.execute({ feature, overwrite }, context);
+        const tasksResult = await generateTasks.execute({ feature, overwrite }, context);
+
+        // lint_tasks を連鎖実行してフォーマット検証
+        let tasksOutput = `${tasksResult}\n\n`;
+        tasksOutput += `🔍 **lint_tasks を自動実行中...**\n\n`;
+        try {
+          const lintResult = await lintTasks.execute({ feature }, context);
+          tasksOutput += `### lint_tasks 結果\n\n${lintResult}\n`;
+        } catch (error: any) {
+          tasksOutput += `⚠️ lint_tasks の実行に失敗しました: ${error.message}\n`;
+        }
+        
+        try {
+          const baseDir = getKiroSpecsDir();
+          const targetDir = validateFeatureName(feature, baseDir);
+          const tasksPath = path.join(targetDir, 'tasks.md');
+          if (fs.existsSync(tasksPath)) {
+            const content = fs.readFileSync(tasksPath, 'utf-8');
+            tasksOutput += `\n---\n\n### 作成されたドキュメント (tasks.md)\n\n${content}`;
+          }
+        } catch (e) {
+          // 読み込みエラーは無視
+        }
+        
+        return tasksOutput;
+      }
 
       case 'requirements':
       case 'design': {
@@ -199,11 +227,63 @@ export default tool({
 
         // バリデーション確認プロンプト
         if (command === 'requirements') {
-          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ (MUST):** \`validate-gap\` を実行して既存実装とのギャップ分析を行います。\n\n\`sdd_kiro validate-gap ${feature}\` を実行してください。`;
+          let result = `✅ ${fileName} を作成しました。\n\n`;
+
+          // Greenfield 判定: src/ 配下にソースファイルが存在しない場合はスキップ
+          const srcDir = path.resolve('src');
+          let isGreenfield = true;
+          try {
+            if (fs.existsSync(srcDir)) {
+              const entries = fs.readdirSync(srcDir);
+              isGreenfield = entries.length === 0;
+            }
+          } catch {
+            isGreenfield = true;
+          }
+
+          if (isGreenfield) {
+            result += `ℹ️ **Greenfield プロジェクト検出**: \`src/\` 配下にソースファイルが存在しないため、validate-gap をスキップしました。\n`;
+          } else {
+            result += `🔍 **validate-gap を自動実行中...**\n\n`;
+            try {
+              // Phase B ではタスク未開始のため、State チェックをバイパスして validateGapInternal を直接呼び出す
+              const syntheticState: State = {
+                version: 1,
+                activeTaskId: feature,
+                activeTaskTitle: `Phase B: ${feature}`,
+                allowedScopes: [],
+                startedAt: new Date().toISOString(),
+                startedBy: 'sdd_kiro',
+                validationAttempts: 0,
+                role: 'architect',
+                tasksMdHash: '',
+                stateHash: '',
+              };
+              const gapResult = await validateGapInternal(syntheticState, {
+                kiroSpec: feature,
+                skipTests: true,
+                currentAttempts: 0,
+              });
+              result += `### validate-gap 結果\n\n${gapResult}\n`;
+            } catch (error: any) {
+              result += `⚠️ validate-gap の実行に失敗しました: ${error.message}\n`;
+            }
+          }
+          result += `\n---\n\n**次のステップ (MUST):** ユーザーに requirements の内容と validate-gap の結果を報告し、確認を得てください。\n結果に問題がある場合は requirements.md を修正し、再度 \`sdd_kiro requirements\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (requirements.md)\n\n${docContent}`;
+          return result;
         } else if (command === 'design') {
-          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ (MUST):** \`validate-design\` を実行して設計の品質レビューを行います。\n\n\`sdd_kiro validate-design ${feature}\` を実行してください。`;
+          let result = `✅ ${fileName} を作成しました。\n\n`;
+          result += `🔍 **validate-design を自動実行中...**\n\n`;
+          try {
+            const designValidateResult = await validateDesign.execute({ feature }, context);
+            result += `### validate-design 結果\n\n${designValidateResult}\n`;
+          } catch (error: any) {
+            result += `⚠️ validate-design の実行に失敗しました: ${error.message}\n`;
+          }
+          result += `\n---\n\n**次のステップ (MUST):** ユーザーに design の内容と validate-design の結果を報告し、確認を得てください。\n結果に問題がある場合は design.md を修正し、再度 \`sdd_kiro design\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (design.md)\n\n${docContent}`;
+          return result;
         } else {
-          return `✅ ${fileName} を作成しました。`;
+          return `✅ ${fileName} を作成しました。\n\n---\n\n### 作成されたドキュメント (${fileName})\n\n${docContent}`;
         }
       }
 
