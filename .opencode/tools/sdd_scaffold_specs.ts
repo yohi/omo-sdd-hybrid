@@ -163,7 +163,7 @@ ${prompt || 'この機能の目的と概要を記述してください。'}
     }
 
     if (createdCount > 0) {
-      return `✅ 仕様書の雛形を作成しました: ${feature}\n\n${results.join('\n')}`;
+      return `✅ 仕様書の雛形を作成しました: ${feature}\n\n${results.join('\n')}\n\n---\n\n⚠️ **STOP & REVIEW (MUST)**:\n各仕様書を以下の順序で **個別に** ユーザーへ提示し、承認を得てください:\n1. \`requirements.md\` → ユーザーに内容を提示 → 承認を待つ → **STOP**\n2. \`design.md\` → ユーザーに内容を提示 → 承認を待つ → **STOP**\n3. \`tasks.md\` → ユーザーに内容を提示 → 承認を待つ → **STOP**\n\n**禁止**: ユーザーの承認なしに仕様書を編集・加工してはいけません。`;
     } else if (skippedCount > 0) {
       return `⚠️ スキップされました: ${feature}\n\n${results.join('\n')}\n\n既存ファイルを上書きするには、引数 'overwrite: true' を指定してください。`;
     } else {

@@ -23,7 +23,8 @@ const SddContextInjector: Plugin = async (options) => {
             ? [...state.allowedScopes.slice(0, 5), `...and ${state.allowedScopes.length - 5} more`]
             : state.allowedScopes;
 
-          contextMsg = `[SDD Context] Active Task: ${state.activeTaskId} | Guard: ${effectiveMode} | Scopes: ${scopes.join(', ')}`;
+          const rolePart = state.role ? ` | Role: ${state.role}` : '';
+          contextMsg = `[SDD Context] Active Task: ${state.activeTaskId} | Guard: ${effectiveMode}${rolePart} | Scopes: ${scopes.join(', ')}`;
         } else {
           contextMsg = `[SDD Context] No active task | Guard: ${effectiveMode}`;
         }
