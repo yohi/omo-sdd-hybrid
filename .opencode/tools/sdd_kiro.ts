@@ -1,5 +1,5 @@
 import { tool } from '@opencode-ai/plugin';
-import { readState, writeState, State } from '../lib/state-utils';
+import { readState, writeState } from '../lib/state-utils';
 import { updateSteeringDoc, listSteeringDocs, analyzeKiroGap, loadKiroSpec, analyzeDocConsistency } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -12,6 +12,7 @@ import validateDesign from './sdd_validate_design';
 import validateGap from './sdd_validate_gap';
 import { validateGapInternal } from './sdd_validate_gap';
 import lintTasks from './sdd_lint_tasks';
+import { State } from '../lib/state-utils';
 
 function getKiroSpecsDir() {
   const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
@@ -185,6 +186,19 @@ export default tool({
         } catch (error: any) {
           tasksOutput += `⚠️ lint_tasks の実行に失敗しました: ${error.message}\n`;
         }
+        
+        try {
+          const baseDir = getKiroSpecsDir();
+          const targetDir = validateFeatureName(feature, baseDir);
+          const tasksPath = path.join(targetDir, 'tasks.md');
+          if (fs.existsSync(tasksPath)) {
+            const content = fs.readFileSync(tasksPath, 'utf-8');
+            tasksOutput += `\n---\n\n### 作成されたドキュメント (tasks.md)\n\n${content}`;
+          }
+        } catch (e) {
+          // 読み込みエラーは無視
+        }
+        
         return tasksOutput;
       }
 
@@ -211,7 +225,7 @@ export default tool({
         const docContent = `# ${title}: ${feature}\n\n${finalPrompt || '詳細をここに記述してください。'}\n`;
         fs.writeFileSync(filePath, docContent, 'utf-8');
 
-        // validate-gap / validate-design をプログラム的に連鎖実行し、結果をマージして返す
+        // バリデーション確認プロンプト
         if (command === 'requirements') {
           let result = `✅ ${fileName} を作成しました。\n\n`;
 
@@ -255,7 +269,7 @@ export default tool({
               result += `⚠️ validate-gap の実行に失敗しました: ${error.message}\n`;
             }
           }
-          result += `\n---\n\n**次のステップ (MUST):** ユーザーに requirements の内容と validate-gap の結果を報告し、確認を得てください。\n結果に問題がある場合は requirements.md を修正し、再度 \`sdd_kiro requirements\` を実行してください（最大3回まで）。`;
+          result += `\n---\n\n**次のステップ (MUST):** ユーザーに requirements の内容と validate-gap の結果を報告し、確認を得てください。\n結果に問題がある場合は requirements.md を修正し、再度 \`sdd_kiro requirements\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (requirements.md)\n\n${docContent}`;
           return result;
         } else if (command === 'design') {
           let result = `✅ ${fileName} を作成しました。\n\n`;
@@ -266,10 +280,10 @@ export default tool({
           } catch (error: any) {
             result += `⚠️ validate-design の実行に失敗しました: ${error.message}\n`;
           }
-          result += `\n---\n\n**次のステップ (MUST):** ユーザーに design の内容と validate-design の結果を報告し、確認を得てください。\n結果に問題がある場合は design.md を修正し、再度 \`sdd_kiro design\` を実行してください（最大3回まで）。`;
+          result += `\n---\n\n**次のステップ (MUST):** ユーザーに design の内容と validate-design の結果を報告し、確認を得てください。\n結果に問題がある場合は design.md を修正し、再度 \`sdd_kiro design\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (design.md)\n\n${docContent}`;
           return result;
         } else {
-          return `✅ ${fileName} を作成しました。`;
+          return `✅ ${fileName} を作成しました。\n\n---\n\n### 作成されたドキュメント (${fileName})\n\n${docContent}`;
         }
       }
 
@@ -483,51 +497,28 @@ export default tool({
           return `エラー: プロファイルの読み込みに失敗しました: ${error.message}`;
         }
 
-        // Phase A（インタビュー）→ Phase B（仕様策定）へのフェーズ遷移プロトコル
-        // Phase A 中は仕様書操作を禁止し、ユーザー承認後に Phase B へ遷移させる
-        const phaseTransitionGuard = [
+        // プロファイル完了後の暴走防止ガード
+        // profile.md 内にも制約セクションがあるが、ツール返却値としても重ねて注入することで多層防御を実現する
+        const stopGuard = [
           '',
           '---',
           '',
-          '⚠️ **PHASE TRANSITION PROTOCOL (MUST OBEY)**:',
+          '⚠️ **STOP INSTRUCTION (MUST OBEY)**:',
+          'プロファイルのインタビューと最終ドキュメント生成が完了したら、ドキュメントをユーザーに提示して **即座に停止** してください。',
           '',
-          '## Phase A: インタビュー（現在のフェーズ）',
-          '',
-          'プロファイルのインタビューと最終ドキュメント生成が完了したら、ドキュメントをユーザーに提示してください。',
-          '',
-          '**Phase A で禁止されるアクション:**',
+          '以下の行為は **禁止** です:',
           '- `sdd_scaffold_specs` の自動実行',
           '- `sdd_sync_kiro` の自動実行',
           '- ファイル/ディレクトリの作成',
           '- 仕様書の自動生成・編集',
-          '- `sdd_kiro validate-design` / `sdd_kiro validate-gap` の実行',
           '',
-          '**Phase A で行うべきこと:**',
-          '1. プロファイルドキュメントをユーザーに提示する',
-          '2. 「このプロファイルで仕様策定に進みますか？」とユーザーに確認する',
-          '3. **STOP** — ユーザーが承認するまで待機する',
-          '',
-          '## Phase B: 仕様策定（ユーザー承認後に遷移）',
-          '',
-          'ユーザーが「OK」「進めて」等の承認を与えた場合のみ、以下の仕様策定フローを実行してください:',
-          '',
-          '1. `sdd_kiro steering` — ステアリング確認・報告',
-          '2. `sdd_kiro init --feature <feature>` — specs ディレクトリ作成',
-          '3. `sdd_kiro requirements --feature <feature>` — requirements.md 作成（validate-gap が自動連鎖実行される）',
-          '4. ★ ユーザーに requirements + validate-gap 結果を報告し確認を得る',
-          '5. `sdd_kiro design --feature <feature>` — design.md 作成（validate-design が自動連鎖実行される）',
-          '6. ★ ユーザーに design + validate-design 結果を報告し確認を得る',
-          '7. `sdd_kiro tasks --feature <feature>` — tasks.md 作成（lint_tasks が自動連鎖実行される）',
-          '8. ★ ユーザーに tasks 内容を報告し確認を得る',
-          '9. ブランチ作成 → コミット → PR作成 → URL報告',
-          '',
-          '**重要**: 各 ★ マークのステップでは必ずユーザーの承認を待つこと。validate 結果に問題がある場合は修正して再実行（最大3回）。'
+          'ユーザーが明示的に次のコマンドを指示するまで、一切のツール呼び出しを行わないでください。'
         ].join('\n');
 
         if (finalPrompt) {
-          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}\n\n${phaseTransitionGuard}`;
+          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}\n\n${stopGuard}`;
         }
-        return `${profileContent}\n\n${phaseTransitionGuard}`;
+        return `${profileContent}\n\n${stopGuard}`;
       }
 
       default:
