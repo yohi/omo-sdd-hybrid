@@ -35,8 +35,8 @@ priority: 10
    - Gatekeeper の設定ファイルである `specs/tasks.md` 自体は編集可能な場合があるが、仕様変更を伴う場合は原則として上記の申請フローを経由すること。
 
 3. **検証**
-   - `sdd_validate_gap` を実行
-   - エラーがないことを確認
+   - 実装の区切りで `sdd_validate_gap` を実行し、ギャップがないことを確認
+   - 実装が完了したら `sdd_kiro validate-impl <feature>` を実行して品質を最終検証
 
 4. **完了**
    - 検証通過後、`specs/tasks.md` で `[x]` をマーク
