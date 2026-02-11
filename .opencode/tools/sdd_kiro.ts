@@ -1,6 +1,6 @@
 import { tool } from '@opencode-ai/plugin';
 import { readState, writeState } from '../lib/state-utils';
-import { updateSteeringDoc, listSteeringDocs, analyzeKiroGap } from '../lib/kiro-utils';
+import { updateSteeringDoc, listSteeringDocs, analyzeKiroGap, loadKiroSpec, analyzeDocConsistency } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -226,6 +226,17 @@ export default tool({
         // 1. ギャップ分析（必須ファイルの存在とタスク完了状況）
         // finalize 時は全ての仕様ファイルが揃っていることを前提とする
         // 第2引数の changedFiles は空配列でOK（ファイル存在チェックとタスク完了チェックのみしたい）
+        const spec = loadKiroSpec(feature);
+        if (!spec) {
+          return `❌ エラー: 指定された機能 '${feature}' の仕様が見つかりません。`;
+        }
+
+        const consistencyResult = await analyzeDocConsistency(spec);
+        if (consistencyResult.status === 'issues') {
+          const issuesList = consistencyResult.issues.map(i => `- ${i}`).join('\n');
+          return `❌ エラー: 仕様書の整合性に問題が見つかりました。\n\n${issuesList}\n\nこれらの問題を修正してから再度 finalize を実行してください。`;
+        }
+
         const gapResult = analyzeKiroGap(feature, []);
 
         if (gapResult.status === 'not_found') {

@@ -1,0 +1,68 @@
+import { logger } from './logger.js';
+
+const API_BASE = process.env.SDD_LLM_API_BASE || process.env.SDD_EMBEDDINGS_API_BASE || 'https://api.openai.com/v1';
+const MODEL = process.env.SDD_LLM_MODEL || 'gpt-4o';
+
+export interface Message {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export function isLlmEnabled(): boolean {
+  return !!(process.env.SDD_LLM_API_KEY || process.env.SDD_EMBEDDINGS_API_KEY);
+}
+
+export async function getChatCompletion(messages: Message[]): Promise<string | null> {
+  const apiKey = process.env.SDD_LLM_API_KEY || process.env.SDD_EMBEDDINGS_API_KEY;
+  if (!apiKey) {
+    logger.warn('[SDD-LLM] Skipped: SDD_LLM_API_KEY or SDD_EMBEDDINGS_API_KEY is not set');
+    return null;
+  }
+
+  const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+  const url = `${baseUrl}/chat/completions`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: messages,
+        temperature: 0.1
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`[SDD-LLM] Error ${response.status}: ${errorText}`);
+      return null;
+    }
+
+    const json = await response.json() as any;
+    
+    if (!json.choices || !Array.isArray(json.choices) || json.choices.length === 0) {
+      logger.error('[SDD-LLM] Invalid response format', json);
+      return null;
+    }
+
+    return json.choices[0].message?.content || null;
+      
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      logger.error('[SDD-LLM] Request timed out after 30s');
+      return null;
+    }
+    logger.error('[SDD-LLM] Network error:', error);
+    return null;
+  }
+}

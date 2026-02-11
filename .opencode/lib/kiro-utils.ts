@@ -4,6 +4,7 @@ import { extractRequirements, extractDesign, type ExtractedRequirement } from '.
 import { analyzeCoverage, formatCoverageReport, type CoverageResult } from './coverage-analyzer';
 import { findSemanticGaps, type SemanticAnalysisResult } from './semantic-search';
 import { logger } from './logger.js';
+import { getChatCompletion, isLlmEnabled } from './llm-provider';
 
 export interface KiroSpec {
   featureName: string;
@@ -473,18 +474,21 @@ export function updateSteeringDoc(name: string, content: string): boolean {
 }
 
 export interface DesignAnalysisResult {
-  status: 'ok' | 'missing_req' | 'missing_design';
+  status: 'ok' | 'missing_req' | 'missing_design' | 'inconsistent' | 'error';
   issues: string[];
+  suggestions: string[];
 }
 
 export function analyzeDesignConsistency(featureName: string): DesignAnalysisResult {
   const spec = loadKiroSpec(featureName);
   const issues: string[] = [];
+  const suggestions: string[] = [];
 
   if (!spec) {
     return {
       status: 'missing_req',
-      issues: [`Feature '${featureName}' spec not found`]
+      issues: [`Feature '${featureName}' spec not found`],
+      suggestions: []
     };
   }
 
@@ -496,7 +500,7 @@ export function analyzeDesignConsistency(featureName: string): DesignAnalysisRes
     issues.push('design.md not found');
   }
 
-  let status: 'ok' | 'missing_req' | 'missing_design' = 'ok';
+  let status: 'ok' | 'missing_req' | 'missing_design' | 'inconsistent' | 'error' = 'ok';
 
   if (!spec.requirements) {
     status = 'missing_req';
@@ -506,6 +510,76 @@ export function analyzeDesignConsistency(featureName: string): DesignAnalysisRes
 
   return {
     status,
-    issues
+    issues,
+    suggestions
   };
+}
+
+export async function analyzeDesignConsistencyDeep(featureName: string): Promise<DesignAnalysisResult> {
+  const baseResult = analyzeDesignConsistency(featureName);
+  if (baseResult.status !== 'ok') {
+    return baseResult;
+  }
+
+  const spec = loadKiroSpec(featureName)!;
+  const analysis = await analyzeDocConsistency(spec);
+
+  if (analysis.status === 'issues') {
+    return {
+      status: 'inconsistent',
+      issues: analysis.issues,
+      suggestions: ['設計書(design.md)を見直し、要件との不整合を解消してください。']
+    };
+  }
+
+  return baseResult;
+}
+
+export async function analyzeDocConsistency(spec: KiroSpec): Promise<{ status: 'ok' | 'issues', issues: string[] }> {
+  if (!isLlmEnabled()) {
+    return { status: 'ok', issues: [] };
+  }
+
+  if (!spec.requirements || !spec.design) {
+    return { status: 'ok', issues: [] };
+  }
+
+  const prompt = `Analyze consistency between Requirements and Design. 
+Report any missing requirements in design, contradictions, or logic errors. 
+Output a bullet list of issues in Japanese (日本語).
+If no issues are found, reply with "No issues found".
+
+### Requirements
+${spec.requirements}
+
+### Design
+${spec.design}
+
+### Tasks (Optional Context)
+${spec.tasks || 'Not provided'}
+`;
+
+  try {
+    const response = await getChatCompletion([
+      { role: 'system', content: 'You are an expert system architect performing specification consistency analysis.' },
+      { role: 'user', content: prompt }
+    ]);
+
+    if (!response || response.includes('No issues found')) {
+      return { status: 'ok', issues: [] };
+    }
+
+    const issues = response.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.startsWith('-') || line.startsWith('*') || line.match(/^\d+\./))
+      .map(line => line.replace(/^[-*\d.]+\s*/, ''));
+
+    return { 
+      status: issues.length > 0 ? 'issues' : 'ok', 
+      issues 
+    };
+  } catch (error) {
+    logger.error('Failed to analyze doc consistency:', error);
+    return { status: 'ok', issues: [] };
+  }
 }
