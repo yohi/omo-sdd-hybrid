@@ -61,7 +61,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 ### Phase 1: Architect (Role: `architect`)
 **Goal**: Define "What to build" and "Where to allow edits".
 1. **Steering**: Review/Update project direction. **REPORT** status to user.
-2. **Design**: Create/Update `.kiro/specs/*.md`. Run `validate-gap` and `validate-design`. **IF FAIL**: Loop/Fix until passed. **REPORT** result. **STOP & CONFIRM** with user.
+2. **Design**: Create/Update `.kiro/specs/*.md`. Run `validate-gap` and `validate-design`. **REPORT** status. **IF FAIL**: Loop/Fix/Regenerate until passed. **REPORT** result. **STOP & CONFIRM** with user.
 3. **Task Definition**: Update `specs/tasks.md`. **STOP & CONFIRM** with user.
 4. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
    - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
@@ -112,7 +112,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 2. **Respect Locks**: If `ELOCKED`, wait 5s and retry. Do not force unlock immediately.
 3. **Validation**: Before `sdd_end_task`, run `sdd_validate_gap` to ensure clean state.
 4. **Communication**: Report progress in **Japanese**.
-5. **Interaction**: Use `question` tool (TUI) for choices if available.
+5. **Interaction**: Check if `question` tool is available. If YES, use it. If NO, use text input.
 
 ## 9. CI/CD & RELEASE
 - **Trigger**: Push to `master`.
