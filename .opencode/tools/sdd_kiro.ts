@@ -436,9 +436,9 @@ export default tool({
         ].join('\n');
 
         if (finalPrompt) {
-          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}${stopGuard}`;
+          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}\n\n${stopGuard}`;
         }
-        return `${profileContent}${stopGuard}`;
+        return `${profileContent}\n\n${stopGuard}`;
       }
 
       default:
