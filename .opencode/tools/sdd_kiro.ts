@@ -417,10 +417,28 @@ export default tool({
           return `エラー: プロファイルの読み込みに失敗しました: ${error.message}`;
         }
 
+        // プロファイル完了後の暴走防止ガード
+        // profile.md 内にも制約セクションがあるが、ツール返却値としても重ねて注入することで多層防御を実現する
+        const stopGuard = [
+          '',
+          '---',
+          '',
+          '⚠️ **STOP INSTRUCTION (MUST OBEY)**:',
+          'プロファイルのインタビューと最終ドキュメント生成が完了したら、ドキュメントをユーザーに提示して **即座に停止** してください。',
+          '',
+          '以下の行為は **禁止** です:',
+          '- `sdd_scaffold_specs` の自動実行',
+          '- `sdd_sync_kiro` の自動実行',
+          '- ファイル/ディレクトリの作成',
+          '- 仕様書の自動生成・編集',
+          '',
+          'ユーザーが明示的に次のコマンドを指示するまで、一切のツール呼び出しを行わないでください。'
+        ].join('\n');
+
         if (finalPrompt) {
-          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}`;
+          return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}${stopGuard}`;
         }
-        return profileContent;
+        return `${profileContent}${stopGuard}`;
       }
 
       default:

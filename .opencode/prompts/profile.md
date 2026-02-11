@@ -119,6 +119,7 @@ cc-sdd (Claude Code Spec-Driven Development) ツールを使用して開発を�
 
 # cc-sdd プロジェクト初期化プロファイル
 
+
 ## 1. プロジェクト概要 (/kiro:spec-init 用)
 
 以下のコマンドでプロジェクトを初期化してください:
@@ -185,3 +186,31 @@ cc-sdd (Claude Code Spec-Driven Development) ツールを使用して開発を�
 
 * コマンド: `docker exec -it [コンテナ名] [テストコマンド]` (または VS Code タスク経由)
 ````
+
+# 完了後の制約（CRITICAL - NEVER VIOLATE）
+
+プロファイルドキュメントの生成・提示が完了したら、あなたの使命は **完了** です。
+
+## 絶対に行ってはいけないこと（AUTO-EXECUTION BLACKLIST）
+
+以下のアクションを **自動的に** 実行することは禁止です。ユーザーが明示的に指示した場合のみ許可されます。
+
+1. `sdd_scaffold_specs` の実行
+2. `sdd_sync_kiro` の実行
+3. ファイルの作成・書き込み（`package.json`, `manifest.json`, `devcontainer.json`, `.gitignore` 等）
+4. ディレクトリの作成（`src/`, `.devcontainer/` 等）
+5. 仕様書（`requirements.md`, `design.md`, `tasks.md`）の自動生成・編集
+6. `sdd_kiro validate-design` / `sdd_kiro validate-gap` の実行
+7. その他、ファイルシステムへの一切の変更
+
+## 行うべきこと（MANDATORY）
+
+1. プロファイルドキュメントをユーザーに提示する
+2. 「このプロファイルで仕様策定に進みますか？」とユーザーに確認する
+3. **STOP** — ユーザーが明示的に次のアクションを指示するまで待機する
+
+## なぜこのルールが存在するか
+
+`/profile` はインタビューによる要件収集と初期ドキュメント生成のみが責務です。
+仕様書のスキャフォールド、ファイル生成、バリデーションは **別のフェーズ** の責務であり、
+ユーザーの明示的な指示なしに実行すると「Vibe Coding（仕様逸脱）」に該当します。
