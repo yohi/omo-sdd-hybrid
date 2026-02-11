@@ -58,7 +58,7 @@ const checkIsFromPackage = (p: string) => {
 export default tool({
   description: 'Kiro互換コマンドの統合エントリーポイント。自動で適切なロール（Architect/Implementer）に切り替えて実行します。',
   args: {
-    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'finalize', 'steering', 'validate-design', 'validate-gap', 'validate', 'profile']).describe('実行するKiroコマンド'),
+    command: tool.schema.enum(['init', 'requirements', 'design', 'tasks', 'impl', 'finalize', 'steering', 'validate-design', 'validate-gap', 'validate-impl', 'validate', 'profile']).describe('実行するKiroコマンド'),
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
@@ -112,8 +112,8 @@ export default tool({
     }
 
     // 1. ロールの判定
-    // finalize の場合は現状維持とする（Implementer作業の最後に行うことが多いため）
-    if (command === 'finalize') {
+    // finalize, validate-impl の場合は現状維持とする
+    if (command === 'finalize' || command === 'validate-impl') {
       // no-op: ロール変更なし
     } else {
       const requiredRole = (command === 'impl') ? 'implementer' : 'architect';
@@ -199,9 +199,9 @@ export default tool({
 
         // バリデーション確認プロンプト
         if (command === 'requirements') {
-          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ:** \`validate-gap\` を実行して既存実装とのギャップ分析を行います。\n\n\`sdd_kiro validate-gap ${feature}\` を実行してください。`;
+          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ (MUST):** \`validate-gap\` を実行して既存実装とのギャップ分析を行います。\n\n\`sdd_kiro validate-gap ${feature}\` を実行してください。`;
         } else if (command === 'design') {
-          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ:** \`validate-design\` を実行して設計の品質レビューを行います。\n\n\`sdd_kiro validate-design ${feature}\` を実行してください。`;
+          return `✅ ${fileName} を作成しました。\n\n---\n\n**次のステップ (MUST):** \`validate-design\` を実行して設計の品質レビューを行います。\n\n\`sdd_kiro validate-design ${feature}\` を実行してください。`;
         } else {
           return `✅ ${fileName} を作成しました。`;
         }
@@ -209,7 +209,7 @@ export default tool({
 
       case 'impl':
         if (!feature) return 'エラー: feature は必須です';
-        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n実装完了後に sdd_kiro validate ${feature} を実行してください`;
+        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n実装が完了したら、品質検証のために \`sdd_kiro validate-impl ${feature}\` を実行しますか？`;
 
       case 'finalize': {
         if (!feature) return 'エラー: feature は必須です';
@@ -304,6 +304,13 @@ export default tool({
       case 'validate-gap':
         if (!feature) return 'エラー: feature は必須です';
         return await validateGap.execute({ kiroSpec: feature }, context);
+
+      case 'validate-impl':
+        if (!feature) return 'エラー: feature は必須です';
+        // validate-impl は validate-gap と同様に実装状態を検証するものだが、
+        // 現時点では validateGap (テスト実行 + 診断) を再利用して実装検証とする
+        // 将来的には cc-sdd 準拠の専用ロジック (Requirements Traceability など) に差し替える
+        return await validateGap.execute({ kiroSpec: feature, taskId: feature }, context);
 
       case 'validate':
         if (!feature) return 'エラー: feature は必須です';
