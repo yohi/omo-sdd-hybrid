@@ -1,6 +1,6 @@
 import { tool } from '@opencode-ai/plugin';
 import { readState, writeState } from '../lib/state-utils';
-import { updateSteeringDoc, listSteeringDocs } from '../lib/kiro-utils';
+import { updateSteeringDoc, listSteeringDocs, analyzeKiroGap } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -217,9 +217,32 @@ export default tool({
         const baseDir = getKiroSpecsDir();
         let targetDir: string;
         try {
+          // パストラバーサル等のチェックを先に行う
           targetDir = validateFeatureName(feature, baseDir);
         } catch (error: any) {
           return `エラー: ${error.message}`;
+        }
+
+        // 1. ギャップ分析（必須ファイルの存在とタスク完了状況）
+        // finalize 時は全ての仕様ファイルが揃っていることを前提とする
+        // 第2引数の changedFiles は空配列でOK（ファイル存在チェックとタスク完了チェックのみしたい）
+        const gapResult = analyzeKiroGap(feature, []);
+
+        if (gapResult.status === 'not_found') {
+          return `❌ エラー: 指定された機能 '${feature}' の仕様が見つかりません。`;
+        }
+
+        if (gapResult.status === 'partial') {
+          const missingFiles = gapResult.gaps.map(g => `- ${g}`).join('\n');
+          return `❌ エラー: 仕様ファイルが不足しています（ギャップあり）。\n\n${missingFiles}\n\n不足しているファイルを作成し、ユーザーにレビューを求めてください。`;
+        }
+
+        // 2. 未完了タスクのチェック
+        // tasks.md に未完了タスクがある場合は finalize をブロックする
+        const hasIncompleteTasks = gapResult.suggestions.some(s => s.includes('未完了のタスクがあります'));
+        if (hasIncompleteTasks) {
+          const msg = gapResult.suggestions.find(s => s.includes('未完了のタスクがあります')) || '未完了のタスクがあります';
+          return `❌ エラー: 未完了のタスクが残っています（ギャップあり）。\n\n> ${msg}\n\ntasks.md を確認し、全てのタスクを完了（[x]）にするか、不要なタスクを削除してから、ユーザーにレビューを求めてください。`;
         }
 
         if (!fs.existsSync(targetDir)) {

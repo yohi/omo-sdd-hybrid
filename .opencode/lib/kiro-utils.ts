@@ -163,7 +163,7 @@ export function analyzeKiroGap(featureName: string, changedFiles: string[]): Kir
     suggestions.push('/kiro:spec-tasks を実行してタスクを生成してください');
   }
 
-  if (spec.tasks && changedFiles.length > 0) {
+  if (spec.tasks) {
     // チェックボックス形式のタスクのみを抽出（番号付きリストを除外）
     const taskLines = spec.tasks.split('\n').filter(line =>
       line.match(/^\s*[-\*]\s*\[[ x]\]/i)
@@ -173,10 +173,13 @@ export function analyzeKiroGap(featureName: string, changedFiles: string[]): Kir
     const totalTasks = taskLines.length;
 
     if (totalTasks > 0) {
-      suggestions.push(`タスク進捗: ${completedTasks}/${totalTasks} 完了`);
+      // 変更がある場合、または未完了タスクがある場合に情報を表示
+      if (changedFiles.length > 0 || completedTasks < totalTasks) {
+          suggestions.push(`タスク進捗: ${completedTasks}/${totalTasks} 完了`);
 
-      if (completedTasks < totalTasks) {
-        suggestions.push('未完了のタスクがあります。tasks.md を確認してください');
+          if (completedTasks < totalTasks) {
+            suggestions.push('未完了のタスクがあります。tasks.md を確認してください');
+          }
       }
     }
   }
