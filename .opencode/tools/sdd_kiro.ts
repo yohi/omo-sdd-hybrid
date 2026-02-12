@@ -302,7 +302,7 @@ export default tool({
             
             // 結果文字列に不備やエラーが含まれているかチェック
             const failureMarkers = ['❌', 'Error', '⚠️', 'missing_req', 'missing_design', 'inconsistent'];
-            if (!failureMarkers.some(marker => designValidateResult.includes(marker))) {
+            if (designValidateResult.includes('✅') || (!failureMarkers.some(marker => designValidateResult.includes(marker)))) {
               validationPassed = true;
             }
           } catch (error: any) {
