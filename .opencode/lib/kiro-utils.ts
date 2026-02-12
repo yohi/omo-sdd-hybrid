@@ -70,6 +70,29 @@ function isValidFeatureName(featureName: string): boolean {
   return true;
 }
 
+/**
+ * テンプレート名をバリデートし、パス・トラバーサル攻撃を防止します。
+ * @param templateName 検証するテンプレート名
+ * @returns 有効な場合はtrue、無効な場合はfalse
+ */
+function isValidTemplateName(templateName: string): boolean {
+  if (!templateName || templateName.trim() === '') {
+    return false;
+  }
+
+  // 親ディレクトリ参照(..)の拒否
+  if (templateName.includes('..')) {
+    return false;
+  }
+
+  // パス区切り文字の拒否
+  if (templateName.includes('/') || templateName.includes('\\') || templateName.includes(path.sep)) {
+    return false;
+  }
+
+  return true;
+}
+
 export function findKiroSpecs(): string[] {
   const specsDir = getSpecsDir();
   if (!fs.existsSync(specsDir)) {
@@ -607,6 +630,11 @@ ${spec.tasks || 'Not provided'}
  * @param replacements 置換するキーと値のマップ
  */
 export function loadSpecTemplate(templateName: string, replacements: Record<string, string>): string {
+  // templateNameのバリデーション
+  if (!isValidTemplateName(templateName)) {
+    return getDefaultEarsTemplate();
+  }
+
   let templatePath: string | null = null;
 
   // 1. 上方検索
@@ -692,11 +720,20 @@ export function loadSpecTemplate(templateName: string, replacements: Record<stri
 
   // 各キーを {{KEY}} 形式で置換
   for (const [key, value] of Object.entries(finalReplacements)) {
-    const regex = new RegExp(`{{${key}}}`, 'g');
+    const escapedKey = escapeRegex(key);
+    const regex = new RegExp(`{{${escapedKey}}}`, 'g');
     content = content.replace(regex, value);
   }
 
   return content;
+}
+
+/**
+ * 正規表現で使用するために特殊文字をエスケープします。
+ * @param str エスケープする文字列
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
