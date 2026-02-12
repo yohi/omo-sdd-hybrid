@@ -26,6 +26,26 @@ function validateFeatureName(feature: string, baseDir: string) {
   return resolvedPath;
 }
 
+/**
+ * テンプレートファイルを読み込み、プレースホルダーを置換します
+ */
+function loadTemplate(templateName: string, replacements: Record<string, string>): string {
+  const templatePath = path.resolve('.opencode', 'templates', 'specs', templateName);
+  
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`テンプレートファイルが見つかりません: ${templateName}`);
+  }
+
+  let content = fs.readFileSync(templatePath, 'utf-8');
+  
+  for (const [key, value] of Object.entries(replacements)) {
+    const regex = new RegExp(`{{${key}}}`, 'g');
+    content = content.replace(regex, value);
+  }
+
+  return content;
+}
+
 export default tool({
   description: '機能仕様書の雛形（requirements.md, design.md, tasks.md）を生成します',
   args: {
@@ -51,94 +71,30 @@ export default tool({
       }
     }
 
-    const searchStr = `${feature} ${prompt || ''}`.toLowerCase();
-    let designContent = `# Design: ${feature}
+    const replacements = {
+      FEATURE: feature,
+      PROMPT: prompt || 'この機能の目的と概要を記述してください。'
+    };
 
-## アーキテクチャ概要
-
-この機能の技術的な実現方針を記述します。
-
-## コンポーネント設計
-
-### Mermaid Diagram
-
-\`\`\`mermaid
-graph TD
-    User -->|Action| ComponentA
-    ComponentA -->|Call| ServiceB
-\`\`\`
-`;
-
-    if (['api', 'endpoint', 'backend'].some(k => searchStr.includes(k))) {
-      designContent += `
-## API Endpoints
-
-- エンドポイントの定義とリクエスト/レスポンス形式
-`;
+    let files: { name: string; content: string }[];
+    try {
+      files = [
+        {
+          name: 'requirements.md',
+          content: loadTemplate('requirements.md', replacements)
+        },
+        {
+          name: 'design.md',
+          content: loadTemplate('design.md', replacements)
+        },
+        {
+          name: 'tasks.md',
+          content: loadTemplate('tasks.md', replacements)
+        }
+      ];
+    } catch (error: any) {
+      return `エラー: テンプレートの読み込みに失敗しました (${error.message})`;
     }
-
-    if (['ui', 'frontend', 'component', 'page'].some(k => searchStr.includes(k))) {
-      designContent += `
-## Component Structure
-
-- UIコンポーネントの構成と階層構造
-`;
-    }
-
-    if (['db', 'database', 'schema', 'model'].some(k => searchStr.includes(k))) {
-      designContent += `
-## Database Schema
-
-- データモデル定義と永続化戦略
-`;
-    }
-
-    designContent += `
-## データ構造
-
-- 主要なインターフェースや型定義
-
-## 依存関係
-
-- 外部APIやライブラリへの依存
-`;
-
-    const files = [
-      {
-        name: 'requirements.md',
-        content: `# Requirements: ${feature}
-
-## 概要
-
-${prompt || 'この機能の目的と概要を記述してください。'}
-
-## ユーザーストーリー
-
-- **役割** \u003cユーザー\u003e
-- **やりたいこと** \u003cアクション\u003e
-- **理由・メリット** \u003c目的/価値\u003e
-
-## 受入条件 (EARS)
-
-- **前提** \u003c前提条件\u003e
-- **もし** \u003cトリガー/操作\u003e
-- **ならば** \u003c期待される結果\u003e
-`
-      },
-      {
-        name: 'design.md',
-        content: designContent
-      },
-      {
-        name: 'tasks.md',
-        content: `# Tasks
-
-* [ ] ${feature}-1: .gitignore の作成・更新 (推奨設定: .opencode/state/*, .env) (Scope: \`.gitignore\`)
-* [ ] ${feature}-2: 基本実装 (Scope: \`src/...\`)
-* [ ] ${feature}-3: テスト実装 (Scope: \`__tests__/...\`)
-`
-      }
-    ];
 
     const results: string[] = [];
     let skippedCount = 0;
@@ -171,3 +127,4 @@ ${prompt || 'この機能の目的と概要を記述してください。'}
     }
   }
 });
+

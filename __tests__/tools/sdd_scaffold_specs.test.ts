@@ -1,5 +1,5 @@
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
@@ -9,6 +9,8 @@ const TOOL_PATH = '../../.opencode/tools/sdd_scaffold_specs';
 describe('sdd_scaffold_specs', () => {
   let tmpDir: string;
   let kiroDir: string;
+  let originalReadFileSync: any;
+  let originalExistsSync: any;
 
   beforeEach(() => {
     tmpDir = setupTestState();
@@ -42,6 +44,17 @@ describe('sdd_scaffold_specs', () => {
 
     const reqContent = fs.readFileSync(path.join(specDir, 'requirements.md'), 'utf-8');
     expect(reqContent).toContain('# Requirements: auth-flow');
+    expect(reqContent).toContain('## 受入条件');
+
+    const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
+    expect(designContent).toContain('## コンポーネント');
+    expect(designContent).toContain('## API Endpoints');
+    expect(designContent).toContain('## Component Structure');
+    expect(designContent).toContain('## Database Schema');
+
+    const tasksContent = fs.readFileSync(path.join(specDir, 'tasks.md'), 'utf-8');
+    expect(tasksContent).toContain('(Scope: `.gitignore`)');
+    expect(tasksContent).toContain('(Scope: `src/...`)');
   });
 
   it('prompt引数が指定された場合、requirements.mdに反映される', async () => {
@@ -88,6 +101,24 @@ describe('sdd_scaffold_specs', () => {
     expect(content).toContain('# Requirements');
   });
 
+  it('テンプレートファイルが存在しない場合に適切なエラーを返す', async () => {
+    const feature = 'no-template-feat';
+    
+    const originalExists = fs.existsSync;
+    const existsSpy = spyOn(fs, 'existsSync').mockImplementation((p: fs.PathLike) => {
+      if (p.toString().endsWith('requirements.md') && p.toString().includes('templates')) {
+        return false;
+      }
+      return originalExists(p);
+    });
+
+    const result = await runTool({ feature });
+    expect(result).toContain('エラー: テンプレートの読み込みに失敗しました');
+    expect(result).toContain('テンプレートファイルが見つかりません: requirements.md');
+    
+    existsSpy.mockRestore();
+  });
+
   it('パス・トラバーサル文字が含まれるfeature名を拒否する', async () => {
     const badFeatures = [
       '../hacker',
@@ -118,63 +149,5 @@ describe('sdd_scaffold_specs', () => {
       expect(result).toContain('エラー');
       expect(result).toContain('無効な機能名');
     }
-  });
-
-  describe('Smart Template Selection', () => {
-    it('API関連のキーワードが含まれる場合、API Endpointsセクションが追加される', async () => {
-      const feature = 'user-api';
-      await runTool({ feature });
-
-      const specDir = path.join(kiroDir, 'specs', feature);
-      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
-      
-      expect(designContent).toContain('## API Endpoints');
-      expect(designContent).toContain('- エンドポイントの定義とリクエスト/レスポンス形式');
-    });
-
-    it('UI関連のキーワードが含まれる場合、Component Structureセクションが追加される', async () => {
-      const feature = 'login-page';
-      await runTool({ feature });
-
-      const specDir = path.join(kiroDir, 'specs', feature);
-      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
-      
-      expect(designContent).toContain('## Component Structure');
-      expect(designContent).toContain('- UIコンポーネントの構成と階層構造');
-    });
-
-    it('DB関連のキーワードが含まれる場合、Database Schemaセクションが追加される', async () => {
-      const feature = 'user-db';
-      await runTool({ feature });
-
-      const specDir = path.join(kiroDir, 'specs', feature);
-      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
-      
-      expect(designContent).toContain('## Database Schema');
-      expect(designContent).toContain('- データモデル定義と永続化戦略');
-    });
-
-    it('promptに含まれるキーワードも考慮される', async () => {
-      const feature = 'auth';
-      const prompt = 'Implement backend for authentication';
-      await runTool({ feature, prompt });
-
-      const specDir = path.join(kiroDir, 'specs', feature);
-      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
-      
-      expect(designContent).toContain('## API Endpoints');
-    });
-
-    it('複数のキーワードが含まれる場合、複数のセクションが追加される', async () => {
-      const feature = 'user-management';
-      const prompt = 'Create UI and database schema for users';
-      await runTool({ feature, prompt });
-
-      const specDir = path.join(kiroDir, 'specs', feature);
-      const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
-      
-      expect(designContent).toContain('## Component Structure');
-      expect(designContent).toContain('## Database Schema');
-    });
   });
 });
