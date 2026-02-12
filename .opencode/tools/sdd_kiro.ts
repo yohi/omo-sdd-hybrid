@@ -65,9 +65,10 @@ export default tool({
     feature: tool.schema.string().optional().describe('対象の機能名'),
     prompt: tool.schema.string().optional().describe('追加の指示や要件（init等で使用）'),
     promptFile: tool.schema.string().optional().describe('プロンプトとして読み込むファイルのパス'),
-    overwrite: tool.schema.boolean().optional().describe('既存ファイルを上書きするかどうか')
+    overwrite: tool.schema.boolean().optional().describe('既存ファイルを上書きするかどうか'),
+    skipValidation: tool.schema.boolean().optional().describe('自動検証をスキップするか（validate-gapのみ有効）')
   },
-  async execute({ command, feature, prompt, promptFile, overwrite }, context) {
+  async execute({ command, feature, prompt, promptFile, overwrite, skipValidation }, context) {
     // 0. プロンプトの準備
     let finalPrompt = prompt || '';
     if (promptFile) {
@@ -225,61 +226,98 @@ export default tool({
         const docContent = `# ${title}: ${feature}\n\n${finalPrompt || '詳細をここに記述してください。'}\n`;
         fs.writeFileSync(filePath, docContent, 'utf-8');
 
-        // バリデーション確認プロンプト
+          // バリデーション確認プロンプト
         if (command === 'requirements') {
           let result = `✅ ${fileName} を作成しました。\n\n`;
+          let validationPerformed = false;
+          let validationFailed = false;
 
-          // Greenfield 判定: src/ 配下にソースファイルが存在しない場合はスキップ
-          const srcDir = path.resolve('src');
-          let isGreenfield = true;
-          try {
-            if (fs.existsSync(srcDir)) {
-              const entries = fs.readdirSync(srcDir);
-              isGreenfield = entries.length === 0;
-            }
-          } catch {
-            isGreenfield = true;
-          }
-
-          if (isGreenfield) {
-            result += `ℹ️ **Greenfield プロジェクト検出**: \`src/\` 配下にソースファイルが存在しないため、validate-gap をスキップしました。\n`;
+          if (skipValidation) {
+            result += `⚠️ **ユーザー指定により validate-gap をスキップしました。**\n`;
+            result += `注意: 仕様と実装の乖離を防ぐため、可能な限り検証を実施することを強く推奨します。\n`;
           } else {
-            result += `🔍 **validate-gap を自動実行中...**\n\n`;
+            // Greenfield 判定: src/ 配下にソースファイルが存在しない場合はスキップ
+            const srcDir = path.resolve('src');
+            let isGreenfield = true;
             try {
-              // Phase B ではタスク未開始のため、State チェックをバイパスして validateGapInternal を直接呼び出す
-              const syntheticState: State = {
-                version: 1,
-                activeTaskId: feature,
-                activeTaskTitle: `Phase B: ${feature}`,
-                allowedScopes: [],
-                startedAt: new Date().toISOString(),
-                startedBy: 'sdd_kiro',
-                validationAttempts: 0,
-                role: 'architect',
-                tasksMdHash: '',
-                stateHash: '',
-              };
-              const gapResult = await validateGapInternal(syntheticState, {
-                kiroSpec: feature,
-                skipTests: true,
-                currentAttempts: 0,
-              });
-              result += `### validate-gap 結果\n\n${gapResult}\n`;
-            } catch (error: any) {
-              result += `⚠️ validate-gap の実行に失敗しました: ${error.message}\n`;
+              if (fs.existsSync(srcDir)) {
+                const entries = fs.readdirSync(srcDir);
+                isGreenfield = entries.length === 0;
+              }
+            } catch {
+              isGreenfield = true;
+            }
+
+            if (isGreenfield) {
+              result += `ℹ️ **Greenfield プロジェクト検出**: \`src/\` 配下にソースファイルが存在しないため、validate-gap をスキップしました。\n`;
+            } else {
+              result += `🔍 **validate-gap を自動実行中...**\n\n`;
+              try {
+                // Phase B ではタスク未開始のため、State チェックをバイパスして validateGapInternal を直接呼び出す
+                const syntheticState: State = {
+                  version: 1,
+                  activeTaskId: feature,
+                  activeTaskTitle: `Phase B: ${feature}`,
+                  allowedScopes: [],
+                  startedAt: new Date().toISOString(),
+                  startedBy: 'sdd_kiro',
+                  validationAttempts: 0,
+                  role: 'architect',
+                  tasksMdHash: '',
+                  stateHash: '',
+                };
+                const gapResult = await validateGapInternal(syntheticState, {
+                  kiroSpec: feature,
+                  skipTests: true,
+                  currentAttempts: 0,
+                });
+                result += `### validate-gap 結果\n\n${gapResult}\n`;
+                validationPerformed = true;
+              } catch (error: any) {
+                result += `⚠️ validate-gap の実行に失敗しました: ${error.message}\n`;
+                validationFailed = true;
+              }
             }
           }
-          result += `\n---\n\n**次のステップ (MUST):** ユーザーに requirements の内容と validate-gap の結果を報告し、確認を得てください。\n結果に問題がある場合は requirements.md を修正し、再度 \`sdd_kiro requirements\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (requirements.md)\n\n${docContent}`;
+
+          result += `\n---\n\n**次のステップ (MUST):** `;
+          if (validationPerformed) {
+            result += `ユーザーに requirements の内容と validate-gap の結果を報告し、確認を得てください。\n`;
+          } else if (validationFailed) {
+            result += `validate-gap の実行中にエラーが発生しました。上記のエラー内容を確認して修正し、再度 \`sdd_kiro requirements\` を実行してください。\n`;
+          } else {
+            result += `ユーザーに requirements の内容を報告し、確認を得てください。また、今回は自動検証（validate-gap）がスキップされたため、内容の妥当性を手動で入念に確認してください。\n`;
+          }
+          result += `結果に問題がある場合は requirements.md を修正し、再度 \`sdd_kiro requirements\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (requirements.md)\n\n${docContent}`;
           return result;
         } else if (command === 'design') {
           let result = `✅ ${fileName} を作成しました。\n\n`;
+
+          if (skipValidation) {
+            result += `🚫 **警告: validate-design はスキップできません（必須要件）。**\n`;
+            result += `新規製造・改修・機能追加など、いかなる場合でも設計の整合性検証は必須です。\n\n`;
+          }
+
           result += `🔍 **validate-design を自動実行中...**\n\n`;
+          let validationPassed = false;
           try {
             const designValidateResult = await validateDesign.execute({ feature }, context);
             result += `### validate-design 結果\n\n${designValidateResult}\n`;
+            
+            // 結果文字列に不備やエラーが含まれているかチェック
+            const failureMarkers = ['❌', 'Error', '⚠️'];
+            if (!failureMarkers.some(marker => designValidateResult.includes(marker))) {
+              validationPassed = true;
+            }
           } catch (error: any) {
-            result += `⚠️ validate-design の実行に失敗しました: ${error.message}\n`;
+            result += `❌ **validate-design 実行エラー**: ${error.message}\n`;
           }
+
+          if (!validationPassed) {
+             result += `\n🛑 **検証失敗: design.md の修正が必須です**\n`;
+             result += `検証エラーを解消するまで、次のステップ（tasks作成やPR）に進むことは **禁止** されています。\n`;
+          }
+
           result += `\n---\n\n**次のステップ (MUST):** ユーザーに design の内容と validate-design の結果を報告し、確認を得てください。\n結果に問題がある場合は design.md を修正し、再度 \`sdd_kiro design\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (design.md)\n\n${docContent}`;
           return result;
         } else {
@@ -289,7 +327,7 @@ export default tool({
 
       case 'impl':
         if (!feature) return 'エラー: feature は必須です';
-        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n実装が完了したら、品質検証のために \`sdd_kiro validate-impl ${feature}\` を実行しますか？`;
+        return `✅ 実装フェーズ（Implementer）に切り替わりました。機能: ${feature}\n\n---\n\n実装が完了したら、品質証明（Definition of Done）のために **必ず** \`sdd_kiro validate-impl ${feature}\` を実行してください。\nユーザーへの完了報告にはこの検証結果が必要です。`;
 
       case 'finalize': {
         if (!feature) return 'エラー: feature は必須です';
