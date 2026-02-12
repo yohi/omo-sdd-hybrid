@@ -37,8 +37,18 @@ jobs:
       - name: Bump Version
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           PACKAGE_NAME="@yohi/omo-sdd-hybrid"
+          
+          # Determine version bump type based on commit message
+          BUMP_TYPE="patch"
+          if [[ "$COMMIT_MSG" == *"[major]"* ]]; then
+            BUMP_TYPE="major"
+          elif [[ "$COMMIT_MSG" == *"[minor]"* ]]; then
+            BUMP_TYPE="minor"
+          fi
+          echo "Detected bump type: $BUMP_TYPE"
           
           # Get latest version from registry (default to 0.0.0 if not found)
           LATEST_VERSION=$(npm view $PACKAGE_NAME version 2>/dev/null || echo "0.0.0")
@@ -47,8 +57,8 @@ jobs:
           # Sync local version with registry to ensure increment is based on latest
           npm version $LATEST_VERSION --allow-same-version --no-git-tag-version
           
-          # Increment patch version (e.g., 0.0.1 -> 0.0.2)
-          NEW_VERSION=$(npm version patch --no-git-tag-version)
+          # Increment version
+          NEW_VERSION=$(npm version $BUMP_TYPE --no-git-tag-version)
           echo "New version for release: $NEW_VERSION"
 
       - name: Publish to GitHub Packages
