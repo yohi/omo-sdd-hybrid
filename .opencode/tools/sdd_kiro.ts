@@ -230,6 +230,7 @@ export default tool({
         if (command === 'requirements') {
           let result = `✅ ${fileName} を作成しました。\n\n`;
           let validationPerformed = false;
+          let validationFailed = false;
 
           if (skipValidation) {
             result += `⚠️ **ユーザー指定により validate-gap をスキップしました。**\n`;
@@ -274,6 +275,7 @@ export default tool({
                 validationPerformed = true;
               } catch (error: any) {
                 result += `⚠️ validate-gap の実行に失敗しました: ${error.message}\n`;
+                validationFailed = true;
               }
             }
           }
@@ -281,6 +283,8 @@ export default tool({
           result += `\n---\n\n**次のステップ (MUST):** `;
           if (validationPerformed) {
             result += `ユーザーに requirements の内容と validate-gap の結果を報告し、確認を得てください。\n`;
+          } else if (validationFailed) {
+            result += `validate-gap の実行中にエラーが発生しました。上記のエラー内容を確認して修正し、再度 \`sdd_kiro requirements\` を実行してください。\n`;
           } else {
             result += `ユーザーに requirements の内容を報告し、確認を得てください。また、今回は自動検証（validate-gap）がスキップされたため、内容の妥当性を手動で入念に確認してください。\n`;
           }
