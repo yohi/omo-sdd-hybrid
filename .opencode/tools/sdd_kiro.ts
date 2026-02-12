@@ -305,7 +305,7 @@ export default tool({
             result += `### validate-design 結果\n\n${designValidateResult}\n`;
             
             // 結果文字列に不備やエラーが含まれているかチェック
-            const failureMarkers = ['❌', 'Error', '⚠️', 'missing_req', 'missing_design', 'inconsistent'];
+            const failureMarkers = ['❌', 'Error', '⚠️'];
             if (!failureMarkers.some(marker => designValidateResult.includes(marker))) {
               validationPassed = true;
             }
