@@ -1,6 +1,6 @@
 import { tool } from '@opencode-ai/plugin';
 import { readState, writeState } from '../lib/state-utils';
-import { updateSteeringDoc, listSteeringDocs, analyzeKiroGap, loadKiroSpec, analyzeDocConsistency } from '../lib/kiro-utils';
+import { updateSteeringDoc, listSteeringDocs, analyzeKiroGap, loadKiroSpec, analyzeDocConsistency, loadSpecTemplate } from '../lib/kiro-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -222,8 +222,12 @@ export default tool({
         if (fs.existsSync(filePath) && !overwrite) {
           return `スキップ: ${fileName} は既に存在します。`;
         }
-        const title = command.charAt(0).toUpperCase() + command.slice(1);
-        const docContent = `# ${title}: ${feature}\n\n${finalPrompt || '詳細をここに記述してください。'}\n`;
+
+        const replacements = {
+          FEATURE: feature,
+          PROMPT: finalPrompt || '詳細をここに記述してください。'
+        };
+        const docContent = loadSpecTemplate(fileName, replacements);
         fs.writeFileSync(filePath, docContent, 'utf-8');
 
           // バリデーション確認プロンプト

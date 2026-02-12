@@ -1,6 +1,7 @@
 import { tool } from '@opencode-ai/plugin';
 import * as fs from 'fs';
 import * as path from 'path';
+import { loadSpecTemplate } from '../lib/kiro-utils';
 
 function getKiroSpecsDir() {
   const kiroDir = process.env.SDD_KIRO_DIR || '.kiro';
@@ -24,26 +25,6 @@ function validateFeatureName(feature: string, baseDir: string) {
   }
 
   return resolvedPath;
-}
-
-/**
- * テンプレートファイルを読み込み、プレースホルダーを置換します
- */
-function loadTemplate(templateName: string, replacements: Record<string, string>): string {
-  const templatePath = path.resolve('.opencode', 'templates', 'specs', templateName);
-  
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`テンプレートファイルが見つかりません: ${templateName}`);
-  }
-
-  let content = fs.readFileSync(templatePath, 'utf-8');
-  
-  for (const [key, value] of Object.entries(replacements)) {
-    const regex = new RegExp(`{{${key}}}`, 'g');
-    content = content.replace(regex, value);
-  }
-
-  return content;
 }
 
 export default tool({
@@ -81,15 +62,15 @@ export default tool({
       files = [
         {
           name: 'requirements.md',
-          content: loadTemplate('requirements.md', replacements)
+          content: loadSpecTemplate('requirements.md', replacements)
         },
         {
           name: 'design.md',
-          content: loadTemplate('design.md', replacements)
+          content: loadSpecTemplate('design.md', replacements)
         },
         {
           name: 'tasks.md',
-          content: loadTemplate('tasks.md', replacements)
+          content: loadSpecTemplate('tasks.md', replacements)
         }
       ];
     } catch (error: any) {
