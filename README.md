@@ -154,6 +154,7 @@ Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開�
 | `/profile` | **Architect** | 仕様策定・設計フェーズ。インタビュー形式で要件を収集し、EARS記法の初期化プロファイルを生成します。 |
 | `/impl` | **Implementer** | 実装フェーズ。スコープを厳守し、Vibe Coding を回避しながらコーディングします。 |
 | `/validate` | **Reviewer** | 検証フェーズ。仕様と実装の乖離（Gap）を厳格に分析します。 |
+| `/finalize` | **Architect** | 仕様確定・翻訳準備フェーズ。仕様書の整合性を検証し、英語への翻訳準備を行います。 |
 | `/guard` | **Admin** | Gatekeeperのモード（warn/block/disabled）を切り替えます。 |
 
 #### 💡 高度な使い方 (Advanced Usage)
