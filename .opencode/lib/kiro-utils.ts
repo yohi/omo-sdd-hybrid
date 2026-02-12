@@ -627,8 +627,36 @@ export function loadSpecTemplate(templateName: string, replacements: Record<stri
     try {
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      // kiro-utils.ts は .opencode/lib/ にあるため、packageRoot は 2階層上
-      const packageRoot = path.resolve(__dirname, '../..');
+
+      // 実行環境（開発ソース or ビルド済み）に応じてパッケージルートを解決
+      let packageRoot: string;
+      const devPath = path.join('.opencode', 'lib');
+      if (__dirname.endsWith(devPath) || __dirname.includes(devPath + path.sep)) {
+        // 開発環境: .opencode/lib/kiro-utils.ts -> ../..
+        packageRoot = path.resolve(__dirname, '../..');
+      } else if (__dirname.endsWith('dist') || __dirname.includes('dist' + path.sep)) {
+        // ビルド環境: dist/ または dist/tools/ -> 親ディレクトリ（プロジェクトルート）
+        // dist 直下なら 1階層上、dist/tools なら 2階層上
+        if (__dirname.endsWith('dist')) {
+          packageRoot = path.resolve(__dirname, '..');
+        } else {
+          // dist/tools などのサブディレクトリを想定
+          packageRoot = path.resolve(__dirname, '../..');
+        }
+      } else {
+        // フォールバック: 上方向に .opencode/templates を含むディレクトリを探索
+        let current = __dirname;
+        let found = false;
+        while (current !== path.dirname(current)) {
+          if (fs.existsSync(path.join(current, '.opencode', 'templates'))) {
+            found = true;
+            break;
+          }
+          current = path.dirname(current);
+        }
+        packageRoot = found ? current : path.resolve(__dirname, '../..');
+      }
+      
       const packageCandidate = path.join(packageRoot, '.opencode', 'templates', 'specs', templateName);
       if (fs.existsSync(packageCandidate)) {
         templatePath = packageCandidate;
