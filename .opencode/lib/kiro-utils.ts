@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { extractRequirements, extractDesign, type ExtractedRequirement } from './spec-parser';
 import { analyzeCoverage, formatCoverageReport, type CoverageResult } from './coverage-analyzer';
 import { findSemanticGaps, type SemanticAnalysisResult } from './semantic-search';
@@ -63,6 +64,29 @@ function isValidFeatureName(featureName: string): boolean {
   // specDirがspecsDirの子ディレクトリであることを確認
   // path.sepを追加して、プレフィックスマッチングではなく完全なディレクトリマッチングを保証
   if (!specDir.startsWith(specsDir + path.sep)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * テンプレート名をバリデートし、パス・トラバーサル攻撃を防止します。
+ * @param templateName 検証するテンプレート名
+ * @returns 有効な場合はtrue、無効な場合はfalse
+ */
+function isValidTemplateName(templateName: string): boolean {
+  if (!templateName || templateName.trim() === '') {
+    return false;
+  }
+
+  // 親ディレクトリ参照(..)の拒否
+  if (templateName.includes('..')) {
+    return false;
+  }
+
+  // パス区切り文字の拒否
+  if (templateName.includes('/') || templateName.includes('\\') || templateName.includes(path.sep)) {
     return false;
   }
 
@@ -594,4 +618,138 @@ ${spec.tasks || 'Not provided'}
     logger.error('Failed to analyze doc consistency:', error);
     return { status: 'ok', issues: [] };
   }
+}
+
+/**
+ * テンプレートを検索して読み込み、プレースホルダーを置換します。
+ * 1. CWDから上方向に .opencode/templates/specs/<name> を検索
+ * 2. パッケージ内のデフォルト位置を検索
+ * 3. 見つからない場合はデフォルトのEARS形式を返却
+ *
+ * @param templateName テンプレートファイル名（例: requirements.md）
+ * @param replacements 置換するキーと値のマップ
+ */
+export function loadSpecTemplate(templateName: string, replacements: Record<string, string>): string {
+  // templateNameのバリデーション
+  if (!isValidTemplateName(templateName)) {
+    return getDefaultEarsTemplate();
+  }
+
+  let templatePath: string | null = null;
+
+  // 1. 上方検索
+  let currentDir = process.cwd();
+  while (true) {
+    const candidate = path.join(currentDir, '.opencode', 'templates', 'specs', templateName);
+    if (fs.existsSync(candidate)) {
+      templatePath = candidate;
+      break;
+    }
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    currentDir = parentDir;
+  }
+
+  // 2. パッケージ内のデフォルト位置
+  if (!templatePath) {
+    try {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+
+      // 実行環境（開発ソース or ビルド済み）に応じてパッケージルートを解決
+      let packageRoot: string;
+      const devPath = path.join('.opencode', 'lib');
+      if (__dirname.endsWith(devPath) || __dirname.includes(devPath + path.sep)) {
+        // 開発環境: .opencode/lib/kiro-utils.ts -> ../..
+        packageRoot = path.resolve(__dirname, '../..');
+      } else if (__dirname.endsWith('dist') || __dirname.includes('dist' + path.sep)) {
+        // ビルド環境: dist/ または dist/tools/ -> 親ディレクトリ（プロジェクトルート）
+        // dist 直下なら 1階層上、dist/tools なら 2階層上
+        if (__dirname.endsWith('dist')) {
+          packageRoot = path.resolve(__dirname, '..');
+        } else {
+          // dist/tools などのサブディレクトリを想定
+          packageRoot = path.resolve(__dirname, '../..');
+        }
+      } else {
+        // フォールバック: 上方向に .opencode/templates を含むディレクトリを探索
+        let current = __dirname;
+        let found = false;
+        while (current !== path.dirname(current)) {
+          if (fs.existsSync(path.join(current, '.opencode', 'templates'))) {
+            found = true;
+            break;
+          }
+          current = path.dirname(current);
+        }
+        packageRoot = found ? current : path.resolve(__dirname, '../..');
+      }
+      
+      const packageCandidate = path.join(packageRoot, '.opencode', 'templates', 'specs', templateName);
+      if (fs.existsSync(packageCandidate)) {
+        templatePath = packageCandidate;
+      }
+    } catch (e) {
+      // エラー時は無視してフォールバックへ
+    }
+  }
+
+  let content: string;
+  if (templatePath) {
+    try {
+      content = fs.readFileSync(templatePath, 'utf-8');
+    } catch (e) {
+      // 読み込み失敗時はフォールバックへ
+      content = getDefaultEarsTemplate();
+    }
+  } else {
+    content = getDefaultEarsTemplate();
+  }
+
+  // 置換処理
+  const finalReplacements = { ...replacements };
+
+  // エイリアスの処理: INTRODUCTION -> prompt / PROMPT
+  if (!finalReplacements.INTRODUCTION) {
+    if (finalReplacements.prompt) {
+      finalReplacements.INTRODUCTION = finalReplacements.prompt;
+    } else if (finalReplacements.PROMPT) {
+      finalReplacements.INTRODUCTION = finalReplacements.PROMPT;
+    }
+  }
+
+  // 各キーを {{KEY}} 形式で置換
+  for (const [key, value] of Object.entries(finalReplacements)) {
+    const escapedKey = escapeRegex(key);
+    const regex = new RegExp(`{{${escapedKey}}}`, 'g');
+    content = content.replace(regex, value);
+  }
+
+  return content;
+}
+
+/**
+ * 正規表現で使用するために特殊文字をエスケープします。
+ * @param str エスケープする文字列
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * デフォルトのEARS形式テンプレートを返却します
+ */
+function getDefaultEarsTemplate(): string {
+  return [
+    '# Requirements: {{FEATURE}}',
+    '',
+    '## 概要',
+    '{{PROMPT}}',
+    '',
+    '## 受入条件 (EARS)',
+    '- **前提** <前提条件>',
+    '- **もし** <操作>',
+    '- **ならば** <結果>',
+    ''
+  ].join('\n');
 }
