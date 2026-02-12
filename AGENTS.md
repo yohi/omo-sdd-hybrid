@@ -82,6 +82,36 @@ Agents **MUST** follow this cycle. Do not skip steps.
 6. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
    - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
 
+### STRICT RULES FOR PHASE B (MANDATORY)
+
+> **Phase B で仕様ファイルを生成・修正する際の絶対ルール。違反は Vibe Coding と同等に扱う。**
+
+1. **手動編集の完全禁止**:
+   - `Edit` / `Write` ツールを `specs/*.md`, `.kiro/**/*.md` に対して **絶対に使用してはならない**。
+   - 仕様ファイルの生成・修正は **必ず `sdd_kiro` コマンド経由** で行うこと。
+   - 内容に問題がある場合は `--prompt` オプションで指示を渡して `sdd_kiro` を再実行する。`--overwrite` で上書き可能。
+   - ❌ `Edit("specs/requirements.md", ...)` — **禁止**
+   - ❌ `Write(".kiro/specs/feature/design.md", ...)` — **禁止**
+   - ✅ `sdd_kiro requirements --feature X --overwrite --prompt "修正指示"` — **正しい方法**
+
+2. **検証ログの完全報告義務**:
+   - `sdd_kiro` の各コマンド（requirements, design, tasks）は内部で検証ツールを自動実行する。
+   - その **生の検証ログ（validate-gap / validate-design / lint_tasks の出力）をユーザーにそのまま報告** すること。
+   - 「完了しました」「Done」等の要約で検証結果を省略することは **禁止**。
+   - ユーザーが検証結果を自分の目で確認できなければ、Phase B は完了したとみなされない。
+
+3. **再実行ループのルール**:
+   - 検証結果に問題がある場合: `--prompt` で修正指示を追加して `sdd_kiro` を再実行する（最大3回）。
+   - 3回失敗した場合: ユーザーに判断を委ねる。勝手に `Edit` で修正しない。
+
+4. **`sdd_kiro` Tool Usage Protocol（仕様ファイル操作の唯一の手段）**:
+   - **新規作成**: `sdd_kiro <command> --feature <name>` （例: `sdd_kiro requirements --feature auth`）
+   - **上書き再生成**: `sdd_kiro <command> --feature <name> --overwrite` （既存ファイルを再生成する場合）
+   - **内容修正**: `sdd_kiro <command> --feature <name> --overwrite --prompt "修正指示の詳細"` （内容に問題がある場合は prompt で指示）
+   - **利用可能コマンド**: `init`, `requirements`, `design`, `tasks`, `steering`, `finalize`
+   - **自動連鎖検証**: `requirements` → `validate-gap` / `design` → `validate-design` / `tasks` → `lint_tasks`
+   - **原則**: ツールが生成 → 検証が自動実行 → ユーザーが結果を確認。この流れを絶対に破らない。
+
 ### Phase C: PR Creation (Role: `architect`)
 **Goal**: Create PR with spec documents for review.
 1. **Branch**: Create `feature/<name>` branch.
