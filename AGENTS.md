@@ -30,6 +30,25 @@ We do not "just write code". We define specs, lock the scope, and then implement
 
 Use **Bun** for all operations.
 
+### Global Environment Safety Rules (CRITICAL)
+
+**STRICTLY FORBIDDEN**: Running build/install commands (`bun install`, `npm install`, `make`, etc.) directly on the host machine.
+
+1. **Container Check**: Before running any build or dependency installation command, you **MUST** verify if you are inside a container using the following prioritized methods:
+   - **Method 1 (Preferred)**: Run `systemd-detect-virt --container`. If output is not "none", you are in a container.
+   - **Method 2**: Check for `/run/systemd/container` existence or `container=` environment variable in PID 1.
+   - **Method 3**: Check for runtime markers like `/.containerenv` or `/.dockerenv`.
+   - **Method 4 (Last Resort)**: Check cgroup heuristics (e.g., `/proc/1/cgroup` content).
+
+2. **Action if on Host**: If the check determines you are NOT in a container:
+   - **STOP IMMEDIATELY**.
+   - Throw an error with code `E_HOST_COMMAND_BLOCKED`.
+   - **Recovery**: Do not ask the user vaguely. Instead, instruct the operator to:
+     1. Locate the running container (e.g., `docker ps`).
+     2. Execute the command inside the container (e.g., `docker exec -it <container_id> <command>`).
+
+3. **Environment Isolation**: Always ensure that the development environment is isolated to prevent host pollution.
+
 - **Test**:
   - `bun test`: Run all tests (Parallel).
   - `bun test:seq`: **Recommended**. Runs sequentially to prevent State/Lock race conditions.
@@ -72,13 +91,15 @@ Agents **MUST** follow this cycle. Do not skip steps.
 3. **Requirements + validate-gap (auto-chained)**:
    - `sdd_kiro requirements --feature <name>` — Creates requirements.md AND runs validate-gap internally.
    - Greenfield (empty `src/`): validate-gap auto-skipped with notification.
-   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result. **★ STOP & CONFIRM** with user.
+   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result.
+   - **★ STOP & CONFIRM**: Present the output (including validation logs) to the user. **DO NOT** proceed to Design without explicit approval.
 4. **Design + validate-design (auto-chained)**:
    - `sdd_kiro design --feature <name>` — Creates design.md AND runs validate-design internally.
-   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result. **★ STOP & CONFIRM** with user.
+   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result.
+   - **★ STOP & CONFIRM**: Present the output (including validation logs) to the user. **DO NOT** proceed to Tasks without explicit approval.
 5. **Tasks + lint_tasks (auto-chained)**:
    - `sdd_kiro tasks --feature <name>` — Creates tasks.md AND runs lint_tasks internally.
-   - **★ STOP & CONFIRM** with user.
+   - **★ STOP & CONFIRM**: Present the output to the user. **DO NOT** proceed to Scope Definition without explicit approval.
 6. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
    - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
 
@@ -127,17 +148,23 @@ Agents **MUST** follow this cycle. Do not skip steps.
 
 ### Phase E: Implementer (Role: `implementer`)
 **Goal**: Build "How it works" within Scope.
+**Strict Rule: 1 Task = 1 PR.** Do NOT execute multiple tasks in a row.
+
 1. **Start**: `sdd_start_task <TaskId>`. Activates the Scope.
 2. **Implement**: Edit ONLY files in `allowedScopes`.
    - **Error**: `E_SCOPE_DENIED` means you touched a file outside scope.
    - **Fix**: Ask Architect to update the scope -> `sdd_end_task` -> `sdd_start_task`.
 3. **Verify**: Run `sdd_validate_gap` frequently.
+4. **Completion**:
+   - Run `sdd_kiro validate-impl <feature-name>` BEFORE `sdd_end_task`.
+   - **STOP** after one task is complete. Create a PR/Commit.
+   - **DO NOT** start the next task until the current one is merged or approved.
 
 ### Phase F: Reviewer (Role: `validate`)
 **Goal**: Verify "Does it match specs?".
 1. **Validate**: `sdd_validate_gap --deep` (if enabled).
 2. **Test**: Ensure `bun test:seq` passes.
-3. **Close**: `sdd_end_task` only after success.
+3. **Close**: `sdd_end_task` only after success. **Once closed, validation context is lost.**
 
 ## 6. CODING STANDARDS
 
