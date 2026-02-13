@@ -34,8 +34,19 @@ Use **Bun** for all operations.
 
 **STRICTLY FORBIDDEN**: Running build/install commands (`bun install`, `npm install`, `make`, etc.) directly on the host machine.
 
-1. **Container Check**: Before running any build or dependency installation command, you **MUST** verify if you are inside a container (e.g., check for the existence of `/.dockerenv`).
-2. **Action if on Host**: If you are NOT in a container, you **MUST NOT** proceed with the command. STOP and ask the user for instructions or use `docker exec` to run the command inside the appropriate container.
+1. **Container Check**: Before running any build or dependency installation command, you **MUST** verify if you are inside a container using the following prioritized methods:
+   - **Method 1 (Preferred)**: Run `systemd-detect-virt --container`. If output is not "none", you are in a container.
+   - **Method 2**: Check for `/run/systemd/container` existence or `container=` environment variable in PID 1.
+   - **Method 3**: Check for runtime markers like `/.containerenv` or `/.dockerenv`.
+   - **Method 4 (Last Resort)**: Check cgroup heuristics (e.g., `/proc/1/cgroup` content).
+
+2. **Action if on Host**: If the check determines you are NOT in a container:
+   - **STOP IMMEDIATELY**.
+   - Throw an error with code `E_HOST_COMMAND_BLOCKED`.
+   - **Recovery**: Do not ask the user vaguely. Instead, instruct the operator to:
+     1. Locate the running container (e.g., `docker ps`).
+     2. Execute the command inside the container (e.g., `docker exec -it <container_id> <command>`).
+
 3. **Environment Isolation**: Always ensure that the development environment is isolated to prevent host pollution.
 
 - **Test**:
@@ -145,7 +156,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
    - **Fix**: Ask Architect to update the scope -> `sdd_end_task` -> `sdd_start_task`.
 3. **Verify**: Run `sdd_validate_gap` frequently.
 4. **Completion**:
-   - Run `sdd_kiro validate-impl` (or `sdd_validate_gap`) **BEFORE** `sdd_end_task`.
+   - Run `sdd_kiro validate-impl <feature-name>` BEFORE `sdd_end_task`.
    - **STOP** after one task is complete. Create a PR/Commit.
    - **DO NOT** start the next task until the current one is merged or approved.
 
