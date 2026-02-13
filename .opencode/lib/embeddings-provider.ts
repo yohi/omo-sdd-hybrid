@@ -4,6 +4,8 @@
  * OpenAI互換 Embeddings API を利用するためのプロバイダモジュール
  */
 
+import { logger } from './logger.js';
+
 const API_BASE = process.env.SDD_EMBEDDINGS_API_BASE || 'https://api.openai.com/v1';
 const MODEL = process.env.SDD_EMBEDDINGS_MODEL || 'text-embedding-3-small';
 
@@ -13,6 +15,8 @@ async function fetchGeminiEmbeddings(texts: string[]): Promise<number[][] | null
     logger.warn('[SDD-EMBEDDINGS] Gemini Skipped: SDD_GEMINI_API_KEY is not set');
     return null;
   }
+
+  if (!texts || texts.length === 0) return [];
 
   const model = MODEL.includes('embedding-004') ? MODEL : 'text-embedding-004';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${apiKey}`;
@@ -68,10 +72,8 @@ async function fetchGeminiEmbeddings(texts: string[]): Promise<number[][] | null
   }
 }
 
-import { logger } from './logger.js';
-
 export function isEmbeddingsEnabled(): boolean {
-  return !!process.env.SDD_EMBEDDINGS_API_KEY;
+  return !!(process.env.SDD_EMBEDDINGS_API_KEY || process.env.SDD_GEMINI_API_KEY);
 }
 
 export async function getEmbeddings(texts: string[]): Promise<number[][] | null> {

@@ -77,7 +77,7 @@ export async function getChatCompletion(messages: Message[]): Promise<string | n
 }
 
 async function fetchGeminiCompletion(messages: Message[], model: string): Promise<string | null> {
-  const apiKey = process.env.SDD_GEMINI_API_KEY || process.env.SDD_LLM_API_KEY || process.env.SDD_EMBEDDINGS_API_KEY;
+  const apiKey = process.env.SDD_GEMINI_API_KEY;
   if (!apiKey) {
     logger.warn('[SDD-LLM] Skipped: SDD_GEMINI_API_KEY is not set');
     return null;
@@ -86,7 +86,7 @@ async function fetchGeminiCompletion(messages: Message[], model: string): Promis
   const geminiModel = model.startsWith('gemini-') ? model : 'gemini-1.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
 
-  const systemMessage = messages.find(m => m.role === 'system');
+  const systemMessages = messages.filter(m => m.role === 'system');
   const chatMessages = messages.filter(m => m.role !== 'system');
 
   const contents = chatMessages.map(m => ({
@@ -101,9 +101,10 @@ async function fetchGeminiCompletion(messages: Message[], model: string): Promis
     }
   };
 
-  if (systemMessage) {
+  if (systemMessages.length > 0) {
+    const combined = systemMessages.map(m => m.content).join('\n');
     body.systemInstruction = {
-      parts: [{ text: systemMessage.content }]
+      parts: [{ text: combined }]
     };
   }
 
