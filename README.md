@@ -446,8 +446,16 @@ sdd_kiro steering
 
 `sdd_validate_gap` に `--deep` オプションを明示的に指定し、かつ環境変数が設定されている場合のみ、Embeddings（ベクトル検索）を用いた意味的ギャップ検出が行われます（オプトイン方式）。
 
-#### 必要な設定
-以下の環境変数を設定してください（`.env` ファイル対応）。
+#### AI プロバイダーの設定
+
+`SDD_AI_PROVIDER` を設定することで、使用する AI プロバイダー（OpenAI または Gemini）を切り替えることができます。
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|------------|------|
+| `SDD_AI_PROVIDER` | `openai` | `openai` または `gemini` を指定 |
+
+##### OpenAI (デフォルト)
+以下の環境変数を設定してください。
 
 | 変数名 | デフォルト値 | 説明 |
 |--------|------------|------|
@@ -455,6 +463,23 @@ sdd_kiro steering
 | `SDD_EMBEDDINGS_API_BASE` | `https://api.openai.com/v1` | APIエンドポイント |
 | `SDD_EMBEDDINGS_MODEL` | `text-embedding-3-small` | 使用するモデル |
 | `SDD_EMBEDDINGS_THRESHOLD` | `0.75` | 類似度閾値 (0.0 - 1.0) |
+
+##### Gemini
+Gemini を使用する場合は以下の設定が必要です。
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|------------|------|
+| `SDD_GEMINI_API_KEY` | (必須) | Google AI (Gemini) APIキー |
+| `SDD_LLM_MODEL` | `gemini-1.5-flash` | 推奨モデル |
+| `SDD_EMBEDDINGS_MODEL` | `text-embedding-004` | 推奨 Embedding モデル |
+
+###### .env 例 (Gemini)
+```env
+SDD_AI_PROVIDER="gemini"
+SDD_GEMINI_API_KEY="your-gemini-api-key"
+SDD_LLM_MODEL="gemini-1.5-flash"
+SDD_EMBEDDINGS_MODEL="text-embedding-004"
+```
 
 設定がない場合、意味的分析は安全にスキップされます。
 
