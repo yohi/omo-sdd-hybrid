@@ -10,8 +10,8 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "composite": true,
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
+    "noImplicitAny": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
     "allowSyntheticDefaultImports": true,
@@ -24,5 +24,9 @@
   "include": [
     ".opencode/**/*",
     "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    ".opencode/node_modules"
   ]
 }

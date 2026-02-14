@@ -50,7 +50,7 @@ function listKiroFeatures(): string[] {
     return entries
       .filter(e => e.isDirectory() && !e.isSymbolicLink())
       .map(e => e.name);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to list Kiro features:', error);
     return [];
   }
@@ -78,7 +78,7 @@ function findTaskInFeatureScope(feature: string, taskId: string): { task: SddTas
       if (task) {
         return { task, source: 'feature-tasks.md' };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to read ${tasksPath}:`, error);
     }
   }
@@ -97,7 +97,7 @@ function findTaskInFeatureScope(feature: string, taskId: string): { task: SddTas
       if (task) {
         return { task, source: 'scope.md' };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to read ${scopePath}:`, error);
     }
   }
@@ -141,7 +141,7 @@ function findTaskInRootTasks(taskId: string): SddTask | null {
 
     const task = tasks.find(t => t.id === taskId);
     return task || null;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Failed to read ${tasksPath}:`, error);
     return null;
   }
@@ -210,7 +210,7 @@ export function resolveAllScopes(): AllScopes {
         if (featureScopes.length > 0) {
           sources.push({ path: featureTasksPath, type: 'feature-tasks.md' });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Failed to read ${featureTasksPath}:`, error);
       }
     }
@@ -227,7 +227,7 @@ export function resolveAllScopes(): AllScopes {
         if (featureScopes.length > 0) {
           sources.push({ path: scopePath, type: 'scope.md' });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Failed to read ${scopePath}:`, error);
       }
     }
@@ -246,7 +246,7 @@ export function resolveAllScopes(): AllScopes {
       if (rootScopes.length > 0) {
         sources.push({ path: tasksPath, type: 'tasks.md' });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to read ${tasksPath}:`, error);
     }
   }

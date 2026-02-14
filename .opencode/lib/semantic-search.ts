@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { getEmbeddings, isEmbeddingsEnabled } from './embeddings-provider';
 import { logger } from './logger.js';
+import { mask } from './pii-masker';
 
 // spec-parser.ts から移動した型定義
 export interface ExtractedRequirement {
@@ -105,12 +106,13 @@ export async function findSemanticGaps(
     try {
       if (fs.existsSync(file)) {
         const content = fs.readFileSync(file, 'utf-8');
-        const chunks = chunkText(content);
+        const maskedContent = mask(content);
+        const chunks = chunkText(maskedContent);
         for (const c of chunks) {
           fileChunks.push({ file, text: c });
         }
       }
-    } catch (e) {
+    } catch (e: unknown) {
       logger.warn(`[SDD-SEMANTIC] Failed to read ${file}:`, e);
     }
   }
@@ -119,7 +121,7 @@ export async function findSemanticGaps(
     return result;
   }
 
-  const allTexts = [...reqTexts, ...fileChunks.map(c => c.text)];
+  const allTexts = [...reqTexts.map(t => mask(t)), ...fileChunks.map(c => c.text)];
   const batchSize = getBatchSize();
   const allEmbeddings: number[][] = [];
 
@@ -139,7 +141,7 @@ export async function findSemanticGaps(
       }
 
       allEmbeddings.push(...batchEmbeddings);
-    } catch (e) {
+    } catch (e: unknown) {
       logger.warn(`[SDD-SEMANTIC] Error processing batch (index ${i}):`, e);
       return result;
     }
