@@ -148,7 +148,7 @@ function findTaskInRootTasks(taskId: string): SddTask | null {
 }
 
 /**
- * タスクを解決する（scope.md 優先、tasks.md フォールバック）
+ * タスクを解決する（tasks.md 優先、scope.md フォールバック）
  * 
  * @param taskId タスクID
  * @returns 解決されたタスク、またはnull
@@ -197,7 +197,8 @@ export function resolveAllScopes(): AllScopes {
     const featureTasksPath = path.join(specsDir, feature, 'tasks.md');
     const scopePath = path.join(specsDir, feature, 'scope.md');
 
-    // resolveAllScopes: collect from both tasks.md and scope.md; unlike resolveTask which prefers the first matching scope.md
+    // resolveAllScopes: tasks.md と scope.md の両方から収集する。
+    // 最初にマッチしたものを優先する resolveTask とは異なり、全スコープを合算する。
     if (fs.existsSync(featureTasksPath)) {
       try {
         const content = fs.readFileSync(featureTasksPath, 'utf-8');
