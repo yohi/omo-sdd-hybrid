@@ -58,7 +58,7 @@ export default tool({
     };
 
     function cleanupSpecContent(content: string): string {
-      const earsPattern = /## 受入条件 \(EARS\)\n\n- \*\*前提\*\* <前提条件>\n- \*\*もし\*\* <[^>]+>\n- \*\*ならば\*\* <[^>]+> \n/g;
+      const earsPattern = /## 受入条件 \(EARS\)\n\n- \*\*前提\*\* <[^>]+>\n- \*\*もし\*\* <[^>]+>\n- \*\*ならば\*\* <[^>]+> \n/g;
       return content.replace(earsPattern, '');
     }
 

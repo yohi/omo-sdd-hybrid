@@ -197,7 +197,7 @@ export function resolveAllScopes(): AllScopes {
     const featureTasksPath = path.join(specsDir, feature, 'tasks.md');
     const scopePath = path.join(specsDir, feature, 'scope.md');
 
-    // tasks.md 優先
+    // resolveAllScopes: collect from both tasks.md and scope.md; unlike resolveTask which prefers the first matching scope.md
     if (fs.existsSync(featureTasksPath)) {
       try {
         const content = fs.readFileSync(featureTasksPath, 'utf-8');
