@@ -52,4 +52,33 @@ describe("embeddings-provider", () => {
       expect.objectContaining({ expected: 3, received: 2 })
     );
   });
+
+  test("returns Gemini embeddings when SDD_AI_PROVIDER is gemini", async () => {
+    process.env.SDD_AI_PROVIDER = 'gemini';
+    process.env.SDD_GEMINI_API_KEY = 'gemini-key';
+    
+    fetchMock = mock(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        embeddings: [
+          { values: [0.3] },
+          { values: [0.4] }
+        ]
+      })
+    }));
+    global.fetch = fetchMock;
+
+    const texts = ["text1", "text2"];
+    const result = await getEmbeddings(texts);
+    
+    expect(result).toEqual([[0.3], [0.4]]);
+    expect(fetchMock).toHaveBeenCalled();
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toContain('generativelanguage.googleapis.com');
+    expect(url).toContain('key=gemini-key');
+    
+    const body = JSON.parse(options.body);
+    expect(body.requests).toHaveLength(2);
+    expect(body.requests[0].content.parts[0].text).toBe("text1");
+  });
 });
