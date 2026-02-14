@@ -57,12 +57,17 @@ export default tool({
       PROMPT: prompt || 'この機能の目的と概要を記述してください。'
     };
 
+    function cleanupSpecContent(content: string): string {
+      const earsPattern = /## 受入条件 \(EARS\)\n\n- \*\*前提\*\* <前提条件>\n- \*\*もし\*\* <[^>]+>\n- \*\*ならば\*\* <[^>]+> \n/g;
+      return content.replace(earsPattern, '');
+    }
+
     let files: { name: string; content: string }[];
     try {
       files = [
         {
           name: 'requirements.md',
-          content: loadSpecTemplate('requirements.md', replacements)
+          content: cleanupSpecContent(loadSpecTemplate('requirements.md', replacements))
         },
         {
           name: 'design.md',

@@ -292,7 +292,7 @@ export default tool({
           } else {
             result += `ユーザーに requirements の内容を報告し、確認を得てください。また、今回は自動検証（validate-gap）がスキップされたため、内容の妥当性を手動で入念に確認してください。\n`;
           }
-          result += `結果に問題がある場合は requirements.md を修正し、再度 \`sdd_kiro requirements\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (requirements.md)\n\n${docContent}`;
+          result += `結果に問題がある場合は requirements.md を修正し、再度 \`sdd_kiro requirements\` を実行してください（最大3回まで）。\n\n---\n\n⚠️ **AGENT INSTRUCTION**: If the user prompt conflicts with the template structure, you MUST overwrite the template completely. Do not leave placeholder text like 'ComponentA' if the user specified a different architecture.\n\n---\n\n### 作成されたドキュメント (requirements.md)\n\n${docContent}`;
           return result;
         } else if (command === 'design') {
           let result = `✅ ${fileName} を作成しました。\n\n`;
@@ -322,7 +322,7 @@ export default tool({
              result += `検証エラーを解消するまで、次のステップ（tasks作成やPR）に進むことは **禁止** されています。\n`;
           }
 
-          result += `\n---\n\n**次のステップ (MUST):** ユーザーに design の内容と validate-design の結果を報告し、確認を得てください。\n結果に問題がある場合は design.md を修正し、再度 \`sdd_kiro design\` を実行してください（最大3回まで）。\n\n---\n\n### 作成されたドキュメント (design.md)\n\n${docContent}`;
+          result += `\n---\n\n**次のステップ (MUST):** ユーザーに design の内容と validate-design の結果を報告し、確認を得てください。\n結果に問題がある場合は design.md を修正し、再度 \`sdd_kiro design\` を実行してください（最大3回まで）。\n\n---\n\n⚠️ **AGENT INSTRUCTION**: If the user prompt conflicts with the template structure, you MUST overwrite the template completely. Do not leave placeholder text like 'ComponentA' if the user specified a different architecture.\n\n---\n\n### 作成されたドキュメント (design.md)\n\n${docContent}`;
           return result;
         } else {
           return `✅ ${fileName} を作成しました。\n\n---\n\n### 作成されたドキュメント (${fileName})\n\n${docContent}`;
