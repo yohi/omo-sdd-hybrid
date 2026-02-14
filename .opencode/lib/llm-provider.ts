@@ -52,7 +52,8 @@ export async function getChatCompletion(messages: Message[]): Promise<string | n
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(`[SDD-LLM] Error ${response.status}: ${errorText}`);
+      const sanitized = errorText.length > 200 ? errorText.slice(0, 200) + '... (truncated)' : errorText;
+      logger.error(`[SDD-LLM] Error ${response.status}: ${sanitized}`);
       return null;
     }
 
@@ -124,7 +125,8 @@ async function fetchGeminiCompletion(messages: Message[], model: string): Promis
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(`[SDD-LLM-Gemini] Error ${response.status}: ${errorText}`);
+      const sanitized = errorText.length > 200 ? errorText.slice(0, 200) + '... (truncated)' : errorText;
+      logger.error(`[SDD-LLM-Gemini] Error ${response.status}: ${sanitized}`);
       return null;
     }
 
