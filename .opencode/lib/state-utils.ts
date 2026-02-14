@@ -135,8 +135,8 @@ function getStateHmacKey(): string {
     // Atomic creation: fails if file exists
     fs.writeFileSync(keyPath, generated, { mode: 0o600, flag: 'wx' });
     return generated;
-  } catch (error: any) {
-    if (error.code === 'EEXIST') {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'EEXIST') {
       // Race condition: another process created it. Read it.
       // Retry a few times in case the other process is still writing (empty file)
       for (let i = 0; i < 5; i++) {
@@ -258,8 +258,8 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
           fs.rmdirSync(lockPath);
         } catch { /* ignore */ }
       };
-    } catch (error: any) {
-      if (error.code === 'EEXIST') {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'EEXIST') {
         // Lock exists - check if stale
         if (isLockStale(lockPath, stale)) {
           try {

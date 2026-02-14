@@ -5,7 +5,7 @@ export default tool({
   description: '現在のタスクコンテキストを表示します',
   args: {},
   async execute(_args, context: any) {
-    const readState = context?.__testDeps?.readState ?? defaultReadState;
+    const readState = (context as any)?.__testDeps?.readState ?? defaultReadState;
 
     const stateResult = await readState();
     
@@ -27,7 +27,7 @@ sdd_end_task でクリアするか、.opencode/state/current_context.json を削
 タイトル: ${state.activeTaskTitle}
 ロール: ${state.role ?? 'implementer'}
 許可スコープ:
-${state.allowedScopes.map(s => `  - ${s}`).join('\n')}
+${state.allowedScopes.map((s: string) => `  - ${s}`).join('\n')}
 開始時刻: ${state.startedAt}${recoveryNote}`;
   }
 });

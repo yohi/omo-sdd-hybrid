@@ -1,1 +1,1 @@
-gap_content
+export const gap_content = {};
