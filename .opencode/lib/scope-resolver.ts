@@ -8,8 +8,8 @@ import { logger } from './logger.js';
  */
 export interface ResolvedTask {
   task: SddTask;
-  source: 'scope.md' | 'tasks.md';
-  feature?: string; // scope.mdから解決された場合の機能名
+  source: 'scope.md' | 'tasks.md' | 'feature-tasks.md';
+  feature?: string; // scope.md または feature/tasks.md から解決された場合の機能名
 }
 
 /**
@@ -17,7 +17,7 @@ export interface ResolvedTask {
  */
 export interface AllScopes {
   scopes: string[];
-  sources: Array<{ path: string; type: 'scope.md' | 'tasks.md' }>;
+  sources: Array<{ path: string; type: 'scope.md' | 'tasks.md' | 'feature-tasks.md' }>;
 }
 
 /**
@@ -57,42 +57,64 @@ function listKiroFeatures(): string[] {
 }
 
 /**
- * 指定された機能の scope.md からタスクを検索
+ * 指定された機能の tasks.md または scope.md からタスクを検索
  */
-function findTaskInFeatureScope(feature: string, taskId: string): SddTask | null {
+function findTaskInFeatureScope(feature: string, taskId: string): { task: SddTask; source: 'scope.md' | 'feature-tasks.md' } | null {
   const specsDir = getKiroSpecsDir();
+  const tasksPath = path.join(specsDir, feature, 'tasks.md');
   const scopePath = path.join(specsDir, feature, 'scope.md');
 
-  if (!fs.existsSync(scopePath)) {
-    return null;
-  }
+  // 1. tasks.md 優先
+  if (fs.existsSync(tasksPath)) {
+    try {
+      const content = fs.readFileSync(tasksPath, 'utf-8');
+      const { tasks, errors } = parseSddTasks(content, { validateScopes: true });
 
-  try {
-    const content = fs.readFileSync(scopePath, 'utf-8');
-    const { tasks, errors } = parseSddTasks(content, { validateScopes: true });
+      if (errors.length > 0) {
+        logger.warn(`[scope-resolver] ${tasksPath} にパースエラーがあります:`, errors);
+      }
 
-    if (errors.length > 0) {
-      logger.warn(`[scope-resolver] ${scopePath} にパースエラーがあります:`, errors);
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        return { task, source: 'feature-tasks.md' };
+      }
+    } catch (error) {
+      logger.error(`Failed to read ${tasksPath}:`, error);
     }
-
-    const task = tasks.find(t => t.id === taskId);
-    return task || null;
-  } catch (error) {
-    logger.error(`Failed to read ${scopePath}:`, error);
-    return null;
   }
+
+  // 2. scope.md フォールバック
+  if (fs.existsSync(scopePath)) {
+    try {
+      const content = fs.readFileSync(scopePath, 'utf-8');
+      const { tasks, errors } = parseSddTasks(content, { validateScopes: true });
+
+      if (errors.length > 0) {
+        logger.warn(`[scope-resolver] ${scopePath} にパースエラーがあります:`, errors);
+      }
+
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        return { task, source: 'scope.md' };
+      }
+    } catch (error) {
+      logger.error(`Failed to read ${scopePath}:`, error);
+    }
+  }
+
+  return null;
 }
 
 /**
- * findTaskInKiroScopes - Search for a task in all scope.md files
+ * findTaskInKiroScopes - Search for a task in all feature tasks.md/scope.md files
  */
-export function findTaskInKiroScopes(taskId: string): { task: SddTask; feature: string } | null {
+export function findTaskInKiroScopes(taskId: string): { task: SddTask; feature: string; source: 'scope.md' | 'feature-tasks.md' } | null {
   const features = listKiroFeatures();
 
   for (const feature of features) {
-    const task = findTaskInFeatureScope(feature, taskId);
-    if (task) {
-      return { task, feature };
+    const result = findTaskInFeatureScope(feature, taskId);
+    if (result) {
+      return { ...result, feature };
     }
   }
 
@@ -132,13 +154,14 @@ function findTaskInRootTasks(taskId: string): SddTask | null {
  * @returns 解決されたタスク、またはnull
  */
 export function resolveTask(taskId: string): ResolvedTask | null {
-  // 1. scope.md から検索
+  // 1. .kiro/specs/*/tasks.md または scope.md から検索
   const kiroResult = findTaskInKiroScopes(taskId);
   if (kiroResult) {
-    logger.info(`[scope-resolver] タスク ${taskId} を .kiro/specs/${kiroResult.feature}/scope.md から解決しました`);
+    const sourceFile = kiroResult.source === 'feature-tasks.md' ? 'tasks.md' : 'scope.md';
+    logger.info(`[scope-resolver] タスク ${taskId} を .kiro/specs/${kiroResult.feature}/${sourceFile} から解決しました`);
     return {
       task: kiroResult.task,
-      source: 'scope.md',
+      source: kiroResult.source,
       feature: kiroResult.feature
     };
   }
@@ -164,35 +187,52 @@ export function resolveTask(taskId: string): ResolvedTask | null {
  */
 export function resolveAllScopes(): AllScopes {
   const scopes: string[] = [];
-  const sources: Array<{ path: string; type: 'scope.md' | 'tasks.md' }> = [];
+  const sources: Array<{ path: string; type: 'scope.md' | 'tasks.md' | 'feature-tasks.md' }> = [];
 
-  // 1. 全 scope.md から収集
+  // 1. 全機能ディレクトリ（.kiro/specs/*）から収集
   const features = listKiroFeatures();
   const specsDir = getKiroSpecsDir();
 
   for (const feature of features) {
+    const featureTasksPath = path.join(specsDir, feature, 'tasks.md');
     const scopePath = path.join(specsDir, feature, 'scope.md');
 
-    if (!fs.existsSync(scopePath)) {
-      continue;
+    // tasks.md 優先
+    if (fs.existsSync(featureTasksPath)) {
+      try {
+        const content = fs.readFileSync(featureTasksPath, 'utf-8');
+        const { tasks } = parseSddTasks(content, { validateScopes: false });
+
+        const featureScopes = tasks.flatMap(t => t.scopes);
+        scopes.push(...featureScopes);
+
+        if (featureScopes.length > 0) {
+          sources.push({ path: featureTasksPath, type: 'feature-tasks.md' });
+        }
+      } catch (error) {
+        logger.error(`Failed to read ${featureTasksPath}:`, error);
+      }
     }
 
-    try {
-      const content = fs.readFileSync(scopePath, 'utf-8');
-      const { tasks } = parseSddTasks(content, { validateScopes: false });
+    // scope.md
+    if (fs.existsSync(scopePath)) {
+      try {
+        const content = fs.readFileSync(scopePath, 'utf-8');
+        const { tasks } = parseSddTasks(content, { validateScopes: false });
 
-      const featureScopes = tasks.flatMap(t => t.scopes);
-      scopes.push(...featureScopes);
+        const featureScopes = tasks.flatMap(t => t.scopes);
+        scopes.push(...featureScopes);
 
-      if (featureScopes.length > 0) {
-        sources.push({ path: scopePath, type: 'scope.md' });
+        if (featureScopes.length > 0) {
+          sources.push({ path: scopePath, type: 'scope.md' });
+        }
+      } catch (error) {
+        logger.error(`Failed to read ${scopePath}:`, error);
       }
-    } catch (error) {
-      logger.error(`Failed to read ${scopePath}:`, error);
     }
   }
 
-  // 2. specs/tasks.md から収集（フォールバック）
+  // 2. specs/tasks.md から収集（ルートフォールバック）
   const tasksPath = getTasksPath();
   if (fs.existsSync(tasksPath)) {
     try {
