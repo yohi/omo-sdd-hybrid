@@ -35,7 +35,7 @@ const deleteAllBackups = () => {
   });
 };
 
-const createValidState = (overrides: Partial<StateInput> = {}) => {
+const createValidState = async (overrides: Partial<StateInput> = {}) => {
   const tasksPath = getTasksPath();
   const tasksContent = fs.readFileSync(tasksPath, 'utf-8');
   const tasksMdHash = computeTasksMdHashFromContent(tasksContent);
@@ -51,7 +51,7 @@ const createValidState = (overrides: Partial<StateInput> = {}) => {
     tasksMdHash,
   };
   const merged = { ...base, ...overrides, tasksMdHash };
-  const stateHash = computeStateHash(merged);
+  const stateHash = await computeStateHash(merged);
   return { ...merged, stateHash };
 };
 
@@ -259,7 +259,7 @@ describe('state-utils', () => {
     test('recovers from backup when state is corrupted', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
-      const validState = createValidState();
+      const validState = await createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });
@@ -284,7 +284,7 @@ describe('state-utils', () => {
     test('tries older backups if primary backup is also corrupted', async () => {
       cleanupStateFiles();
       const { readState } = await import('../../.opencode/lib/state-utils');
-      const validState = createValidState();
+      const validState = await createValidState();
       
       if (!fs.existsSync(getStateDir())) {
         fs.mkdirSync(getStateDir(), { recursive: true });
