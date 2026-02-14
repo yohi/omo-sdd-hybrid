@@ -100,22 +100,26 @@ export async function findSemanticGaps(
 
   // テキスト収集
   const reqTexts = requirements.map(r => r.description || r.id);
-  const fileChunks: { file: string; text: string }[] = [];
-
-  for (const file of validFiles) {
+  const fileReadPromises = validFiles.map(async (file) => {
     try {
-      if (fs.existsSync(file)) {
-        const content = fs.readFileSync(file, 'utf-8');
-        const maskedContent = mask(content);
-        const chunks = chunkText(maskedContent);
-        for (const c of chunks) {
-          fileChunks.push({ file, text: c });
-        }
+      try {
+        await fs.promises.access(file, fs.constants.F_OK);
+      } catch {
+        return [];
       }
+
+      const content = await fs.promises.readFile(file, 'utf-8');
+      const maskedContent = mask(content);
+      const chunks = chunkText(maskedContent);
+      return chunks.map(c => ({ file, text: c }));
     } catch (e: unknown) {
       logger.warn(`[SDD-SEMANTIC] Failed to read ${file}:`, e);
+      return [];
     }
-  }
+  });
+
+  const filesResults = await Promise.all(fileReadPromises);
+  const fileChunks = filesResults.flat();
 
   if (fileChunks.length === 0) {
     return result;
