@@ -10,3 +10,5 @@
 * [x] Task-2: Embeddings Provider 実装 (Scope: `.opencode/lib/embeddings-provider.ts`, `__tests__/lib/embeddings-provider.test.ts`)
 * [x] Task-3: LLM Provider 実装 (Scope: `.opencode/lib/llm-provider.ts`, `__tests__/lib/llm-provider.test.ts`)
 * [x] Task-4: 統合テストとドキュメント (Scope: `README.md`, `docs/OPERATIONS.md`)
+* [x] Task-Refactor-1: Enable Strict Mode & Fix Core Types (Scope: `.opencode/**`, `tsconfig.json`, `src/*.ts`)
+* [ ] Task-Refactor-2: Implement PII Masker & Integration (Scope: `.opencode/lib/**`, `__tests__/**`)
