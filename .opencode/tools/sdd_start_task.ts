@@ -64,12 +64,14 @@ export default tool({
 
       throw new Error(
         `E_TASK_NOT_FOUND: ${taskId} が見つかりません。\n` +
-        `.kiro/specs/*/scope.md または specs/tasks.md を確認してください。`
+        `.kiro/specs/*/tasks.md, .kiro/specs/*/scope.md または specs/tasks.md を確認してください。`
       );
     }
 
     const { task, source, feature } = resolved;
-    const sourceInfo = source === 'scope.md'
+    const sourceInfo = source === 'feature-tasks.md'
+      ? `tasks.md (feature: ${feature})`
+      : source === 'scope.md'
       ? `${source} (feature: ${feature})`
       : source;
 
