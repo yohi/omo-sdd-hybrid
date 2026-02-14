@@ -106,7 +106,8 @@ export async function findSemanticGaps(
     try {
       if (fs.existsSync(file)) {
         const content = fs.readFileSync(file, 'utf-8');
-        const chunks = chunkText(content);
+        const maskedContent = mask(content);
+        const chunks = chunkText(maskedContent);
         for (const c of chunks) {
           fileChunks.push({ file, text: c });
         }
@@ -120,7 +121,7 @@ export async function findSemanticGaps(
     return result;
   }
 
-  const allTexts = [...reqTexts, ...fileChunks.map(c => c.text)].map(t => mask(t));
+  const allTexts = [...reqTexts.map(t => mask(t)), ...fileChunks.map(c => c.text)];
   const batchSize = getBatchSize();
   const allEmbeddings: number[][] = [];
 
