@@ -52,8 +52,17 @@ describe('sdd_lint_tasks', () => {
     expect(result).toContain('フォーマットエラー');
   });
 
-  test('detects invalid TaskID format', async () => {
+  test('allows alphanumeric TaskID without number', async () => {
     fs.writeFileSync(tasksPath, '# Tasks\n\n* [ ] TaskNoNumber: Test (Scope: `src/**`)\n');
+
+    const sddLintTasks = await import('../../.opencode/tools/sdd_lint_tasks');
+    const result = await sddLintTasks.default.execute({}, {} as any);
+
+    expect(result).toContain('✅ バリデーション完了');
+  });
+
+  test('detects invalid characters in TaskID', async () => {
+    fs.writeFileSync(tasksPath, '# Tasks\n\n* [ ] Task@Invalid: Test (Scope: `src/**`)\n');
 
     const sddLintTasks = await import('../../.opencode/tools/sdd_lint_tasks');
     const result = await sddLintTasks.default.execute({}, {} as any);
