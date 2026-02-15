@@ -36,6 +36,8 @@ import { withTempDir, waitForFile } from '../helpers/temp-dir';
 describe('state-utils concurrent writes', () => {
   afterEach(() => {
     setTestConfig(null);
+    delete process.env.SDD_STATE_DIR;
+    delete process.env.SDD_TASKS_PATH;
   });
 
   const createSampleState = (id: string): StateInput => ({
@@ -79,7 +81,9 @@ describe('state-utils concurrent writes', () => {
       if (succeeded.length === 0) {
         const failed = writeResults.filter(r => r.status === 'rejected');
         console.error('All writes failed. Reasons:');
-        failed.forEach((f: any) => console.error(f.reason?.message || f.reason));
+        failed.forEach((f: any) => {
+          console.error(f.reason?.message || f.reason);
+        });
       }
       expect(succeeded.length).toBeGreaterThan(0);
 

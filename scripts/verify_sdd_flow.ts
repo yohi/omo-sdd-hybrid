@@ -48,4 +48,7 @@ async function runVerification() {
   console.log('--- Verification Complete ---');
 }
 
-runVerification();
+runVerification().catch((e) => {
+  console.error('Unhandled Verification Error:', e);
+  process.exit(1);
+});
