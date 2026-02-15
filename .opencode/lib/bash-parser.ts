@@ -88,6 +88,13 @@ export class BashParser {
               current += ch;
               continue;
             }
+
+            // Handle >& (redirection, e.g. 2>&1)
+            if (ch === '&' && current.length > 0 && current[current.length - 1] === '>') {
+              current += ch;
+              continue;
+            }
+
             // pipe or background
             pushSegment();
             continue;
