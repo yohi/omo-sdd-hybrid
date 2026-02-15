@@ -1,11 +1,20 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { withTempDir } from '../helpers/temp-dir';
-import { getStateDir } from '../../.opencode/lib/state-utils';
+import { getStateDir, setTestConfig } from '../../.opencode/lib/state-utils';
 
 const setupEnv = (tmpDir: string) => {
+  setTestConfig({
+    stateDir: tmpDir,
+    tasksPath: path.join(tmpDir, 'tasks.md'),
+    testMode: true,
+    lockRetries: 2,
+    lockStale: 1000
+  });
+
+  // Backward compat for imports that might read env directly in this test file
   process.env.SDD_STATE_DIR = tmpDir;
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
@@ -13,8 +22,12 @@ const setupEnv = (tmpDir: string) => {
   process.env.SDD_LOCK_STALE = '1000'; // short stale
   process.env.SDD_TEST_MODE = 'true';
   process.env.SDD_GUARD_MODE = 'warn';
-  fs.writeFileSync(process.env.SDD_TASKS_PATH, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
+  fs.writeFileSync(path.join(tmpDir, 'tasks.md'), '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
 };
+
+afterEach(() => {
+  setTestConfig(null);
+});
 
 describe('state-utils lock contention', () => {
   test('writeState fails with specific error when lock is held', async () => {

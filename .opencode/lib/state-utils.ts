@@ -12,7 +12,22 @@ const LOCK_INFO_NAME = '.lock-info.json';
 const STATE_HMAC_KEY_NAME = 'state-hmac.key';
 const STATE_AUDIT_LOG_NAME = 'state-audit.log';
 
+// Test configuration override (isolated per module instance/worker)
+let testConfig: {
+  stateDir?: string;
+  tasksPath?: string;
+  hmacKey?: string;
+  lockStale?: number;
+  lockRetries?: number;
+  testMode?: boolean;
+} | null = null;
+
+export function setTestConfig(config: typeof testConfig) {
+  testConfig = config;
+}
+
 export function getStateDir(): string {
+  if (testConfig?.stateDir) return path.resolve(testConfig.stateDir);
   const dir = process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
   return path.resolve(dir);
 }
@@ -22,6 +37,7 @@ export function getStatePath(): string {
 }
 
 export function getTasksPath(): string {
+  if (testConfig?.tasksPath) return path.resolve(testConfig.tasksPath);
   const p = process.env.SDD_TASKS_PATH || 'specs/tasks.md';
   return path.resolve(p);
 }
@@ -112,6 +128,7 @@ async function readTasksMdHash(): Promise<string> {
 }
 
 async function getStateHmacKey(): Promise<string> {
+  if (testConfig?.hmacKey) return testConfig.hmacKey;
   const envKey = process.env.SDD_STATE_HMAC_KEY;
   if (envKey && envKey.trim() !== '') return envKey.trim();
 
@@ -235,12 +252,12 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
   }
 
   const lockPath = getLockPath();
-  const isTest = process.env.NODE_ENV === 'test' || process.env.SDD_TEST_MODE === 'true';
+  const isTest = testConfig?.testMode ?? (process.env.NODE_ENV === 'test' || process.env.SDD_TEST_MODE === 'true');
 
-  let stale = parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
+  let stale = testConfig?.lockStale ?? parseInt(process.env.SDD_LOCK_STALE || '30000', 10);
   if (!Number.isFinite(stale)) stale = 30000;
 
-  let retries = parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
+  let retries = testConfig?.lockRetries ?? parseInt(process.env.SDD_LOCK_RETRIES || (isTest ? '2' : '10'), 10);
   if (!Number.isFinite(retries)) retries = isTest ? 2 : 10;
 
   const waitMs = isTest ? 100 : 4000;
@@ -553,49 +570,9 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
 
     const tmpPath = `${currentGuardPath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
     
-    // Write and flush (using sync for reliability in tests)
-    const fd = fs.openSync(tmpPath, 'w');
-    try {
-      try {
-        fs.writeSync(fd, JSON.stringify(state, null, 2));
-        try {
-          if (typeof fs.fsyncSync === 'function') {
-            fs.fsyncSync(fd);
-          }
-        } catch { /* ignore */ }
-      } finally {
-        fs.closeSync(fd);
-      }
-    } catch (error) {
-      try {
-        if (fs.existsSync(tmpPath)) {
-          fs.unlinkSync(tmpPath);
-        }
-      } catch { /* ignore */ }
-      throw error;
-    }
-    
-    // Explicitly verify temp file exists and has content before renaming
-    // If it doesn't settle quickly, it might be due to heavy I/O or race
-    let settled = false;
-    for (let i = 0; i < 5; i++) {
-        if (fs.existsSync(tmpPath) && fs.statSync(tmpPath).size > 0) {
-            settled = true;
-            break;
-        }
-        await sleep(20);
-    }
-
-    if (settled) {
-        fs.renameSync(tmpPath, currentGuardPath);
-    } else {
-        // Fallback: try rename anyway if it exists but size check failed (might be OS/FS quirk)
-        if (fs.existsSync(tmpPath)) {
-            fs.renameSync(tmpPath, currentGuardPath);
-        } else {
-            throw new Error(`[SDD] Failed to create temp file for guard mode: ${tmpPath}`);
-        }
-    }
+    // Simplified write to match writeState's robustness
+    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
+    fs.renameSync(tmpPath, currentGuardPath);
   } finally {
     await release();
   }

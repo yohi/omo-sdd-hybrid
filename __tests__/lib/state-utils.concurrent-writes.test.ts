@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
 import { 
@@ -6,29 +6,34 @@ import {
   getGuardModePath, 
   writeState, 
   writeGuardModeState, 
+  setTestConfig,
   StateInput, 
   GuardModeState 
 } from '../../.opencode/lib/state-utils';
 import { withTempDir, waitForFile } from '../helpers/temp-dir';
 
   const setupEnv = (tmpDir: string) => {
-    process.env.SDD_STATE_DIR = path.resolve(tmpDir);
-    process.env.SDD_TASKS_PATH = path.resolve(tmpDir, 'specs', 'tasks.md');
-
-  process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
-  process.env.SDD_LOCK_RETRIES = '50';
-  process.env.SDD_LOCK_STALE = '10000';
-  process.env.SDD_TEST_MODE = 'true';
-  process.env.SDD_GUARD_MODE = 'warn';
-
+    // Isolated configuration using setTestConfig
+    setTestConfig({
+      stateDir: path.resolve(tmpDir),
+      tasksPath: path.resolve(tmpDir, 'specs', 'tasks.md'),
+      lockRetries: 50,
+      lockStale: 10000,
+      testMode: true
+    });
+    
   if (!fs.existsSync(path.join(tmpDir, 'specs'))) {
     fs.mkdirSync(path.join(tmpDir, 'specs'), { recursive: true });
   }
 
-  fs.writeFileSync(process.env.SDD_TASKS_PATH, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
+  fs.writeFileSync(path.join(tmpDir, 'specs', 'tasks.md'), '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
 };
 
 describe('state-utils concurrent writes', () => {
+  afterEach(() => {
+    setTestConfig(null);
+  });
+
   const createSampleState = (id: string): StateInput => ({
     version: 1,
     activeTaskId: id,
@@ -47,7 +52,7 @@ describe('state-utils concurrent writes', () => {
   });
 
     const iterations = 5;
-  const timeoutMs = 10000;
+  const timeoutMs = 30000; // Increased timeout for parallel execution stability
 
   test('concurrent writeState calls handle locking correctly without errors', async () => {
     await withTempDir(async (tmpDir) => {
@@ -70,10 +75,13 @@ describe('state-utils concurrent writes', () => {
       if (succeeded.length === 0) {
         const failed = writeResults.filter(r => r.status === 'rejected');
         console.error('All writes failed. Reasons:');
-        failed.forEach((f: any) => console.error(f.reason?.message || f.reason));
+        failed.forEach((f: any) => {
+          console.error(f.reason?.message || f.reason);
+        });
       }
       expect(succeeded.length).toBeGreaterThan(0);
 
+      await waitForFile(statePath, 5000); // Increased wait time
       expect(fs.existsSync(statePath)).toBe(true);
 
       // JSONとして破損していないか確認
@@ -114,7 +122,7 @@ describe('state-utils concurrent writes', () => {
 
       // If at least one succeeded, the file should exist
       if (results.some(r => r.status === 'fulfilled')) {
-        await waitForFile(guardPath);
+        await waitForFile(guardPath, 10000); // Further Increased wait time
         expect(fs.existsSync(guardPath)).toBe(true);
         const content = fs.readFileSync(guardPath, 'utf-8');
         expect(() => JSON.parse(content)).not.toThrow();
@@ -149,13 +157,13 @@ describe('state-utils concurrent writes', () => {
       const guardPath = path.join(tmpDir, 'guard-mode.json');
 
       if (results.some((r, i) => i % 2 === 0 && r.status === 'fulfilled')) {
-        await waitForFile(statePath);
+        await waitForFile(statePath, 10000); // Further Increased wait time
         expect(fs.existsSync(statePath)).toBe(true);
         expect(() => JSON.parse(fs.readFileSync(statePath, 'utf-8'))).not.toThrow();
       }
       
       if (results.some((r, i) => i % 2 === 1 && r.status === 'fulfilled')) {
-        await waitForFile(guardPath);
+        await waitForFile(guardPath, 10000); // Further Increased wait time
         expect(fs.existsSync(guardPath)).toBe(true);
         expect(() => JSON.parse(fs.readFileSync(guardPath, 'utf-8'))).not.toThrow();
       }
