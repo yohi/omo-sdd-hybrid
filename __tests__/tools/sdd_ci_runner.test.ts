@@ -260,12 +260,22 @@ describe('sdd_ci_runner', () => {
       fs.symlinkSync(realOpenCodeNodeModules, path.join(newTmpDir, '.opencode', 'node_modules'), 'dir');
     }
 
+    const testEnv = { ...origEnv };
+    delete testEnv.GITHUB_BASE_REF;
+    delete testEnv.GITHUB_HEAD_REF;
+    delete testEnv.GITHUB_REF_NAME;
+
     const result = spawnSync('bun', ['run', 'tools/sdd_ci_runner.ts', '--allow-untracked'], {
       cwd: path.join(newTmpDir, '.opencode'),
       encoding: 'utf-8',
-      env: { ...origEnv, SDD_CI_MODE: 'true', NODE_ENV: 'test' },
+      env: { ...testEnv, SDD_CI_MODE: 'true', NODE_ENV: 'test' },
     });
 
+    if (result.status !== 0) {
+      console.error('Initial commit test failed');
+      console.error('STDOUT:', result.stdout);
+      console.error('STDERR:', result.stderr);
+    }
     expect(result.status).toBe(0);
 
     fs.rmSync(newTmpDir, { recursive: true, force: true });

@@ -54,53 +54,73 @@ function maskString(str: string): string {
   return result;
 }
 
-function maskValue(value: any, seen = new WeakSet<object>()): any {
+const MAX_RECURSION_DEPTH = 10;
+
+function maskValue(value: any, seen = new WeakSet<object>(), depth = 0): any {
+  if (depth > MAX_RECURSION_DEPTH) {
+    return '[Max Depth Exceeded]';
+  }
+
+  if (value === null || value === undefined) {
+    return value;
+  }
+
   if (typeof value === 'string') {
     return maskString(value);
   }
   
   if (value instanceof Error) {
-    const maskedError = new Error(maskString(value.message));
-    maskedError.stack = value.stack ? maskString(value.stack) : undefined;
-    return maskedError;
+    try {
+      const maskedError = new Error(maskString(value.message));
+      maskedError.stack = value.stack ? maskString(value.stack) : undefined;
+      return maskedError;
+    } catch (e) {
+      return '[Error Masking Failed]';
+    }
   }
 
-  if (value && typeof value === 'object') {
-    if (seen.has(value)) {
-      return '[Circular]';
-    }
-    seen.add(value);
+  // Handle primitives that are not objects
+  if (typeof value !== 'object') {
+    return value;
   }
+
+  if (seen.has(value)) {
+    return '[Circular]';
+  }
+  seen.add(value);
 
   if (Array.isArray(value)) {
-    return value.map(v => maskValue(v, seen));
+    return value.map(v => maskValue(v, seen, depth + 1));
   }
 
-  if (value && typeof value === 'object') {
-    const maskedObj: any = {};
+  // Plain object
+  const maskedObj: any = {};
+  try {
     for (const key in value) {
-      maskedObj[key] = maskValue(value[key], seen);
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        maskedObj[key] = maskValue(value[key], seen, depth + 1);
+      }
     }
-    return maskedObj;
+  } catch (e) {
+    return '[Object Masking Failed]';
   }
-
-  return value;
+  return maskedObj;
 }
 
 const logger = {
-  info: (message: string, ...args: any[]) => {
+  info: (message: any, ...args: any[]) => {
     console.info(maskValue(message), ...args.map(v => maskValue(v)));
   },
   
-  warn: (message: string, ...args: any[]) => {
+  warn: (message: any, ...args: any[]) => {
     console.warn(maskValue(message), ...args.map(v => maskValue(v)));
   },
   
-  error: (message: string | Error, ...args: any[]) => {
+  error: (message: any, ...args: any[]) => {
     console.error(maskValue(message), ...args.map(v => maskValue(v)));
   },
   
-  debug: (message: string, ...args: any[]) => {
+  debug: (message: any, ...args: any[]) => {
     if (process.env.SDD_DEBUG === 'true') {
       console.debug(maskValue(message), ...args.map(v => maskValue(v)));
     }

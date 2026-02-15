@@ -542,25 +542,8 @@ export function getGuardModePath(): string {
   return path.join(dir, 'guard-mode.json');
 }
 
-export async function readGuardModeState(): Promise<GuardModeState | null> {
-  const filePath = getGuardModePath();
-  console.error('[DEBUG] readGuardModeState reading from:', filePath);
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(content);
-    if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block' || parsed.mode === 'disabled')) {
-      return parsed as GuardModeState;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 export async function writeGuardModeState(state: GuardModeState): Promise<void> {
   const currentGuardPath = getGuardModePath();
-  console.error('[DEBUG] writeGuardModeState target:', currentGuardPath);
   const release = await lockStateDir();
   try {
     const targetDir = path.dirname(currentGuardPath);
@@ -569,7 +552,22 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
     }
 
     const tmpPath = `${currentGuardPath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
+    
+    // Write and flush (using sync for reliability in tests)
+    const fd = fs.openSync(tmpPath, 'w');
+    fs.writeSync(fd, JSON.stringify(state, null, 2));
+    
+    // Only attempt fsync if we have a valid fd and the function exists
+    // Note: Node's fs.fsyncSync exists, Bun's might differ but usually supports it
+    try {
+      if (typeof (fs as any).fsyncSync === 'function') {
+        (fs as any).fsyncSync(fd);
+      }
+    } catch (e) {
+      // Ignore fsync errors (e.g. if file system doesn't support it)
+    }
+    
+    fs.closeSync(fd);
     
     // Ensure write is settled before rename
     if (!fs.existsSync(tmpPath)) {
@@ -577,13 +575,24 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
     }
 
     fs.renameSync(tmpPath, currentGuardPath);
-    
-    // Verify target exists
-    if (!fs.existsSync(currentGuardPath)) {
-        throw new Error(`[SDD] Rename failed to produce target: ${currentGuardPath}`);
-    }
   } finally {
     await release();
+  }
+}
+
+export async function readGuardModeState(): Promise<GuardModeState | null> {
+  const filePath = getGuardModePath();
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    if (!content || content.trim() === '') return null; // Avoid empty file issues
+    const parsed = JSON.parse(content);
+    if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block' || parsed.mode === 'disabled')) {
+      return parsed as GuardModeState;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 

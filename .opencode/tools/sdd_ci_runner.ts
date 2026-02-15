@@ -55,7 +55,10 @@ function getChangedFiles(): string[] {
       } else {
         // HEAD~1 が存在しない場合: 初回コミットのファイル一覧
         logger.info('🔍 CI Mode (Push, initial commit): Listing files in HEAD');
-        args = ['show', '--name-only', '--pretty=', 'HEAD'];
+        
+        // Use 'ls-tree' to list all files tracked in current commit
+        // This is more reliable than 'show' for initial commit file listing
+        args = ['ls-tree', '-r', '--name-only', 'HEAD'];
       }
     }
   } else {
@@ -244,7 +247,17 @@ if (import.meta.main) {
     logger.info(`\n${res}`);
     process.exit(0);
   }).catch((err: any) => {
-    logger.error(err);
+    // logger.error(err) は PII Masker (logger.ts) の再帰呼び出しでクラッシュする可能性があるため、
+    // 致命的なエラー時は直接 console.error を使用する
+    if (err instanceof Error) {
+      console.error(`\n❌ Error: ${err.message}`);
+      // スタックトレースはデバッグ時のみ
+      if (process.env.SDD_DEBUG === 'true' && err.stack) {
+        console.error(err.stack);
+      }
+    } else {
+      console.error(`\n❌ Unknown Error: ${String(err)}`);
+    }
     process.exit(1);
   });
 }
