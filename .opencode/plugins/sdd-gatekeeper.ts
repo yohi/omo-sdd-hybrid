@@ -16,12 +16,18 @@ import {
 const SddGatekeeper: Plugin = async (options) => {
   const opts = options as any;
   const client = opts.client;
-  const worktreeRoot = options.worktree || getWorktreeRoot();
   const readState = opts?.__testDeps?.readState ?? defaultReadState;
   const readGuardModeState = opts?.__testDeps?.readGuardModeState ?? defaultReadGuardModeState;
 
+  let resolvedWorktreeRoot: string | null = options.worktree || null;
+
   return {
     'tool.execute.before': async (input, output) => {
+      if (!resolvedWorktreeRoot) {
+        resolvedWorktreeRoot = getWorktreeRoot();
+      }
+      const worktreeRoot = resolvedWorktreeRoot;
+
       const toolInput = input?.tool;
       const name = typeof toolInput === 'string'
         ? toolInput

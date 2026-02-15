@@ -55,7 +55,19 @@ function getChangedFiles(): string[] {
       } else {
         // HEAD~1 が存在しない場合: 初回コミットのファイル一覧
         logger.info('🔍 CI Mode (Push, initial commit): Listing files in HEAD');
-        args = ['show', '--name-only', '--pretty=', 'HEAD'];
+        
+        // Use 'ls-tree' to list all files tracked in current commit
+        // This is more reliable than 'show' for initial commit file listing
+        // Note: ls-tree with -r --name-only returns paths relative to repo root
+        const lsTreeResult = spawnSync('git', ['-C', '..', 'ls-tree', '-r', '--name-only', 'HEAD'], {
+          encoding: 'utf-8'
+        });
+
+        if (lsTreeResult.status !== 0) {
+          throw new Error(`Git ls-tree failed: ${lsTreeResult.stderr}`);
+        }
+
+        return lsTreeResult.stdout.split('\n').filter(line => line.trim().length > 0);
       }
     }
   } else {
@@ -158,7 +170,10 @@ function loadTaskScopes(): { scopes: string[]; sources: string[] } {
   }
 
   if (scopes.length === 0) {
-    throw new Error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
+    // logger.errorでメッセージを出力し、throw Errorでは簡潔なメッセージを投げる
+    // PII Maskerによるスタックトレース出力を避けるため
+    logger.error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
+    throw new Error('Scope definition not found');
   }
 
   const uniqueScopes = Array.from(new Set(scopes));
@@ -241,7 +256,17 @@ if (import.meta.main) {
     logger.info(`\n${res}`);
     process.exit(0);
   }).catch((err: any) => {
-    logger.error(err);
+    // logger.error(err) は PII Masker (logger.ts) の再帰呼び出しでクラッシュする可能性があるため、
+    // 致命的なエラー時は直接 console.error を使用する
+    if (err instanceof Error) {
+      console.error(`\n❌ Error: ${err.message}`);
+      // スタックトレースはデバッグ時のみ
+      if (process.env.SDD_DEBUG === 'true' && err.stack) {
+        console.error(err.stack);
+      }
+    } else {
+      console.error(`\n❌ Unknown Error: ${String(err)}`);
+    }
     process.exit(1);
   });
 }

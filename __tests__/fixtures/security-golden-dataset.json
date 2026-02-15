@@ -1,0 +1,102 @@
+{
+  "cases": [
+    {
+      "id": "safe-echo",
+      "toolName": "bash",
+      "command": "echo \"hello\"",
+      "expected": {
+        "allowed": true,
+        "warned": false
+      }
+    },
+    {
+      "id": "safe-ls",
+      "toolName": "bash",
+      "command": "ls -la",
+      "expected": {
+        "allowed": true,
+        "warned": false
+      }
+    },
+    {
+      "id": "destructive-rm-rf-root",
+      "toolName": "bash",
+      "command": "rm -rf /",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    },
+    {
+      "id": "destructive-git-clean-fdx",
+      "toolName": "bash",
+      "command": "git clean -fdx",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    },
+    {
+      "id": "destructive-git-reset-hard",
+      "toolName": "bash",
+      "command": "git reset --hard",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    },
+    {
+      "id": "destructive-git-push",
+      "toolName": "bash",
+      "command": "git push origin main",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    },
+    {
+      "id": "destructive-git-apply",
+      "toolName": "bash",
+      "command": "git apply patch.diff",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    },
+    {
+      "id": "quoted-rm-rf",
+      "toolName": "bash",
+      "command": "rm \"-rf\" /",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    },
+    {
+      "id": "complex-bash-wrapper-sudo",
+      "toolName": "bash",
+      "command": "sudo rm -rf /",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    },
+    {
+      "id": "complex-bash-segments",
+      "toolName": "bash",
+      "command": "echo hello; rm -rf /",
+      "expected": {
+        "allowed": false,
+        "warned": true,
+        "rule": "Rule4"
+      }
+    }
+  ]
+}

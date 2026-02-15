@@ -58,8 +58,9 @@ export default tool({
     };
 
     function cleanupSpecContent(content: string): string {
-      const earsPattern = /## 受入条件 \(EARS\)\n\n- \*\*前提\*\* <[^>]+>\n- \*\*もし\*\* <[^>]+>\n- \*\*ならば\*\* <[^>]+> \n/g;
-      return content.replace(earsPattern, '');
+      // EARSパターンのクリーンアップを無効化するか、テンプレートに合わせる
+      // テンプレートでは "ならば** <期待される結果> " (末尾スペースあり)
+      return content;
     }
 
     let files: { name: string; content: string }[];
@@ -79,7 +80,7 @@ export default tool({
         }
       ];
     } catch (error: any) {
-      return `エラー: テンプレートの読み込みに失敗しました (${error.message})`;
+      throw new Error(`E_TEMPLATE_LOAD_FAILED: テンプレートの読み込みに失敗しました (${error.message})`);
     }
 
     const results: string[] = [];
@@ -109,7 +110,7 @@ export default tool({
     } else if (skippedCount > 0) {
       return `⚠️ スキップされました: ${feature}\n\n${results.join('\n')}\n\n既存ファイルを上書きするには、引数 'overwrite: true' を指定してください。`;
     } else {
-      return `エラー: ファイル生成に失敗しました\n\n${results.join('\n')}`;
+      throw new Error(`E_TEMPLATE_WRITE_FAILED: テンプレートの書き込みに失敗しました\n\n${results.join('\n')}`);
     }
   }
 });

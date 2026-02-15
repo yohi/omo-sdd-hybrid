@@ -2,6 +2,22 @@ import { logger } from './logger.js';
 
 const API_BASE = process.env.SDD_LLM_API_BASE || process.env.SDD_EMBEDDINGS_API_BASE || 'https://api.openai.com/v1';
 
+export class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TimeoutError';
+  }
+}
+
+export class APIError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+  }
+}
+
 export interface Message {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -15,24 +31,69 @@ export function isLlmEnabled(): boolean {
   return !!(process.env.SDD_LLM_API_KEY || process.env.SDD_EMBEDDINGS_API_KEY || process.env.SDD_GEMINI_API_KEY);
 }
 
-export async function getChatCompletion(messages: Message[]): Promise<string | null> {
-  const model = getModel();
-  const isGemini = process.env.SDD_AI_PROVIDER === 'gemini' || model.startsWith('gemini-');
-  if (isGemini) {
-    return fetchGeminiCompletion(messages, model);
-  }
+const DEFAULT_TIMEOUT = 30000;
 
+function getTimeout(): number {
+  const timeout = process.env.SDD_LLM_TIMEOUT;
+  return timeout ? parseInt(timeout, 10) : DEFAULT_TIMEOUT;
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function getChatCompletion(messages: Message[]): Promise<string> {
+  const maxRetries = 3;
+  let lastError: any;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const model = getModel();
+      const isGemini = process.env.SDD_AI_PROVIDER === 'gemini' || model.startsWith('gemini-');
+      let result: string | null;
+
+      if (isGemini) {
+        result = await fetchGeminiCompletion(messages, model);
+      } else {
+        result = await fetchOpenAiCompletion(messages, model);
+      }
+
+      if (result === null) {
+        throw new APIError('E_LLM_EMPTY_RESPONSE: LLM returned empty response');
+      }
+      return result;
+
+    } catch (error: any) {
+      lastError = error;
+      const status = (error as APIError).status;
+      const isRetryable = status === 429 || (status && status >= 500);
+
+      if (isRetryable && i < maxRetries - 1) {
+        const delay = Math.pow(2, i) * 1000;
+        logger.warn(`[SDD-LLM] Retryable error ${status}. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+        await sleep(delay);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
+async function fetchOpenAiCompletion(messages: Message[], model: string): Promise<string | null> {
   const apiKey = process.env.SDD_LLM_API_KEY || process.env.SDD_EMBEDDINGS_API_KEY;
   if (!apiKey) {
-    logger.warn('[SDD-LLM] Skipped: SDD_LLM_API_KEY or SDD_EMBEDDINGS_API_KEY is not set');
-    return null;
+    throw new APIError('E_LLM_API_KEY_MISSING: SDD_LLM_API_KEY or SDD_EMBEDDINGS_API_KEY is not set');
   }
 
   const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
   const url = `${baseUrl}/chat/completions`;
 
+  const timeout = getTimeout();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeout);
 
   try {
     const response = await fetch(url, {
@@ -42,7 +103,7 @@ export async function getChatCompletion(messages: Message[]): Promise<string | n
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: getModel(),
+        model: model,
         messages: messages,
         temperature: 0.1
       }),
@@ -54,34 +115,36 @@ export async function getChatCompletion(messages: Message[]): Promise<string | n
       const errorText = await response.text();
       const sanitized = errorText.length > 200 ? errorText.slice(0, 200) + '... (truncated)' : errorText;
       logger.error(`[SDD-LLM] Error ${response.status}: ${sanitized}`);
-      return null;
+      throw new APIError(`E_LLM_API_ERROR: ${sanitized}`, response.status);
     }
 
     const json = await response.json() as any;
     
     if (!json.choices || !Array.isArray(json.choices) || json.choices.length === 0) {
       logger.error('[SDD-LLM] Invalid response format', json);
-      return null;
+      throw new APIError('E_LLM_INVALID_RESPONSE: Invalid response format from API');
     }
 
     return json.choices[0].message?.content || null;
       
   } catch (error: any) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      logger.error('[SDD-LLM] Request timed out after 30s');
-      return null;
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      logger.error(`[SDD-LLM] Request timed out after ${timeout}ms`);
+      throw new TimeoutError(`E_LLM_TIMEOUT: Request timed out after ${timeout}ms`);
+    }
+    if (error instanceof APIError) {
+      throw error;
     }
     logger.error('[SDD-LLM] Network error:', error);
-    return null;
+    throw new APIError(`E_LLM_NETWORK_ERROR: ${error.message}`);
   }
 }
 
 async function fetchGeminiCompletion(messages: Message[], model: string): Promise<string | null> {
   const apiKey = process.env.SDD_GEMINI_API_KEY;
   if (!apiKey) {
-    logger.warn('[SDD-LLM] Skipped: SDD_GEMINI_API_KEY is not set');
-    return null;
+    throw new APIError('E_LLM_API_KEY_MISSING: SDD_GEMINI_API_KEY is not set');
   }
 
   const geminiModel = model.startsWith('gemini-') ? model : 'gemini-1.5-flash';
@@ -109,8 +172,9 @@ async function fetchGeminiCompletion(messages: Message[], model: string): Promis
     };
   }
 
+  const timeout = getTimeout();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
     const response = await fetch(url, {
@@ -127,7 +191,7 @@ async function fetchGeminiCompletion(messages: Message[], model: string): Promis
       const errorText = await response.text();
       const sanitized = errorText.length > 200 ? errorText.slice(0, 200) + '... (truncated)' : errorText;
       logger.error(`[SDD-LLM-Gemini] Error ${response.status}: ${sanitized}`);
-      return null;
+      throw new APIError(`E_LLM_API_ERROR: ${sanitized}`, response.status);
     }
 
     const json = await response.json() as any;
@@ -135,7 +199,7 @@ async function fetchGeminiCompletion(messages: Message[], model: string): Promis
 
     if (!text) {
       logger.error('[SDD-LLM-Gemini] Invalid response format', json);
-      return null;
+      throw new APIError('E_LLM_INVALID_RESPONSE: Invalid response format from Gemini API');
     }
 
     return text;
@@ -143,10 +207,14 @@ async function fetchGeminiCompletion(messages: Message[], model: string): Promis
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      logger.error('[SDD-LLM-Gemini] Request timed out after 30s');
-      return null;
+      logger.error(`[SDD-LLM-Gemini] Request timed out after ${timeout}ms`);
+      throw new TimeoutError(`E_LLM_TIMEOUT: Request timed out after ${timeout}ms`);
+    }
+    if (error instanceof APIError) {
+      throw error;
     }
     logger.error('[SDD-LLM-Gemini] Network error:', error);
-    return null;
+    throw new APIError(`E_LLM_NETWORK_ERROR: ${error.message}`);
   }
 }
+

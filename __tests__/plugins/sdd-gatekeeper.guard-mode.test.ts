@@ -152,7 +152,7 @@ describe('sdd-gatekeeper guard mode priority', () => {
     await hook(event as any, {} as any);
   });
 
-  test('defaults to disabled when both file and env are missing', async () => {
+  test('defaults to block when both file and env are missing', async () => {
     const mockReadGuardModeState = mock(() => Promise.resolve(null));
 
     delete process.env.SDD_GUARD_MODE;
@@ -180,6 +180,6 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await hook(event as any, {} as any);
+    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
   });
 });

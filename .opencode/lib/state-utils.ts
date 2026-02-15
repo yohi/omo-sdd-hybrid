@@ -13,15 +13,17 @@ const STATE_HMAC_KEY_NAME = 'state-hmac.key';
 const STATE_AUDIT_LOG_NAME = 'state-audit.log';
 
 export function getStateDir(): string {
-  return process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
+  const dir = process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
+  return path.resolve(dir);
 }
 
 export function getStatePath(): string {
-  return `${getStateDir()}/current_context.json`;
+  return path.join(getStateDir(), 'current_context.json');
 }
 
 export function getTasksPath(): string {
-  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+  const p = process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+  return path.resolve(p);
 }
 
 export interface State {
@@ -58,11 +60,11 @@ export type StateResult =
 
 // Simple file-based lock utilities
 function getLockPath(): string {
-  return `${getStateDir()}/${LOCK_DIR_NAME}`;
+  return path.join(getStateDir(), LOCK_DIR_NAME);
 }
 
 function getLockInfoPath(): string {
-  return `${getStateDir()}/${LOCK_INFO_NAME}`;
+  return path.join(getStateDir(), LOCK_INFO_NAME);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -296,9 +298,14 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
 }
 
 export async function writeState(state: StateInput): Promise<void> {
-  const statePath = getStatePath();
+  const currentStatePath = getStatePath();
   const release = await lockStateDir(state.activeTaskId);
   try {
+    const currentStateDir = path.dirname(currentStatePath);
+    if (!fs.existsSync(currentStateDir)) {
+      fs.mkdirSync(currentStateDir, { recursive: true });
+    }
+
     let tasksMdHash = state.tasksMdHash;
     if (!tasksMdHash || tasksMdHash.trim() === '') {
       tasksMdHash = await readTasksMdHash();
@@ -314,11 +321,11 @@ export async function writeState(state: StateInput): Promise<void> {
       stateHash,
     };
 
-    rotateBackup(statePath);
-    // Use fs.writeFileSync instead of write-file-atomic to avoid potential Bun issues
-    const tmpPath = `${statePath}.${process.pid}.tmp`;
+    rotateBackup(currentStatePath);
+    const tmpPath = `${currentStatePath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
     fs.writeFileSync(tmpPath, JSON.stringify(stateToWrite, null, 2));
-    fs.renameSync(tmpPath, statePath);
+    fs.renameSync(tmpPath, currentStatePath);
+
     appendStateAuditLog(`STATE_WRITE: taskId=${stateToWrite.activeTaskId} by=${stateToWrite.startedBy}`);
   } finally {
     await release();
@@ -531,33 +538,103 @@ export interface GuardModeState {
 }
 
 export function getGuardModePath(): string {
-  return `${getStateDir()}/guard-mode.json`;
+  const dir = getStateDir();
+  return path.join(dir, 'guard-mode.json');
+}
+
+export async function writeGuardModeState(state: GuardModeState): Promise<void> {
+  const currentGuardPath = getGuardModePath();
+  const release = await lockStateDir();
+  try {
+    const targetDir = path.dirname(currentGuardPath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const tmpPath = `${currentGuardPath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
+    
+    // Write and flush (using sync for reliability in tests)
+    const fd = fs.openSync(tmpPath, 'w');
+    try {
+      try {
+        fs.writeSync(fd, JSON.stringify(state, null, 2));
+        try {
+          if (typeof fs.fsyncSync === 'function') {
+            fs.fsyncSync(fd);
+          }
+        } catch { /* ignore */ }
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch (error) {
+      try {
+        if (fs.existsSync(tmpPath)) {
+          fs.unlinkSync(tmpPath);
+        }
+      } catch { /* ignore */ }
+      throw error;
+    }
+    
+    // Explicitly verify temp file exists and has content before renaming
+    // If it doesn't settle quickly, it might be due to heavy I/O or race
+    let settled = false;
+    for (let i = 0; i < 5; i++) {
+        if (fs.existsSync(tmpPath) && fs.statSync(tmpPath).size > 0) {
+            settled = true;
+            break;
+        }
+        await sleep(20);
+    }
+
+    if (settled) {
+        fs.renameSync(tmpPath, currentGuardPath);
+    } else {
+        // Fallback: try rename anyway if it exists but size check failed (might be OS/FS quirk)
+        if (fs.existsSync(tmpPath)) {
+            fs.renameSync(tmpPath, currentGuardPath);
+        } else {
+            throw new Error(`[SDD] Failed to create temp file for guard mode: ${tmpPath}`);
+        }
+    }
+  } finally {
+    await release();
+  }
 }
 
 export async function readGuardModeState(): Promise<GuardModeState | null> {
   const filePath = getGuardModePath();
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(content);
-    if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block' || parsed.mode === 'disabled')) {
-      return parsed as GuardModeState;
+  
+  // Try to read multiple times in case of race conditions
+  for (let i = 0; i < 5; i++) {
+    if (fs.existsSync(filePath)) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        if (content && content.trim() !== '') {
+          const parsed = JSON.parse(content);
+          if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block' || parsed.mode === 'disabled')) {
+            return parsed as GuardModeState;
+          }
+        }
+      } catch {
+        // Ignore parse/read errors and retry
+      }
     }
-    return null;
-  } catch {
-    return null;
+    if (i < 4) await sleep(20);
   }
+  return null;
 }
 
-export async function writeGuardModeState(state: GuardModeState): Promise<void> {
-  const statePath = getGuardModePath();
-  const release = await lockStateDir();
-  try {
-    // Use fs.writeFileSync + rename for atomic write
-    const tmpPath = `${statePath}.${process.pid}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
-    fs.renameSync(tmpPath, statePath);
-  } finally {
-    await release();
+/**
+ * @deprecated Use writeGuardModeState instead to ensure proper locking.
+ * This is for internal use within the same process where lock is already held.
+ */
+export function writeGuardModeStateSync(state: GuardModeState): void {
+  const currentGuardPath = getGuardModePath();
+  const targetDir = path.dirname(currentGuardPath);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
   }
+  const tmpPath = `${currentGuardPath}.${process.pid}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
+  fs.renameSync(tmpPath, currentGuardPath);
 }

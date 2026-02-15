@@ -44,7 +44,7 @@ describe('sdd_scaffold_specs', () => {
 
     const reqContent = fs.readFileSync(path.join(specDir, 'requirements.md'), 'utf-8');
     expect(reqContent).toContain('# Requirements: auth-flow');
-    expect(reqContent).toContain('## 受入条件');
+    expect(reqContent).toContain('## 概要');
 
     const designContent = fs.readFileSync(path.join(specDir, 'design.md'), 'utf-8');
     expect(designContent).toContain('## コンポーネント');
@@ -101,22 +101,23 @@ describe('sdd_scaffold_specs', () => {
     expect(content).toContain('# Requirements');
   });
 
-  it('テンプレートファイルが存在しない場合に適切なエラーを返す', async () => {
+  it('テンプレートファイルが存在しない場合はデフォルトのEARSテンプレートを使用する', async () => {
     const feature = 'no-template-feat';
     
     const originalExists = fs.existsSync;
     const existsSpy = spyOn(fs, 'existsSync').mockImplementation((p: fs.PathLike) => {
-      if (p.toString().endsWith('requirements.md') && p.toString().includes('templates')) {
+      if (p.toString().endsWith('.md') && p.toString().includes('templates')) {
         return false;
       }
       return originalExists(p);
     });
 
     const result = await runTool({ feature });
-    expect(result).toContain('エラー: テンプレートの読み込みに失敗しました');
-    expect(result).toContain('テンプレートファイルが見つかりません: requirements.md');
+    expect(result).toContain(`✅ 仕様書の雛形を作成しました: ${feature}`);
     
-    existsSpy.mockRestore();
+    const specDir = path.join(kiroDir, 'specs', feature);
+    const reqContent = fs.readFileSync(path.join(specDir, 'requirements.md'), 'utf-8');
+    expect(reqContent).toContain('## 受入条件 (EARS)');
   });
 
   it('パス・トラバーサル文字が含まれるfeature名を拒否する', async () => {

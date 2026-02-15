@@ -1,6 +1,8 @@
 import { spawnSync } from 'child_process';
 import { tool } from '@opencode-ai/plugin';
-import { clearState as defaultClearState, readState as defaultReadState } from '../lib/state-utils';
+import { clearState as defaultClearState, readState as defaultReadState, getStateDir } from '../lib/state-utils';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Git の変更（ステージング済み、未ステージング）を取得する
@@ -60,6 +62,24 @@ export default tool({
         : '\n未コミットの変更はありません。';
 
     await clearState();
+    
+    // クリーンアップ: ロックファイルやHMACキー、監査ログ等が残っている場合は、ディレクトリが空なら削除を試みる
+    // (テスト環境でのゴミ残りを防ぐため)
+    const stateDir = getStateDir();
+    try {
+      if (fs.existsSync(stateDir)) {
+        const remainingFiles = fs.readdirSync(stateDir);
+        // .lock, .lock-info.json, state-hmac.key, state-audit.log のみを許容して削除を試みる
+        const disposableFiles = ['.lock', '.lock-info.json', 'state-hmac.key', 'state-audit.log'];
+        if (remainingFiles.every(f => disposableFiles.includes(f))) {
+           // テストモード時はディレクトリごと消して良い
+           if (process.env.NODE_ENV === 'test' || process.env.SDD_TEST_MODE === 'true') {
+             fs.rmSync(stateDir, { recursive: true, force: true });
+           }
+        }
+      }
+    } catch { /* 無視 */ }
+
     return `タスク終了: ${state.activeTaskId}${recoveryNote}${summary}
 State をクリアしました。次のタスクを開始するには sdd_start_task を実行してください。`;
   }
