@@ -109,7 +109,7 @@ Gatekeeper は以下を**常に編集許可**する（プロセスを止めな�
 ```
 
 #### TaskID ルール
-- MUST: `[A-Za-z][A-Za-z0-9_-]*-\d+` に一致（例: `Task-1`, `PAY-12`）
+- MUST: `[A-Za-z0-9._-]+` に一致（例: `Task-1`, `readme-update`）
 
 #### Scope ルール（Phase別）
 
@@ -203,7 +203,7 @@ If `sdd` CLI tool is not yet implemented, perform manual migration:
 
 3. **Verify syntax:**
    - Check that all task lines match: `* [ ] TaskID: Title (Scope: \`glob1\`, \`glob2\`, ...)`
-   - Ensure TaskID follows pattern: `[A-Za-z][A-Za-z0-9_-]*-\\d+`
+   - Ensure TaskID follows pattern: `[A-Za-z0-9._-]+`
    - Verify all globs are in backticks
 
 **変換例:**
@@ -248,7 +248,7 @@ If `lint-tasks` is not yet implemented, perform manual validation:
    - Verify `allowedScopes` in `.opencode/state/current_context.json` is correctly populated
 
 3. **Manual regex validation:**
-   - All task lines must match: `^\* \[([ x])\] ([A-Za-z][A-Za-z0-9_-]*-\d+): .+ \(Scope: (\`[^\`]+\`)(, \`[^\`]+\`)*\)$`
+   - All task lines must match: `^\* \[([ x])\] ([A-Za-z0-9._-]+): .+ \(Scope: (\`[^\`]+\`)(, \`[^\`]+\`)*\)$`
    - Each Scope pattern must be in backticks
    - No bare patterns (without backticks) should exist in Phase 1
 

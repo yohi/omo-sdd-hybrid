@@ -11,7 +11,7 @@ import { logger } from '../lib/logger.js';
  * scripts/sdd_ci_validate.ts から呼び出されることを想定
  */
 
-const ALWAYS_ALLOW_PREFIXES = ['specs/', '.opencode/', '.kiro/'];
+const ALWAYS_ALLOW_PREFIXES = ['specs/', '.opencode/', '.kiro/', 'spec.md', 'README.md', 'AGENTS.md'];
 
 type RunnerOptions = {
   strict: boolean;

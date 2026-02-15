@@ -164,10 +164,10 @@ export function parseSddTasks(markdown: string, options: { validateScopes?: bool
 
     let hasValidationError = false;
 
-    if (!/^[A-Za-z0-9._-]+-\d+$/.test(taskId)) {
+    if (!/^[A-Za-z0-9._-]+$/.test(taskId)) {
        errors.push({
         line: lineNo,
-        reason: `TaskID のフォーマットエラー: "${taskId}" は "TaskID-N" または "PREFIX-N" 形式である必要があります`,
+        reason: `TaskID のフォーマットエラー: "${taskId}" は英数字、ハイフン、アンダースコア、ドットのみで構成される必要があります`,
         content: contentLine
       });
       hasValidationError = true;
@@ -265,7 +265,7 @@ export function parseKiroTasks(markdown: string): ParseResult {
     const id = fullText.substring(0, colonIndex).trim();
     const description = fullText.substring(colonIndex + 2).trim();
 
-    if (!/^[A-Za-z][A-Za-z0-9._-]+-\d+$/.test(id)) {
+    if (!/^[A-Za-z0-9._-]+$/.test(id)) {
         return;
     }
 
