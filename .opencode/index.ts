@@ -120,13 +120,38 @@ function mergeHooks(hooksList: { name: string; hooks: Hooks }[]): Hooks {
 }
 
 const plugin: Plugin = async (options) => {
-  const results = await Promise.all([
-    gatekeeper(options),
-    contextInjector(options),
-    feedbackLoop(options),
-    commandHandler(options),
-    configCommands(options),
-  ]);
+  console.log('[Opencode Plugin] Initializing plugins...');
+  
+  const pluginNames = [
+    'sdd-gatekeeper',
+    'sdd-context-injector',
+    'sdd-feedback-loop',
+    'sdd-command-handler',
+    'sdd-config-commands'
+  ];
+  
+  const initializers = [
+    gatekeeper,
+    contextInjector,
+    feedbackLoop,
+    commandHandler,
+    configCommands
+  ];
+
+  const results: any[] = [];
+  
+  for (let i = 0; i < pluginNames.length; i++) {
+    const name = pluginNames[i];
+    console.log(`[Opencode Plugin] Starting ${name}...`);
+    try {
+      const result = await initializers[i](options);
+      results.push(result);
+      console.log(`[Opencode Plugin] Finished ${name}.`);
+    } catch (error) {
+      console.error(`[Opencode Plugin] Failed to initialize ${name}:`, error);
+      throw error;
+    }
+  }
 
   const hooksList = [
     { name: 'sdd-gatekeeper', hooks: results[0] },
@@ -137,6 +162,7 @@ const plugin: Plugin = async (options) => {
     { name: 'sdd-tools', hooks: { tool: tools } },
   ];
 
+  console.log('[Opencode Plugin] All plugins initialized successfully.');
   return mergeHooks(hooksList);
 };
 
