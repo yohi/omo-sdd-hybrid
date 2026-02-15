@@ -1,7 +1,7 @@
 import { tool } from '@opencode-ai/plugin';
 import fs from 'fs';
 import path from 'path';
-import { writeState } from '../lib/state-utils';
+import { writeState, writeGuardModeState } from '../lib/state-utils';
 import { resolveTask } from '../lib/scope-resolver';
 import { parseSddTasks } from '../lib/tasks_markdown';
 import { selectRoleForTask } from '../lib/agent-selector';
@@ -110,6 +110,12 @@ export default tool({
       startedBy: 'sdd_start_task',
       validationAttempts: 0,
       role: determinedRole
+    });
+
+    await writeGuardModeState({
+      mode: 'block',
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'sdd_start_task'
     });
 
     return `タスク開始: ${task.id} (source: ${sourceInfo})

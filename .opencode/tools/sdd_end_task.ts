@@ -1,6 +1,6 @@
 import { spawnSync } from 'child_process';
 import { tool } from '@opencode-ai/plugin';
-import { clearState as defaultClearState, readState as defaultReadState, getStateDir } from '../lib/state-utils';
+import { clearState as defaultClearState, readState as defaultReadState, getStateDir, writeGuardModeState } from '../lib/state-utils';
 import fs from 'fs';
 import path from 'path';
 
@@ -62,7 +62,13 @@ export default tool({
         : '\n未コミットの変更はありません。';
 
     await clearState();
-    
+
+    await writeGuardModeState({
+      mode: 'disabled',
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'sdd_end_task'
+    });
+
     // クリーンアップ: ロックファイルやHMACキー、監査ログ等が残っている場合は、ディレクトリが空なら削除を試みる
     // (テスト環境でのゴミ残りを防ぐため)
     const stateDir = getStateDir();
