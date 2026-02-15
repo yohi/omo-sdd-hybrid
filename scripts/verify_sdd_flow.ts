@@ -12,6 +12,7 @@ async function runVerification() {
     console.log('Start Result:', result);
   } catch (e) {
     console.error('Start Failed:', e);
+    process.exit(1);
   }
 
   // 2. Verify Guard Mode = block
@@ -31,6 +32,7 @@ async function runVerification() {
     console.log('End Result:', result);
   } catch (e) {
     console.error('End Failed:', e);
+    process.exit(1);
   }
 
   // 4. Verify Guard Mode = disabled
