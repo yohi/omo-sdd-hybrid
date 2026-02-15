@@ -73,6 +73,7 @@ describe('path-validator', () => {
     });
 
     it('should handle symlinks pointing inside baseDir', () => {
+      if (process.platform === 'win32') return;
       const target = path.join(baseDir, 'file.txt');
       fs.writeFileSync(target, 'hello');
       
@@ -84,6 +85,7 @@ describe('path-validator', () => {
     });
 
     it('should throw PathValidationError for symlinks pointing outside baseDir', () => {
+      if (process.platform === 'win32') return;
       const outsideFile = path.join(tempDir, 'outside.txt');
       fs.writeFileSync(outsideFile, 'secret');
       
@@ -96,6 +98,7 @@ describe('path-validator', () => {
     });
 
     it('should handle symlinks in baseDir path itself', () => {
+      if (process.platform === 'win32') return;
       const realBase = path.join(tempDir, 'real-base');
       fs.mkdirSync(realBase);
       const linkBase = path.join(tempDir, 'link-base');

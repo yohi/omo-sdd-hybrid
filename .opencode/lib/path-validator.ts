@@ -68,7 +68,7 @@ export function validatePath(targetPath: string, baseDir: string): string {
   }
 
   const absoluteBase = path.resolve(baseDir);
-  const absoluteTarget = path.resolve(targetPath);
+  const absoluteTarget = path.resolve(absoluteBase, targetPath);
 
   // シンボリックリンクを考慮した実パスの解決
   const realBase = resolveRealPath(absoluteBase);
