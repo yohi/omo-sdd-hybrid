@@ -12,7 +12,8 @@ export function getWorktreeRoot(): string {
   try {
     const result = execSync('git rev-parse --show-toplevel', {
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000 // 5 seconds timeout
     });
     return result.trim();
   } catch {
