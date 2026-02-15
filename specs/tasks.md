@@ -12,4 +12,4 @@
 * [x] Task-4: 統合テストとドキュメント (Scope: `README.md`, `docs/OPERATIONS.md`)
 * [x] Task-Refactor-1: Enable Strict Mode & Fix Core Types (Scope: `.opencode/**`, `tsconfig.json`, `src/*.ts`)
 * [x] Task-Refactor-2: Implement PII Masker & Integration (Scope: `.opencode/lib/**`, `__tests__/**`)
-* [ ] Task-Fix-PII-Masker-Order: Update replacement order (Scope: `.opencode/lib/pii-masker.ts`, `repro_ipv4_mapped_ipv6.js`, `specs/tasks.md`)
+* [ ] Task-1: Fix PII Masking Order and Regex (Scope: `.opencode/lib/pii-masker.ts`, `repro_ipv4_mapped_ipv6.ts`, `repro_ipv6_test.ts`, `specs/tasks.md`)
