@@ -5,6 +5,8 @@ import { readGuardModeState } from '../.opencode/lib/state-utils';
 async function runVerification() {
   console.log('--- Verification Start ---');
 
+  let originalError: unknown = null;
+
   try {
     // 1. Start Task
     console.log('1. Starting Task...');
@@ -22,7 +24,8 @@ async function runVerification() {
 
   } catch (e) {
     console.error('Verification Start Phase Failed:', e);
-    throw e; // Rethrow to trigger exit(1) in top-level catch
+    originalError = e;
+    process.exitCode = 1;
   } finally {
     // 3. End Task (Cleanup)
     console.log('3. Ending Task (Cleanup)...');
@@ -32,8 +35,14 @@ async function runVerification() {
     } catch (e) {
       console.error('End Task Failed:', e);
       process.exitCode = 1;
-      throw e;
+      if (!originalError) {
+        originalError = e;
+      }
     }
+  }
+
+  if (originalError) {
+    throw originalError;
   }
 
   // 4. Verify Guard Mode = disabled
