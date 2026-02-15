@@ -1,17 +1,29 @@
 import { evaluateAccess, evaluateMultiEdit, type AccessResult, type GuardMode } from '../../.opencode/lib/access-policy';
-import { StateResult, readState, clearState, getStatePath } from '../../.opencode/lib/state-utils';
+import { StateResult, readState, clearState, getStatePath, setTestConfig } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
 export function setupTestState(): string {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omo-sdd-state-'));
+  
+  // Use setTestConfig for isolation instead of process.env global pollution
+  setTestConfig({
+    stateDir: tmpDir,
+    tasksPath: path.join(tmpDir, 'tasks.md'),
+    testMode: true,
+    lockRetries: 50,
+    lockStale: 10000
+  });
+
+  // Keep these for other modules that might still rely on env vars (backward compat during refactor)
   process.env.SDD_STATE_DIR = tmpDir;
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
   process.env.SDD_TEST_MODE = 'true';
   process.env.SDD_GUARD_MODE = 'warn';
-  const tasksPath = process.env.SDD_TASKS_PATH;
+
+  const tasksPath = path.join(tmpDir, 'tasks.md');
   if (tasksPath) {
     fs.writeFileSync(tasksPath, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
   }
@@ -19,6 +31,9 @@ export function setupTestState(): string {
 }
 
 export function cleanupTestState(): void {
+  // Reset config
+  setTestConfig(null);
+
   const stateDir = process.env.SDD_STATE_DIR;
   if (stateDir && fs.existsSync(stateDir)) {
     fs.rmSync(stateDir, { recursive: true, force: true });

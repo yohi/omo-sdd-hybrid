@@ -1,17 +1,27 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
 import { withTempDir } from '../helpers/temp-dir';
-import { getStatePath } from '../../.opencode/lib/state-utils';
+import { getStatePath, setTestConfig } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 import path from 'path';
 
 const setupEnv = (tmpDir: string) => {
+  setTestConfig({
+    stateDir: tmpDir,
+    tasksPath: path.join(tmpDir, 'tasks.md'),
+    testMode: true
+  });
+  
+  // Keep process.env for tools that rely on it (sdd_start_task reads env directly for some paths)
   process.env.SDD_STATE_DIR = tmpDir;
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
   process.env.SDD_TEST_MODE = 'true';
   process.env.SDD_GUARD_MODE = 'warn';
-  // Note: SDD_SCOPE_FORMAT might be needed in some tests, handle it locally
 };
+
+afterEach(() => {
+  setTestConfig(null);
+});
 
 describe('sdd_start_task', () => {
   test('starts task and creates state', async () => {

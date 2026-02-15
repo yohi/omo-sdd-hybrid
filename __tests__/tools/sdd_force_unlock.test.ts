@@ -1,18 +1,28 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { withTempDir } from '../helpers/temp-dir';
-import { LockInfo } from '../../.opencode/lib/state-utils';
+import { LockInfo, setTestConfig } from '../../.opencode/lib/state-utils';
 
 const setupEnv = (tmpDir: string) => {
+  setTestConfig({
+    stateDir: tmpDir,
+    tasksPath: path.join(tmpDir, 'tasks.md'),
+    testMode: true
+  });
+  
   process.env.SDD_STATE_DIR = tmpDir;
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
   process.env.SDD_TEST_MODE = 'true';
   process.env.SDD_GUARD_MODE = 'warn';
-  fs.writeFileSync(process.env.SDD_TASKS_PATH, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
+  fs.writeFileSync(path.join(tmpDir, 'tasks.md'), '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
 };
+
+afterEach(() => {
+  setTestConfig(null);
+});
 
 describe('sdd_force_unlock', () => {
   test('dry-run shows locked status when lock exists', async () => {

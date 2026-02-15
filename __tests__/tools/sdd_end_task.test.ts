@@ -1,15 +1,26 @@
-import { describe, test, expect, mock } from 'bun:test';
+import { describe, test, expect, mock, afterEach } from 'bun:test';
 import { withTempDir } from '../helpers/temp-dir';
+import { setTestConfig } from '../../.opencode/lib/state-utils';
 import path from 'path';
 import fs from 'fs';
 
 const setupEnv = (tmpDir: string) => {
+  setTestConfig({
+    stateDir: tmpDir,
+    tasksPath: path.join(tmpDir, 'tasks.md'),
+    testMode: true
+  });
+  
   process.env.SDD_STATE_DIR = tmpDir;
   process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
   process.env.SDD_TEST_MODE = 'true';
   process.env.SDD_GUARD_MODE = 'warn';
 };
+
+afterEach(() => {
+  setTestConfig(null);
+});
 
 describe('sdd_end_task', () => {
   test('clears state when state exists', async () => {
