@@ -31,12 +31,8 @@ async function runVerification() {
       console.log('End Result:', endResult);
     } catch (e) {
       console.error('End Task Failed:', e);
-      // Don't throw here if it's just cleanup failure, but log it.
-      // Or if strict cleanup is required, throw. 
-      // Given the requirement is to ENSURE sddEndTask runs, finally block guarantees it.
-      // If end task fails, we might want to exit 1 too if it's critical.
-      // Let's assume end task failure is also a test failure.
-      process.exitCode = 1; 
+      process.exitCode = 1;
+      throw e;
     }
   }
 
