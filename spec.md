@@ -109,7 +109,7 @@ Gatekeeper は以下を**常に編集許可**する（プロセスを止めな�
 ```
 
 #### TaskID ルール
-- MUST: `[A-Za-z][A-Za-z0-9_-]*-\d+` に一致（例: `Task-1`, `PAY-12`）
+- MUST: `[A-Za-z0-9._-]+` に一致（例: `Task-1`, `readme-update`）
 
 #### Scope ルール（Phase別）
 

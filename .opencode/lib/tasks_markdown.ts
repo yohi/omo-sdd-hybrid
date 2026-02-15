@@ -265,7 +265,7 @@ export function parseKiroTasks(markdown: string): ParseResult {
     const id = fullText.substring(0, colonIndex).trim();
     const description = fullText.substring(colonIndex + 2).trim();
 
-    if (!/^[A-Za-z][A-Za-z0-9._-]+-\d+$/.test(id)) {
+    if (!/^[A-Za-z0-9._-]+$/.test(id)) {
         return;
     }
 
