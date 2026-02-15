@@ -104,6 +104,12 @@ describe('sdd_ci_runner', () => {
       },
     });
 
+    if (result.status !== 0) {
+      console.error('[DEBUG] sdd_ci_runner failed');
+      console.error('STDOUT:', result.stdout);
+      console.error('STDERR:', result.stderr);
+    }
+
     return {
       code: result.status ?? 1,
       output: (result.stdout || '') + (result.stderr || ''),

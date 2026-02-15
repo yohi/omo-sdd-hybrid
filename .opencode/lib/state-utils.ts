@@ -544,6 +544,7 @@ export function getGuardModePath(): string {
 
 export async function readGuardModeState(): Promise<GuardModeState | null> {
   const filePath = getGuardModePath();
+  console.error('[DEBUG] readGuardModeState reading from:', filePath);
   if (!fs.existsSync(filePath)) return null;
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -559,6 +560,7 @@ export async function readGuardModeState(): Promise<GuardModeState | null> {
 
 export async function writeGuardModeState(state: GuardModeState): Promise<void> {
   const currentGuardPath = getGuardModePath();
+  console.error('[DEBUG] writeGuardModeState target:', currentGuardPath);
   const release = await lockStateDir();
   try {
     const targetDir = path.dirname(currentGuardPath);
