@@ -33,7 +33,7 @@ describe('SddContextInjector', () => {
 
     expect(output.system.length).toBe(1);
     expect(output.system[0]).toContain('[SDD Context] No active task');
-    expect(output.system[0]).toContain('Guard: disabled'); // Default
+    expect(output.system[0]).toContain('Guard: block'); // Default Secure (changed from disabled)
   });
 
   it('injects active task context', async () => {

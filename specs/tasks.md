@@ -14,3 +14,4 @@
 * [x] Task-Refactor-2: Implement PII Masker & Integration (Scope: `.opencode/lib/**`, `__tests__/**`)
 * [x] Task-1: Fix PII Masking Order and Regex (Scope: `.opencode/lib/pii-masker.ts`, `repro_ipv4_mapped_ipv6.ts`, `repro_ipv6_test.ts`, `specs/tasks.md`)
 * [x] Task-Parallel-Test-1: Enable Test Parallelization (Scope: `package.json`, `scripts/**`, `.opencode/**`, `__tests__/**`, `specs/tasks.md`)
+* [ ] fix-ci-tests-1: Fix CI test failures due to core hardening (Scope: `__tests__/**`, `.opencode/**`)

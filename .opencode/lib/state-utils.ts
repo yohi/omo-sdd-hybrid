@@ -553,8 +553,15 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
 
     const tmpPath = `${currentGuardPath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
     
-    // Use Sync methods to ensure it's written before rename
-    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
+    // Write and flush (using sync for reliability in tests)
+    const fd = fs.openSync(tmpPath, 'w');
+    fs.writeSync(fd, JSON.stringify(state, null, 2));
+    try {
+      if (typeof fs.fsyncSync === 'function') {
+        fs.fsyncSync(fd);
+      }
+    } catch { /* ignore */ }
+    fs.closeSync(fd);
     
     // Explicitly verify temp file exists and has content before renaming
     // If it doesn't settle quickly, it might be due to heavy I/O or race

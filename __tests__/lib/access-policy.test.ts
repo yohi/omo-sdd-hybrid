@@ -328,9 +328,9 @@ describe('access-policy', () => {
   });
 
   describe('determineEffectiveGuardMode', () => {
-    test('default to disabled when state is missing', async () => {
+    test('default to block when state is missing', async () => {
       const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
-      expect(determineEffectiveGuardMode(undefined, null)).toBe('disabled');
+      expect(determineEffectiveGuardMode(undefined, null)).toBe('block');
       expect(determineEffectiveGuardMode('warn', null)).toBe('warn');
       expect(determineEffectiveGuardMode('block', null)).toBe('block');
     });
@@ -377,7 +377,7 @@ describe('access-policy', () => {
       expect(logContent).toContain('DENIED_WEAKENING');
     });
 
-    test('writes structured fail-closed entry', async () => {
+    test('writes structured default-secure entry', async () => {
       const { determineEffectiveGuardMode } = await import('../../.opencode/lib/access-policy');
 
       determineEffectiveGuardMode(undefined, null);
@@ -387,7 +387,7 @@ describe('access-policy', () => {
       const logContent = fs.readFileSync(guardLogPath, 'utf-8').trim();
       const [firstLine] = logContent.split('\n');
       const entry = JSON.parse(firstLine);
-      expect(entry.event).toBe('FAIL_CLOSED');
+      expect(entry.event).toBe('DEFAULT_SECURE');
       expect(entry.message).toContain('Guard mode state is missing');
       expect(entry.timestamp).toBeDefined();
     });

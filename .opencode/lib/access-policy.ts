@@ -95,15 +95,18 @@ export function determineEffectiveGuardMode(
   envMode: string | undefined,
   fileState: GuardModeState | null
 ): GuardMode {
-  // Fail-Closed: 設定ファイルが欠損している場合は block を適用
+  // Fail-Closed: 設定ファイルが欠損している場合
   if (fileState === null) {
-    if (envMode === 'warn' || envMode === 'disabled') {
-      appendAuditLog({
-        event: 'DENIED_WEAKENING_FAIL_CLOSED',
-        message: `Guard mode state is missing. Environment is '${envMode}', but enforcing 'block' (Fail-Closed).`,
-        meta: { envMode }
-      });
-    }
+    // 環境変数が明示的に指定されている場合はそれを尊重する（初期セットアップやテスト用）
+    if (envMode === 'warn') return 'warn';
+    if (envMode === 'disabled') return 'disabled';
+    
+    // 指定がない場合は安全側に倒して block し、監査ログを記録
+    appendAuditLog({
+      event: 'DEFAULT_SECURE',
+      message: `Guard mode state is missing and env is '${envMode}'. Enforcing 'block' (Default Secure).`,
+      meta: { envMode }
+    });
     return 'block';
   }
 

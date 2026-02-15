@@ -114,6 +114,10 @@ describe('state-utils concurrent writes', () => {
 
       // If at least one succeeded, the file should exist
       if (results.some(r => r.status === 'fulfilled')) {
+        if (!fs.existsSync(guardPath)) {
+          console.error('[DEBUG] guard-mode.json missing after fulfilled write!');
+          console.error('[DEBUG] Dir content:', fs.readdirSync(tmpDir));
+        }
         expect(fs.existsSync(guardPath)).toBe(true);
         const content = fs.readFileSync(guardPath, 'utf-8');
         expect(() => JSON.parse(content)).not.toThrow();
