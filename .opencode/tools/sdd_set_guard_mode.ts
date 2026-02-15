@@ -1,5 +1,5 @@
 import { tool } from '@opencode-ai/plugin';
-import { type GuardMode, writeGuardModeState } from '../lib/state-utils';
+import { type GuardMode, writeGuardModeState, writeGuardModeStateSync } from '../lib/state-utils';
 
 export default tool({
     description: 'ガードモードを設定します（warn, block または disabled）',

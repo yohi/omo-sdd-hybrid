@@ -11,14 +11,20 @@ import {
 } from '../../.opencode/lib/state-utils';
 import { withTempDir } from '../helpers/temp-dir';
 
-const setupEnv = (tmpDir: string) => {
-  process.env.SDD_STATE_DIR = tmpDir;
-  process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
+  const setupEnv = (tmpDir: string) => {
+    process.env.SDD_STATE_DIR = tmpDir;
+    process.env.SDD_TASKS_PATH = path.join(tmpDir, 'specs', 'tasks.md');
+
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
   process.env.SDD_LOCK_RETRIES = '50';
   process.env.SDD_LOCK_STALE = '10000';
   process.env.SDD_TEST_MODE = 'true';
   process.env.SDD_GUARD_MODE = 'warn';
+
+  if (!fs.existsSync(path.join(tmpDir, 'specs'))) {
+    fs.mkdirSync(path.join(tmpDir, 'specs'), { recursive: true });
+  }
+
   fs.writeFileSync(process.env.SDD_TASKS_PATH, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
 };
 
@@ -40,7 +46,7 @@ describe('state-utils concurrent writes', () => {
     updatedBy: user
   });
 
-  const iterations = 5;
+    const iterations = 5;
   const timeoutMs = 10000;
 
   test('concurrent writeState calls handle locking correctly without errors', async () => {
@@ -51,14 +57,22 @@ describe('state-utils concurrent writes', () => {
       // 並列に書き込みリクエストを発行
       for (let i = 0; i < iterations; i++) {
         const state = createSampleState(`task-${i}`);
-        promises.push(writeState(state).catch(e => {
-          // console.error(`Write failed at iteration ${i}:`, e.message);
-          throw e;
-        }));
+        promises.push(writeState(state));
       }
 
       // 全て成功することを期待
-      await Promise.allSettled(promises);
+      const writeResults = await Promise.allSettled(promises);
+      
+      const sp = getStatePath();
+      // 成功したものが少なくとも1つはあるはず（ロック競合で一部失敗する可能性は許容するが、ファイルは存在すべき）
+      const succeeded = writeResults.filter(r => r.status === 'fulfilled');
+
+      if (succeeded.length === 0) {
+        const failed = writeResults.filter(r => r.status === 'rejected');
+        console.error('All writes failed. Reasons:');
+        failed.forEach((f: any) => console.error(f.reason?.message || f.reason));
+      }
+      expect(succeeded.length).toBeGreaterThan(0);
 
       const statePath = getStatePath();
       expect(fs.existsSync(statePath)).toBe(true);
