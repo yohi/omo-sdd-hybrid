@@ -110,7 +110,7 @@ export default tool({
     } else if (skippedCount > 0) {
       return `⚠️ スキップされました: ${feature}\n\n${results.join('\n')}\n\n既存ファイルを上書きするには、引数 'overwrite: true' を指定してください。`;
     } else {
-      throw new Error(`E_TEMPLATE_LOAD_FAILED: テンプレートの読み込みに失敗しました\n\n${results.join('\n')}`);
+      throw new Error(`E_TEMPLATE_WRITE_FAILED: テンプレートの書き込みに失敗しました\n\n${results.join('\n')}`);
     }
   }
 });
