@@ -93,8 +93,8 @@ describe('state-utils concurrent writes', () => {
       // ロックディレクトリが残っていないか確認
       const lockDir = files.filter(f => f === '.lock');
       expect(lockDir).toHaveLength(0);
-    }, timeoutMs);
-  });
+    });
+  }, timeoutMs);
 
   test('concurrent writeGuardModeState calls handle locking correctly', async () => {
     await withTempDir(async (tmpDir) => {
@@ -123,8 +123,8 @@ describe('state-utils concurrent writes', () => {
       const files = fs.readdirSync(tmpDir);
       expect(files.filter(f => f.endsWith('.tmp'))).toHaveLength(0);
       expect(files.filter(f => f === '.lock')).toHaveLength(0);
-    }, timeoutMs);
-  });
+    });
+  }, timeoutMs);
 
   test('mixed concurrent writes (writeState + writeGuardModeState) do not conflict', async () => {
     await withTempDir(async (tmpDir) => {
@@ -160,6 +160,6 @@ describe('state-utils concurrent writes', () => {
       const files = fs.readdirSync(tmpDir);
       expect(files.filter(f => f.endsWith('.tmp'))).toHaveLength(0);
       expect(files.filter(f => f === '.lock')).toHaveLength(0);
-    }, timeoutMs);
-  });
+    });
+  }, timeoutMs);
 });
