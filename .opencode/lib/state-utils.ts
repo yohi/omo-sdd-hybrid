@@ -13,7 +13,8 @@ const STATE_HMAC_KEY_NAME = 'state-hmac.key';
 const STATE_AUDIT_LOG_NAME = 'state-audit.log';
 
 export function getStateDir(): string {
-  return process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
+  const dir = process.env.SDD_STATE_DIR || DEFAULT_STATE_DIR;
+  return path.resolve(dir);
 }
 
 export function getStatePath(): string {
@@ -21,7 +22,8 @@ export function getStatePath(): string {
 }
 
 export function getTasksPath(): string {
-  return process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+  const p = process.env.SDD_TASKS_PATH || 'specs/tasks.md';
+  return path.resolve(p);
 }
 
 export interface State {
@@ -563,15 +565,6 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
-
-    const tmpPath = `${currentGuardPath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
-    fs.renameSync(tmpPath, currentGuardPath);
-  } finally {
-    await release();
-  }
-}
-
 
     const tmpPath = `${currentGuardPath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
     fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));

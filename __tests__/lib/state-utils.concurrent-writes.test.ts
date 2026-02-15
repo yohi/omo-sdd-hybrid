@@ -12,8 +12,8 @@ import {
 import { withTempDir } from '../helpers/temp-dir';
 
   const setupEnv = (tmpDir: string) => {
-    process.env.SDD_STATE_DIR = tmpDir;
-    process.env.SDD_TASKS_PATH = path.join(tmpDir, 'specs', 'tasks.md');
+    process.env.SDD_STATE_DIR = path.resolve(tmpDir);
+    process.env.SDD_TASKS_PATH = path.resolve(tmpDir, 'specs', 'tasks.md');
 
   process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
   process.env.SDD_LOCK_RETRIES = '50';
@@ -63,7 +63,7 @@ describe('state-utils concurrent writes', () => {
       // 全て成功することを期待
       const writeResults = await Promise.allSettled(promises);
       
-      const sp = getStatePath();
+      const statePath = path.join(tmpDir, 'current_context.json');
       // 成功したものが少なくとも1つはあるはず（ロック競合で一部失敗する可能性は許容するが、ファイルは存在すべき）
       const succeeded = writeResults.filter(r => r.status === 'fulfilled');
 
@@ -74,7 +74,6 @@ describe('state-utils concurrent writes', () => {
       }
       expect(succeeded.length).toBeGreaterThan(0);
 
-      const statePath = getStatePath();
       expect(fs.existsSync(statePath)).toBe(true);
 
       // JSONとして破損していないか確認
@@ -111,7 +110,7 @@ describe('state-utils concurrent writes', () => {
       }
 
       const results = await Promise.allSettled(promises);
-      const guardPath = getGuardModePath();
+      const guardPath = path.join(tmpDir, 'guard-mode.json');
 
       // If at least one succeeded, the file should exist
       if (results.some(r => r.status === 'fulfilled')) {
@@ -145,8 +144,8 @@ describe('state-utils concurrent writes', () => {
 
       const results = await Promise.allSettled(promises);
 
-      const statePath = getStatePath();
-      const guardPath = getGuardModePath();
+      const statePath = path.join(tmpDir, 'current_context.json');
+      const guardPath = path.join(tmpDir, 'guard-mode.json');
 
       if (results.some((r, i) => i % 2 === 0 && r.status === 'fulfilled')) {
         expect(fs.existsSync(statePath)).toBe(true);
