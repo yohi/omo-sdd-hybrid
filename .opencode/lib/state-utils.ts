@@ -555,13 +555,25 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
     
     // Write and flush (using sync for reliability in tests)
     const fd = fs.openSync(tmpPath, 'w');
-    fs.writeSync(fd, JSON.stringify(state, null, 2));
     try {
-      if (typeof fs.fsyncSync === 'function') {
-        fs.fsyncSync(fd);
+      try {
+        fs.writeSync(fd, JSON.stringify(state, null, 2));
+        try {
+          if (typeof fs.fsyncSync === 'function') {
+            fs.fsyncSync(fd);
+          }
+        } catch { /* ignore */ }
+      } finally {
+        fs.closeSync(fd);
       }
-    } catch { /* ignore */ }
-    fs.closeSync(fd);
+    } catch (error) {
+      try {
+        if (fs.existsSync(tmpPath)) {
+          fs.unlinkSync(tmpPath);
+        }
+      } catch { /* ignore */ }
+      throw error;
+    }
     
     // Explicitly verify temp file exists and has content before renaming
     // If it doesn't settle quickly, it might be due to heavy I/O or race
