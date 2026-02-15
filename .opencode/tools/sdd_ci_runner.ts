@@ -158,7 +158,10 @@ function loadTaskScopes(): { scopes: string[]; sources: string[] } {
   }
 
   if (scopes.length === 0) {
-    throw new Error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
+    // logger.errorでメッセージを出力し、throw Errorでは簡潔なメッセージを投げる
+    // PII Maskerによるスタックトレース出力を避けるため
+    logger.error('❌ scope.md または tasks.md に有効な Scope が定義されていません');
+    throw new Error('Scope definition not found');
   }
 
   const uniqueScopes = Array.from(new Set(scopes));

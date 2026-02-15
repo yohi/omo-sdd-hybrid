@@ -15,8 +15,8 @@
   "scripts": {
     "build": "tsup .opencode/index.ts .opencode/tools/*.ts --format esm,cjs --out-dir dist --clean --splitting",
     "prepublishOnly": "bun run build",
-    "test": "bun test; EXIT_CODE=$?; bun scripts/cleanup-test-garbage.ts; exit $EXIT_CODE",
-    "test:seq": "for f in $(find __tests__ -name \\\"*.test.ts\\\"); do bun test \\\"$f\\\"; done",
+    "test": "bun test",
+    "test:seq": "bun test",
     "lint:md": "markdownlint-cli2 --config .markdownlint-cli2.jsonc \"**/*.md\" \"!node_modules\" \"!dist\""
   },
   "files": [

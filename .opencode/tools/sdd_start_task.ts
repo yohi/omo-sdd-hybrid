@@ -6,9 +6,6 @@ import { resolveTask } from '../lib/scope-resolver';
 import { parseSddTasks } from '../lib/tasks_markdown';
 import { selectRoleForTask } from '../lib/agent-selector';
 import { logger } from '../lib/logger.js';
-
-
-
 export default tool({
   description: 'タスクを開始し、編集可能なスコープを設定します',
   args: {

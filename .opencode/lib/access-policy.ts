@@ -5,6 +5,7 @@ import { normalizeToRepoRelative, isOutsideWorktree } from './path-utils';
 import { matchesScope } from './glob-utils';
 import { loadPolicyConfig } from './policy-loader';
 import { logger } from './logger.js';
+import { BashParser, type BashNode } from './bash-parser';
 
 export const WRITE_TOOLS = ['edit', 'write', 'patch', 'multiedit'];
 
@@ -246,190 +247,6 @@ const DESTRUCTIVE_BASH_RULES: BashRule[] = [
   }
 ];
 
-function splitBashSegments(command: string): string[] {
-  const segments: string[] = [];
-  let current = '';
-  let inSingle = false;
-  let inDouble = false;
-  let escaped = false;
-  let inBacktick = false;
-  let commandSubstDepth = 0;
-  let subshellDepth = 0;
-  let braceDepth = 0;
-
-  const pushSegment = () => {
-    const trimmed = current.trim();
-    if (trimmed) {
-      segments.push(trimmed);
-    }
-    current = '';
-  };
-
-  for (let i = 0; i < command.length; i += 1) {
-    const ch = command[i];
-
-    if (escaped) {
-      current += ch;
-      escaped = false;
-      continue;
-    }
-
-    if (!inSingle && ch === '\\') {
-      current += ch;
-      escaped = true;
-      continue;
-    }
-
-    if (!inSingle && ch === '`') {
-      inBacktick = !inBacktick;
-      current += ch;
-      continue;
-    }
-
-    if (!inSingle && !inBacktick && ch === '$' && command[i + 1] === '(') {
-      commandSubstDepth += 1;
-      current += '$(';
-      i += 1;
-      continue;
-    }
-
-    if (!inSingle && !inBacktick && ch === ')' && commandSubstDepth > 0) {
-      commandSubstDepth -= 1;
-      current += ch;
-      continue;
-    }
-
-    if (!inBacktick && !inDouble && ch === "'") {
-      inSingle = !inSingle;
-      current += ch;
-      continue;
-    }
-
-    if (!inBacktick && !inSingle && ch === '"') {
-      inDouble = !inDouble;
-      current += ch;
-      continue;
-    }
-
-    if (!inSingle && !inDouble && !inBacktick && commandSubstDepth === 0) {
-      if (ch === '(') {
-        subshellDepth += 1;
-        current += ch;
-        continue;
-      }
-
-      if (ch === ')' && subshellDepth > 0) {
-        subshellDepth -= 1;
-        current += ch;
-        continue;
-      }
-
-      if (ch === '{') {
-        braceDepth += 1;
-        current += ch;
-        continue;
-      }
-
-      if (ch === '}' && braceDepth > 0) {
-        braceDepth -= 1;
-        current += ch;
-        continue;
-      }
-    }
-
-    if (
-      !inSingle
-      && !inDouble
-      && !inBacktick
-      && commandSubstDepth === 0
-      && subshellDepth === 0
-      && braceDepth === 0
-    ) {
-      if (ch === ';' || ch === '\n' || ch === '\r') {
-        pushSegment();
-        continue;
-      }
-
-      if (ch === '&' && command[i + 1] === '&') {
-        pushSegment();
-        i += 1;
-        continue;
-      }
-
-      if (ch === '&' && command[i + 1] !== '&' && command[i + 1] !== '>' && command[i - 1] !== '>') {
-        pushSegment();
-        continue;
-      }
-
-      if (ch === '|' && command[i + 1] === '|') {
-        pushSegment();
-        i += 1;
-        continue;
-      }
-
-      if (ch === '|') {
-        pushSegment();
-        continue;
-      }
-    }
-
-    current += ch;
-  }
-
-  pushSegment();
-  return segments;
-}
-
-function tokenizeBashSegment(segment: string): string[] {
-  const tokens: string[] = [];
-  let current = '';
-  let inSingle = false;
-  let inDouble = false;
-  let escaped = false;
-
-  const pushToken = () => {
-    if (current) {
-      tokens.push(current);
-      current = '';
-    }
-  };
-
-  for (let i = 0; i < segment.length; i += 1) {
-    const ch = segment[i];
-
-    if (escaped) {
-      current += ch;
-      escaped = false;
-      continue;
-    }
-
-    if (!inSingle && ch === '\\') {
-      escaped = true;
-      continue;
-    }
-
-    if (!inDouble && ch === "'") {
-      inSingle = !inSingle;
-      continue;
-    }
-
-    if (!inSingle && ch === '"') {
-      inDouble = !inDouble;
-      continue;
-    }
-
-    if (!inSingle && !inDouble && /\s/.test(ch)) {
-      pushToken();
-      continue;
-    }
-
-    current += ch;
-  }
-
-  pushToken();
-  return tokens;
-}
-
 function stripBashWrappers(tokens: string[]): string[] {
   let index = 0;
 
@@ -530,27 +347,20 @@ function getGitSubcommand(args: string[]): { name: string; args: string[] } | nu
   return null;
 }
 
-function buildBashCommandInfo(segment: string): BashCommandInfo | null {
-  const tokens = tokenizeBashSegment(segment);
-  const strippedTokens = stripBashWrappers(tokens);
-  if (strippedTokens.length === 0) {
-    return null;
-  }
-  return { command: strippedTokens[0], args: strippedTokens.slice(1), tokens: strippedTokens };
-}
-
-function matchPolicyEntries(info: BashCommandInfo, entries: string[]): boolean {
+function matchPolicyEntries(tokens: string[], entries: string[]): boolean {
   return entries.some(entry => {
-    const entryTokens = tokenizeBashSegment(entry.trim());
-    if (entryTokens.length === 0) {
+    const entryNodes = BashParser.parse(entry.trim());
+    if (entryNodes.length === 0 || entryNodes[0].type !== 'command') {
       return false;
     }
-    if (info.tokens.length < entryTokens.length) {
+    const entryTokens = entryNodes[0].tokens;
+    
+    if (tokens.length < entryTokens.length) {
       return false;
     }
     for (let i = 0; i < entryTokens.length; i += 1) {
       const expected = entryTokens[i];
-      const actual = info.tokens[i];
+      const actual = tokens[i];
       if (expected === '-') {
         if (!actual.startsWith('-')) {
           return false;
@@ -566,12 +376,24 @@ function matchPolicyEntries(info: BashCommandInfo, entries: string[]): boolean {
 }
 
 function isDestructiveBash(command: string, policy: { destructiveBash: string[] }, mode: GuardMode): boolean {
-  const segments = splitBashSegments(command);
-  for (const segment of segments) {
-    const info = buildBashCommandInfo(segment);
-    if (!info) {
+  const nodes = BashParser.parse(command);
+  for (const node of nodes) {
+    if (node.type === 'complex') {
+      // Flag complex constructs as potentially destructive/unsafe
+      return true;
+    }
+
+    const tokens = node.tokens;
+    const strippedTokens = stripBashWrappers(tokens);
+    if (strippedTokens.length === 0) {
       continue;
     }
+
+    const info: BashCommandInfo = {
+      command: strippedTokens[0],
+      args: strippedTokens.slice(1),
+      tokens: strippedTokens
+    };
 
     const matchedRule = DESTRUCTIVE_BASH_RULES.some(rule => {
       if (mode === 'warn' && rule.minMode === 'block') {
@@ -584,7 +406,7 @@ function isDestructiveBash(command: string, policy: { destructiveBash: string[] 
       return true;
     }
 
-    if (matchPolicyEntries(info, policy.destructiveBash)) {
+    if (matchPolicyEntries(info.tokens, policy.destructiveBash)) {
       return true;
     }
   }

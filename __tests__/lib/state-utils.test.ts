@@ -1,39 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
+import { describe, test, expect, spyOn } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
 import { getStateDir, getStatePath, getTasksPath, computeTasksMdHashFromContent, computeStateHash, type StateInput } from '../../.opencode/lib/state-utils';
-import { setupTestState, cleanupTestState } from '../helpers/test-harness';
+import { withTempDir } from '../helpers/temp-dir';
 
-const cleanupStateFiles = () => {
-  const statePath = getStatePath();
-  const stateDir = getStateDir();
-  const auditLogPath = path.join(stateDir, 'state-audit.log');
-  const filesToClean = [
-    statePath,
-    `${statePath}.bak`,
-    `${statePath}.bak.1`,
-    `${statePath}.bak.2`,
-    auditLogPath,
-    `${auditLogPath}.bak`,
-    `${auditLogPath}.bak.1`,
-    `${auditLogPath}.bak.2`,
-  ];
-  filesToClean.forEach(f => {
-    if (fs.existsSync(f)) fs.unlinkSync(f);
-  });
-};
-
-const deleteAllBackups = () => {
-  const statePath = getStatePath();
-  const backups = [
-    `${statePath}.bak`,
-    `${statePath}.bak.1`,
-    `${statePath}.bak.2`,
-  ];
-  backups.forEach(f => {
-    if (fs.existsSync(f)) fs.unlinkSync(f);
-  });
-};
+const getAuditLogPath = () => path.join(getStateDir(), 'state-audit.log');
 
 const createValidState = async (overrides: Partial<StateInput> = {}) => {
   const tasksPath = getTasksPath();
@@ -55,349 +26,371 @@ const createValidState = async (overrides: Partial<StateInput> = {}) => {
   return { ...merged, stateHash };
 };
 
+const setupEnv = (tmpDir: string) => {
+  process.env.SDD_STATE_DIR = tmpDir;
+  process.env.SDD_TASKS_PATH = path.join(tmpDir, 'tasks.md');
+  process.env.SDD_KIRO_DIR = path.join(tmpDir, '.kiro');
+  process.env.SDD_TEST_MODE = 'true';
+  process.env.SDD_GUARD_MODE = 'warn';
+  fs.writeFileSync(process.env.SDD_TASKS_PATH, '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
+};
+
 describe('state-utils', () => {
-  beforeEach(() => {
-    setupTestState();
-    cleanupStateFiles();
-  });
-
-  afterEach(() => {
-    cleanupStateFiles();
-    cleanupTestState();
-  });
-
   describe('writeState and readState', () => {
     test('writes and reads state correctly', async () => {
-      cleanupStateFiles();
-      const { writeState, readState } = await import('../../.opencode/lib/state-utils');
-      
-      const state = {
-        version: 1,
-        activeTaskId: 'Task-1',
-        activeTaskTitle: 'Test Task',
-        allowedScopes: ['src/auth/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0, role: null
-      };
-      
-      await writeState(state);
-      
-      const result = await readState();
-      expect(result.status).toBe('ok');
-      if (result.status === 'ok') {
-        expect(result.state.activeTaskId).toBe('Task-1');
-        expect(result.state.allowedScopes).toEqual(['src/auth/**']);
-      }
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { writeState, readState } = await import('../../.opencode/lib/state-utils');
+        
+        const state = {
+          version: 1,
+          activeTaskId: 'Task-1',
+          activeTaskTitle: 'Test Task',
+          allowedScopes: ['src/auth/**'],
+          startedAt: new Date().toISOString(),
+          startedBy: 'test',
+          validationAttempts: 0, role: null
+        };
+        
+        await writeState(state);
+        
+        const result = await readState();
+        expect(result.status).toBe('ok');
+        if (result.status === 'ok') {
+          expect(result.state.activeTaskId).toBe('Task-1');
+          expect(result.state.allowedScopes).toEqual(['src/auth/**']);
+        }
+      });
     });
 
     test('returns not_found when state file does not exist', async () => {
-      cleanupStateFiles();
-      const { readState } = await import('../../.opencode/lib/state-utils');
-      
-      const result = await readState();
-      expect(result.status).toBe('not_found');
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState } = await import('../../.opencode/lib/state-utils');
+        
+        const result = await readState();
+        expect(result.status).toBe('not_found');
+      });
     });
 
     test('returns corrupted for invalid JSON', async () => {
-      cleanupStateFiles();
-      const { readState } = await import('../../.opencode/lib/state-utils');
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      fs.writeFileSync(getStatePath(), '{ invalid json');
-      deleteAllBackups();
-      
-      const result = await readState();
-      expect(result.status).toBe('corrupted');
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState } = await import('../../.opencode/lib/state-utils');
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        fs.writeFileSync(getStatePath(), '{ invalid json');
+        
+        const result = await readState();
+        expect(result.status).toBe('corrupted');
+      });
     });
 
     test('returns corrupted for missing required fields', async () => {
-      cleanupStateFiles();
-      const { readState } = await import('../../.opencode/lib/state-utils');
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      fs.writeFileSync(getStatePath(), JSON.stringify({ version: 1 }));
-      deleteAllBackups();
-      
-      const result = await readState();
-      expect(result.status).toBe('corrupted');
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState } = await import('../../.opencode/lib/state-utils');
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        fs.writeFileSync(getStatePath(), JSON.stringify({ version: 1 }));
+        
+        const result = await readState();
+        expect(result.status).toBe('corrupted');
+      });
     });
 
     test('migrates legacy state (missing hashes) on read', async () => {
-      cleanupStateFiles();
-      const { readState, getStateDir, getStatePath } = await import('../../.opencode/lib/state-utils');
-      
-      const legacyState = {
-        version: 1,
-        activeTaskId: 'Task-Legacy',
-        activeTaskTitle: 'Legacy Task',
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0,
-        role: null
-      };
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      fs.writeFileSync(getStatePath(), JSON.stringify(legacyState));
-      
-      const result = await readState();
-      expect(result.status).toBe('ok');
-      if (result.status === 'ok') {
-        expect(result.state.activeTaskId).toBe('Task-Legacy');
-        expect(result.state.tasksMdHash).toBeDefined();
-        expect(result.state.stateHash).toBeDefined();
-      }
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState, getStateDir, getStatePath } = await import('../../.opencode/lib/state-utils');
+        
+        const legacyState = {
+          version: 1,
+          activeTaskId: 'Task-Legacy',
+          activeTaskTitle: 'Legacy Task',
+          allowedScopes: ['src/**'],
+          startedAt: new Date().toISOString(),
+          startedBy: 'test',
+          validationAttempts: 0,
+          role: null
+        };
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        fs.writeFileSync(getStatePath(), JSON.stringify(legacyState));
+        
+        const result = await readState();
+        expect(result.status).toBe('ok');
+        if (result.status === 'ok') {
+          expect(result.state.activeTaskId).toBe('Task-Legacy');
+          expect(result.state.tasksMdHash).toBeDefined();
+          expect(result.state.stateHash).toBeDefined();
+        }
+      });
     });
   });
 
   describe('clearState', () => {
     test('deletes state file', async () => {
-      cleanupStateFiles();
-      const { writeState, clearState, readState } = await import('../../.opencode/lib/state-utils');
-      
-      const state = {
-        version: 1,
-        activeTaskId: 'Task-1',
-        activeTaskTitle: 'Test',
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0, role: null
-      };
-      
-      await writeState(state);
-      expect(fs.existsSync(getStatePath())).toBe(true);
-      
-      await clearState();
-      expect(fs.existsSync(getStatePath())).toBe(false);
-      
-      const result = await readState();
-      expect(result.status).toBe('not_found');
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { writeState, clearState, readState } = await import('../../.opencode/lib/state-utils');
+        
+        const state = {
+          version: 1,
+          activeTaskId: 'Task-1',
+          activeTaskTitle: 'Test',
+          allowedScopes: ['src/**'],
+          startedAt: new Date().toISOString(),
+          startedBy: 'test',
+          validationAttempts: 0, role: null
+        };
+        
+        await writeState(state);
+        expect(fs.existsSync(getStatePath())).toBe(true);
+        
+        await clearState();
+        expect(fs.existsSync(getStatePath())).toBe(false);
+        
+        const result = await readState();
+        expect(result.status).toBe('not_found');
+      });
     });
 
     test('does not throw when file does not exist', async () => {
-      cleanupStateFiles();
-      const { clearState } = await import('../../.opencode/lib/state-utils');
-      
-      await expect(clearState()).resolves.toBeUndefined();
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { clearState } = await import('../../.opencode/lib/state-utils');
+        
+        await expect(clearState()).resolves.toBeUndefined();
+      });
     });
   });
 
   describe('backup integration', () => {
     test('creates backup file after writeState', async () => {
-      cleanupStateFiles();
-      const { writeState } = await import('../../.opencode/lib/state-utils');
-      
-      const state1 = {
-        version: 1,
-        activeTaskId: 'Task-1',
-        activeTaskTitle: 'First Task',
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0, role: null
-      };
-      
-      await writeState(state1);
-      
-      const state2 = {
-        ...state1,
-        activeTaskId: 'Task-2',
-        activeTaskTitle: 'Second Task',
-      };
-      
-      await writeState(state2);
-      
-      const statePath = getStatePath();
-      expect(fs.existsSync(`${statePath}.bak`)).toBe(true);
-      const backup = JSON.parse(fs.readFileSync(`${statePath}.bak`, 'utf-8'));
-      expect(backup.activeTaskId).toBe('Task-1');
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { writeState } = await import('../../.opencode/lib/state-utils');
+        
+        const state1 = {
+          version: 1,
+          activeTaskId: 'Task-1',
+          activeTaskTitle: 'First Task',
+          allowedScopes: ['src/**'],
+          startedAt: new Date().toISOString(),
+          startedBy: 'test',
+          validationAttempts: 0, role: null
+        };
+        
+        await writeState(state1);
+        
+        const state2 = {
+          ...state1,
+          activeTaskId: 'Task-2',
+          activeTaskTitle: 'Second Task',
+        };
+        
+        await writeState(state2);
+        
+        const statePath = getStatePath();
+        expect(fs.existsSync(`${statePath}.bak`)).toBe(true);
+        const backup = JSON.parse(fs.readFileSync(`${statePath}.bak`, 'utf-8'));
+        expect(backup.activeTaskId).toBe('Task-1');
+      });
     });
 
     test('rotates backups on multiple writes', async () => {
-      cleanupStateFiles();
-      const { writeState } = await import('../../.opencode/lib/state-utils');
-      
-      const createState = (id: string) => ({
-        version: 1,
-        activeTaskId: id,
-        activeTaskTitle: `Task ${id}`,
-        allowedScopes: ['src/**'],
-        startedAt: new Date().toISOString(),
-        startedBy: 'test',
-        validationAttempts: 0, role: null
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { writeState } = await import('../../.opencode/lib/state-utils');
+        
+        const createState = (id: string) => ({
+          version: 1,
+          activeTaskId: id,
+          activeTaskTitle: `Task ${id}`,
+          allowedScopes: ['src/**'],
+          startedAt: new Date().toISOString(),
+          startedBy: 'test',
+          validationAttempts: 0, role: null
+        });
+        
+        await writeState(createState('v1'));
+        await writeState(createState('v2'));
+        await writeState(createState('v3'));
+        await writeState(createState('v4'));
+        
+        const statePath = getStatePath();
+        expect(fs.existsSync(`${statePath}.bak`)).toBe(true);
+        expect(fs.existsSync(`${statePath}.bak.1`)).toBe(true);
+        expect(fs.existsSync(`${statePath}.bak.2`)).toBe(true);
+        
+        const bak = JSON.parse(fs.readFileSync(`${statePath}.bak`, 'utf-8'));
+        const bak1 = JSON.parse(fs.readFileSync(`${statePath}.bak.1`, 'utf-8'));
+        const bak2 = JSON.parse(fs.readFileSync(`${statePath}.bak.2`, 'utf-8'));
+        
+        expect(bak.activeTaskId).toBe('v3');
+        expect(bak1.activeTaskId).toBe('v2');
+        expect(bak2.activeTaskId).toBe('v1');
       });
-      
-      await writeState(createState('v1'));
-      await writeState(createState('v2'));
-      await writeState(createState('v3'));
-      await writeState(createState('v4'));
-      
-      const statePath = getStatePath();
-      expect(fs.existsSync(`${statePath}.bak`)).toBe(true);
-      expect(fs.existsSync(`${statePath}.bak.1`)).toBe(true);
-      expect(fs.existsSync(`${statePath}.bak.2`)).toBe(true);
-      
-      const bak = JSON.parse(fs.readFileSync(`${statePath}.bak`, 'utf-8'));
-      const bak1 = JSON.parse(fs.readFileSync(`${statePath}.bak.1`, 'utf-8'));
-      const bak2 = JSON.parse(fs.readFileSync(`${statePath}.bak.2`, 'utf-8'));
-      
-      expect(bak.activeTaskId).toBe('v3');
-      expect(bak1.activeTaskId).toBe('v2');
-      expect(bak2.activeTaskId).toBe('v1');
     });
   });
 
   describe('auto recovery', () => {
     test('recovers from backup when state is corrupted', async () => {
-      cleanupStateFiles();
-      const { readState } = await import('../../.opencode/lib/state-utils');
-      const validState = await createValidState();
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      
-      const statePath = getStatePath();
-      fs.writeFileSync(`${statePath}.bak`, JSON.stringify(validState));
-      fs.writeFileSync(statePath, '{ invalid json');
-      
-      const warnSpy = spyOn(console, 'warn');
-      const result = await readState();
-      
-      expect(result.status).toBe('recovered');
-      if (result.status === 'recovered') {
-        expect(result.state.activeTaskId).toBe('Task-Backup');
-        expect(result.fromBackup).toContain('.bak');
-      }
-      expect(warnSpy).toHaveBeenCalled();
-      warnSpy.mockRestore();
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState } = await import('../../.opencode/lib/state-utils');
+        const validState = await createValidState();
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        
+        const statePath = getStatePath();
+        fs.writeFileSync(`${statePath}.bak`, JSON.stringify(validState));
+        fs.writeFileSync(statePath, '{ invalid json');
+        
+        const warnSpy = spyOn(console, 'warn');
+        const result = await readState();
+        
+        expect(result.status).toBe('recovered');
+        if (result.status === 'recovered') {
+          expect(result.state.activeTaskId).toBe('Task-Backup');
+          expect(result.fromBackup).toContain('.bak');
+        }
+        expect(warnSpy).toHaveBeenCalled();
+        warnSpy.mockRestore();
+      });
     });
 
     test('tries older backups if primary backup is also corrupted', async () => {
-      cleanupStateFiles();
-      const { readState } = await import('../../.opencode/lib/state-utils');
-      const validState = await createValidState();
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      
-      const statePath = getStatePath();
-      fs.writeFileSync(statePath, '{ invalid json');
-      fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
-      fs.writeFileSync(`${statePath}.bak.1`, JSON.stringify(validState));
-      
-      const warnSpy = spyOn(console, 'warn');
-      const result = await readState();
-      
-      expect(result.status).toBe('recovered');
-      if (result.status === 'recovered') {
-        expect(result.state.activeTaskId).toBe('Task-Backup');
-        expect(result.fromBackup).toContain('.bak.1');
-      }
-      warnSpy.mockRestore();
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState } = await import('../../.opencode/lib/state-utils');
+        const validState = await createValidState();
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        
+        const statePath = getStatePath();
+        fs.writeFileSync(statePath, '{ invalid json');
+        fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
+        fs.writeFileSync(`${statePath}.bak.1`, JSON.stringify(validState));
+        
+        const warnSpy = spyOn(console, 'warn');
+        const result = await readState();
+        
+        expect(result.status).toBe('recovered');
+        if (result.status === 'recovered') {
+          expect(result.state.activeTaskId).toBe('Task-Backup');
+          expect(result.fromBackup).toContain('.bak.1');
+        }
+        warnSpy.mockRestore();
+      });
     });
 
     test('returns corrupted when all backups are invalid', async () => {
-      cleanupStateFiles();
-      const { readState } = await import('../../.opencode/lib/state-utils');
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      
-      const statePath = getStatePath();
-      fs.writeFileSync(statePath, '{ invalid json');
-      fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
-      deleteAllBackups();
-      fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
-      
-      const warnSpy = spyOn(console, 'warn');
-      const result = await readState();
-      
-      expect(result.status).toBe('corrupted');
-      expect(warnSpy).toHaveBeenCalled();
-      warnSpy.mockRestore();
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState } = await import('../../.opencode/lib/state-utils');
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        
+        const statePath = getStatePath();
+        fs.writeFileSync(statePath, '{ invalid json');
+        fs.writeFileSync(`${statePath}.bak`, '{ also invalid');
+        fs.writeFileSync(`${statePath}.bak.1`, '{ older invalid');
+        fs.writeFileSync(`${statePath}.bak.2`, '{ oldest invalid');
+        
+        const warnSpy = spyOn(console, 'warn');
+        const result = await readState();
+        
+        expect(result.status).toBe('corrupted');
+        expect(warnSpy).toHaveBeenCalled();
+        warnSpy.mockRestore();
+      });
     });
 
     test('returns corrupted when no backups exist', async () => {
-      cleanupStateFiles();
-      const { readState } = await import('../../.opencode/lib/state-utils');
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      
-      const statePath = getStatePath();
-      fs.writeFileSync(statePath, '{ invalid json');
-      deleteAllBackups();
-      
-      const warnSpy = spyOn(console, 'warn');
-      const result = await readState();
-      
-      expect(result.status).toBe('corrupted');
-      expect(warnSpy).toHaveBeenCalled();
-      warnSpy.mockRestore();
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState } = await import('../../.opencode/lib/state-utils');
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        
+        const statePath = getStatePath();
+        fs.writeFileSync(statePath, '{ invalid json');
+        
+        const warnSpy = spyOn(console, 'warn');
+        const result = await readState();
+        
+        expect(result.status).toBe('corrupted');
+        expect(warnSpy).toHaveBeenCalled();
+        warnSpy.mockRestore();
+      });
     });
   });
 
   describe('audit logging', () => {
     test('logs parse errors to audit log', async () => {
-      cleanupStateFiles();
-      const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      
-      // Create corrupted state file
-      const statePath = getStatePath();
-      fs.writeFileSync(statePath, '{ invalid json');
-      
-      // Ensure no backups exist to avoid recovery
-      deleteAllBackups();
-      
-      await readState();
-      
-      const auditLogPath = path.join(getStateDir(), 'state-audit.log');
-      expect(fs.existsSync(auditLogPath)).toBe(true);
-      
-      const logContent = fs.readFileSync(auditLogPath, 'utf-8');
-      expect(logContent).toContain('STATE_CORRUPTED_PARSE');
-      // Assert generic parsing error instead of runtime-specific message
-      expect(logContent).toMatch(/parse|error|unexpected/i);
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        
+        // Create corrupted state file
+        const statePath = getStatePath();
+        fs.writeFileSync(statePath, '{ invalid json');
+        
+        await readState();
+        
+        const auditLogPath = getAuditLogPath();
+        expect(fs.existsSync(auditLogPath)).toBe(true);
+        
+        const logContent = fs.readFileSync(auditLogPath, 'utf-8');
+        expect(logContent).toContain('STATE_CORRUPTED_PARSE');
+        expect(logContent).toMatch(/parse|error|unexpected/i);
+      });
     });
 
     test('logs backup parse errors to audit log', async () => {
-      cleanupStateFiles();
-      const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
-      
-      if (!fs.existsSync(getStateDir())) {
-        fs.mkdirSync(getStateDir(), { recursive: true });
-      }
-      
-      const statePath = getStatePath();
-      fs.writeFileSync(statePath, '{ invalid json');
-      // Invalid backup
-      fs.writeFileSync(`${statePath}.bak`, '{ invalid backup json');
-      
-      await readState();
-      
-      const auditLogPath = path.join(getStateDir(), 'state-audit.log');
-      expect(fs.existsSync(auditLogPath)).toBe(true);
-      
-      const logContent = fs.readFileSync(auditLogPath, 'utf-8');
-      expect(logContent).toContain('STATE_CORRUPTED_PARSE');
-      expect(logContent).toContain('STATE_CORRUPTED_PARSE_BACKUP');
-      expect(logContent).toContain('current_context.json.bak');
+      await withTempDir(async (tmpDir) => {
+        setupEnv(tmpDir);
+        const { readState, getStateDir } = await import('../../.opencode/lib/state-utils');
+        
+        if (!fs.existsSync(getStateDir())) {
+          fs.mkdirSync(getStateDir(), { recursive: true });
+        }
+        
+        const statePath = getStatePath();
+        fs.writeFileSync(statePath, '{ invalid json');
+        // Invalid backup
+        fs.writeFileSync(`${statePath}.bak`, '{ invalid backup json');
+        
+        await readState();
+        
+        const auditLogPath = getAuditLogPath();
+        expect(fs.existsSync(auditLogPath)).toBe(true);
+        
+        const logContent = fs.readFileSync(auditLogPath, 'utf-8');
+        expect(logContent).toContain('STATE_CORRUPTED_PARSE');
+        expect(logContent).toContain('STATE_CORRUPTED_PARSE_BACKUP');
+        expect(logContent).toContain('current_context.json.bak');
+      });
     });
   });
 });
