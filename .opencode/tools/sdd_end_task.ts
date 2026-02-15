@@ -37,12 +37,22 @@ export default tool({
     }
     
     if (stateResult.status === 'corrupted') {
-      await clearState();
       await writeGuardModeState({
         mode: 'disabled',
         updatedAt: new Date().toISOString(),
         updatedBy: 'sdd_end_task'
       });
+
+      try {
+        await clearState();
+      } catch (error) {
+        await writeGuardModeState({
+          mode: 'block',
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'sdd_end_task-rollback'
+        }).catch(e => console.error('Failed to rollback guard mode (corrupted path):', e));
+        throw error;
+      }
       return `警告: State が破損していました (${stateResult.error})。State をクリアしました。`;
     }
     
