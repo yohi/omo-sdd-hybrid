@@ -33,11 +33,11 @@ import { withTempDir, waitForFile } from '../helpers/temp-dir';
   fs.writeFileSync(path.join(tmpDir, 'specs', 'tasks.md'), '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
 };
 
-afterEach(() => {
-  setTestConfig(null);
-});
-
 describe('state-utils concurrent writes', () => {
+  afterEach(() => {
+    setTestConfig(null);
+  });
+
   const createSampleState = (id: string): StateInput => ({
     version: 1,
     activeTaskId: id,
