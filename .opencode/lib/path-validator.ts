@@ -76,8 +76,9 @@ export function validatePath(targetPath: string, baseDir: string): string {
 
   // 相対パスを計算して、ベースディレクトリ外に出ていないか確認
   const relative = path.relative(realBase, realTarget);
+  const relativeParts = relative.split(path.sep);
 
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+  if (relativeParts[0] === '..' || path.isAbsolute(relative)) {
     throw new PathValidationError('E_PATH_TRAVERSAL', `パスがベースディレクトリの外を指しています: ${targetPath}`);
   }
 

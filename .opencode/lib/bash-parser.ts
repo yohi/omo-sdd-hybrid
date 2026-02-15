@@ -76,11 +76,16 @@ export class BashParser {
             pushSegment();
             continue;
           }
-          if (ch === '|' || ch === '&') {
+            if (ch === '|' || ch === '&') {
             const next = input[i + 1];
             if (next === ch) { // && or ||
               pushSegment();
               i++;
+              continue;
+            }
+            // Handle &> and &>> (redirection, not background)
+            if (ch === '&' && next === '>') {
+              current += ch;
               continue;
             }
             // pipe or background
@@ -164,15 +169,27 @@ export class BashParser {
       }
 
       // Handle redirections as separate tokens if not quoted
-      if (!inSingle && !inDouble && /[><]/.test(ch)) {
-          pushToken();
-          let op = ch;
-          if (segment[i+1] === ch || (ch === '>' && segment[i+1] === '&')) {
-              op += segment[i+1];
+      if (!inSingle && !inDouble && (/[><]/.test(ch) || (ch === '&' && segment[i + 1] === '>'))) {
+        pushToken();
+        let op = ch;
+        if (ch === '&') {
+          // Handle &> and &>>
+          if (segment[i + 1] === '>') {
+            op += segment[i + 1];
+            i++;
+            if (segment[i + 1] === '>') {
+              op += segment[i + 1];
               i++;
+            }
           }
-          tokens.push(op);
-          continue;
+        } else {
+          if (segment[i + 1] === ch || (ch === '>' && segment[i + 1] === '&')) {
+            op += segment[i + 1];
+            i++;
+          }
+        }
+        tokens.push(op);
+        continue;
       }
 
       current += ch;
