@@ -22,10 +22,6 @@ import { withTempDir, waitForFile } from '../helpers/temp-dir';
       testMode: true
     });
     
-    // Backup: Set env var to ensure consistency even if testConfig context is lost
-    process.env.SDD_STATE_DIR = path.resolve(tmpDir);
-    process.env.SDD_TASKS_PATH = path.resolve(tmpDir, 'specs', 'tasks.md');
-
   if (!fs.existsSync(path.join(tmpDir, 'specs'))) {
     fs.mkdirSync(path.join(tmpDir, 'specs'), { recursive: true });
   }
@@ -36,8 +32,6 @@ import { withTempDir, waitForFile } from '../helpers/temp-dir';
 describe('state-utils concurrent writes', () => {
   afterEach(() => {
     setTestConfig(null);
-    delete process.env.SDD_STATE_DIR;
-    delete process.env.SDD_TASKS_PATH;
   });
 
   const createSampleState = (id: string): StateInput => ({

@@ -5,42 +5,46 @@ import { readGuardModeState } from '../.opencode/lib/state-utils';
 async function runVerification() {
   console.log('--- Verification Start ---');
 
-  // 1. Start Task
-  console.log('1. Starting Task...');
   try {
-    const result = await sddStartTask.execute({ taskId: 'Task-Parallel-Test-1' }, {});
-    console.log('Start Result:', result);
-  } catch (e) {
-    console.error('Start Failed:', e);
-    process.exit(1);
-  }
+    // 1. Start Task
+    console.log('1. Starting Task...');
+    const startResult = await sddStartTask.execute({ taskId: 'Task-Parallel-Test-1' }, {});
+    console.log('Start Result:', startResult);
 
-  // 2. Verify Guard Mode = block
-  const stateAfterStart = await readGuardModeState();
-  console.log('Guard Mode after Start:', stateAfterStart?.mode);
-  if (stateAfterStart?.mode !== 'block') {
-    console.error('FAIL: Expected block, got', stateAfterStart?.mode);
-    process.exit(1);
-  } else {
-    console.log('PASS: Guard Mode is block');
-  }
+    // 2. Verify Guard Mode = block
+    const stateAfterStart = await readGuardModeState();
+    console.log('Guard Mode after Start:', stateAfterStart?.mode);
+    if (stateAfterStart?.mode !== 'block') {
+      throw new Error(`FAIL: Expected block, got ${stateAfterStart?.mode}`);
+    } else {
+      console.log('PASS: Guard Mode is block');
+    }
 
-  // 3. End Task
-  console.log('3. Ending Task...');
-  try {
-    const result = await sddEndTask.execute({}, {});
-    console.log('End Result:', result);
   } catch (e) {
-    console.error('End Failed:', e);
-    process.exit(1);
+    console.error('Verification Start Phase Failed:', e);
+    throw e; // Rethrow to trigger exit(1) in top-level catch
+  } finally {
+    // 3. End Task (Cleanup)
+    console.log('3. Ending Task (Cleanup)...');
+    try {
+      const endResult = await sddEndTask.execute({}, {});
+      console.log('End Result:', endResult);
+    } catch (e) {
+      console.error('End Task Failed:', e);
+      // Don't throw here if it's just cleanup failure, but log it.
+      // Or if strict cleanup is required, throw. 
+      // Given the requirement is to ENSURE sddEndTask runs, finally block guarantees it.
+      // If end task fails, we might want to exit 1 too if it's critical.
+      // Let's assume end task failure is also a test failure.
+      process.exitCode = 1; 
+    }
   }
 
   // 4. Verify Guard Mode = disabled
   const stateAfterEnd = await readGuardModeState();
   console.log('Guard Mode after End:', stateAfterEnd?.mode);
   if (stateAfterEnd?.mode !== 'disabled') {
-    console.error('FAIL: Expected disabled, got', stateAfterEnd?.mode);
-    process.exit(1);
+    throw new Error(`FAIL: Expected disabled, got ${stateAfterEnd?.mode}`);
   } else {
     console.log('PASS: Guard Mode is disabled');
   }
