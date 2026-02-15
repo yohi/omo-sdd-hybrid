@@ -5,6 +5,8 @@ import fs from 'fs';
 import path from 'path';
 import sddSetGuardMode from '../../.opencode/tools/sdd_set_guard_mode';
 
+import { waitForFile } from '../helpers/test-harness';
+
 describe('sdd_set_guard_mode', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
@@ -26,12 +28,15 @@ describe('sdd_set_guard_mode', () => {
     const result = await sddSetGuardMode.execute({ mode: 'warn' }, {} as any);
     expect(result).toContain("ガードモードを 'warn' に設定しました");
 
+    const guardPath = getGuardModePath();
+    await waitForFile(guardPath);
+
     const state = await readGuardModeState();
     if (!state) {
-      const path = getGuardModePath();
-      console.error(`[DEBUG] readGuardModeState returned null. Path: ${path}`);
-      if (fs.existsSync(path)) {
-        console.error(`[DEBUG] File content: ${fs.readFileSync(path, 'utf-8')}`);
+      // DEBUG LOGGING KEPT (BUT SHOULD BE FIXED BY WAITFORFILE)
+      console.error(`[DEBUG] readGuardModeState returned null. Path: ${guardPath}`);
+      if (fs.existsSync(guardPath)) {
+        console.error(`[DEBUG] File content: ${fs.readFileSync(guardPath, 'utf-8')}`);
       } else {
         console.error('[DEBUG] File does not exist.');
         const dir = process.env.SDD_STATE_DIR;
@@ -48,6 +53,7 @@ describe('sdd_set_guard_mode', () => {
     const result = await sddSetGuardMode.execute({ mode: 'block' }, {} as any);
     expect(result).toContain("ガードモードを 'block' に設定しました");
 
+    await waitForFile(getGuardModePath());
     const state = await readGuardModeState();
     expect(state).not.toBeNull();
     expect(state?.mode).toBe('block');
@@ -56,6 +62,8 @@ describe('sdd_set_guard_mode', () => {
   test('sets guard mode to disabled', async () => {
     const result = await sddSetGuardMode.execute({ mode: 'disabled' }, {} as any);
     expect(result).toContain("ガードモードを 'disabled' に設定しました");
+    
+    await waitForFile(getGuardModePath());
     const state = await readGuardModeState();
     expect(state).not.toBeNull();
     expect(state?.mode).toBe('disabled');

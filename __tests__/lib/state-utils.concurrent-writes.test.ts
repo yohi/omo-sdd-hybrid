@@ -9,7 +9,7 @@ import {
   StateInput, 
   GuardModeState 
 } from '../../.opencode/lib/state-utils';
-import { withTempDir } from '../helpers/temp-dir';
+import { withTempDir, waitForFile } from '../helpers/temp-dir';
 
   const setupEnv = (tmpDir: string) => {
     process.env.SDD_STATE_DIR = path.resolve(tmpDir);
@@ -114,10 +114,7 @@ describe('state-utils concurrent writes', () => {
 
       // If at least one succeeded, the file should exist
       if (results.some(r => r.status === 'fulfilled')) {
-        if (!fs.existsSync(guardPath)) {
-          console.error('[DEBUG] guard-mode.json missing after fulfilled write!');
-          console.error('[DEBUG] Dir content:', fs.readdirSync(tmpDir));
-        }
+        await waitForFile(guardPath);
         expect(fs.existsSync(guardPath)).toBe(true);
         const content = fs.readFileSync(guardPath, 'utf-8');
         expect(() => JSON.parse(content)).not.toThrow();
@@ -152,11 +149,13 @@ describe('state-utils concurrent writes', () => {
       const guardPath = path.join(tmpDir, 'guard-mode.json');
 
       if (results.some((r, i) => i % 2 === 0 && r.status === 'fulfilled')) {
+        await waitForFile(statePath);
         expect(fs.existsSync(statePath)).toBe(true);
         expect(() => JSON.parse(fs.readFileSync(statePath, 'utf-8'))).not.toThrow();
       }
       
       if (results.some((r, i) => i % 2 === 1 && r.status === 'fulfilled')) {
+        await waitForFile(guardPath);
         expect(fs.existsSync(guardPath)).toBe(true);
         expect(() => JSON.parse(fs.readFileSync(guardPath, 'utf-8'))).not.toThrow();
       }

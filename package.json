@@ -16,7 +16,7 @@
     "build": "tsup .opencode/index.ts .opencode/tools/*.ts --format esm,cjs --out-dir dist --clean --splitting",
     "prepublishOnly": "bun run build",
     "test": "bun test",
-    "test:seq": "bun test",
+    "test:seq": "find __tests__ -name \"*.test.ts\" -print0 | xargs -0 -n 1 bun test",
     "lint:md": "markdownlint-cli2 --config .markdownlint-cli2.jsonc \"**/*.md\" \"!node_modules\" \"!dist\""
   },
   "files": [

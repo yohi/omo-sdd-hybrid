@@ -27,6 +27,18 @@ export function cleanupTempDir(dir: string): void {
 }
 
 /**
+ * ファイルが存在するまで待機します（最大タイムアウト指定可能）
+ */
+export async function waitForFile(filePath: string, timeout = 2000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (fs.existsSync(filePath)) return;
+    await new Promise(r => setTimeout(r, 50));
+  }
+  throw new Error(`File not found after ${timeout}ms: ${filePath}`);
+}
+
+/**
  * 一時ディレクトリを作成し、コールバックを実行した後、自動的に削除するラッパーです。
  * コールバックが例外を投げた場合でも、クリーンアップが実行されます。
  * @param callback 一時ディレクトリのパスを受け取るコールバック関数

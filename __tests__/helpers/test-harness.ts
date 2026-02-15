@@ -78,6 +78,15 @@ export async function simulateMultiEdit(
   return evaluateMultiEdit(files, resolvedStateResult, worktreeRoot);
 }
 
+export async function waitForFile(filePath: string, timeout = 2000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (fs.existsSync(filePath)) return;
+    await new Promise(r => setTimeout(r, 50));
+  }
+  throw new Error(`File not found after ${timeout}ms: ${filePath}`);
+}
+
 export function captureWarnings(fn: () => void): string[] {
   const warnings: string[] = [];
   const originalWarn = console.warn;
