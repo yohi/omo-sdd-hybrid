@@ -272,7 +272,7 @@ describe('sdd_ci_runner', () => {
     });
 
     if (result.status !== 0) {
-      console.error('Initial commit test failed');
+      console.error('[DEBUG] Initial commit test failed');
       console.error('STDOUT:', result.stdout);
       console.error('STDERR:', result.stderr);
     }

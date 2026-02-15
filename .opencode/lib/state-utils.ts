@@ -553,28 +553,30 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
 
     const tmpPath = `${currentGuardPath}.${process.pid}.${Math.random().toString(36).substring(2)}.tmp`;
     
-    // Write and flush (using sync for reliability in tests)
-    const fd = fs.openSync(tmpPath, 'w');
-    fs.writeSync(fd, JSON.stringify(state, null, 2));
+    // Use Sync methods to ensure it's written before rename
+    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2));
     
-    // Only attempt fsync if we have a valid fd and the function exists
-    // Note: Node's fs.fsyncSync exists, Bun's might differ but usually supports it
-    try {
-      if (typeof (fs as any).fsyncSync === 'function') {
-        (fs as any).fsyncSync(fd);
-      }
-    } catch (e) {
-      // Ignore fsync errors (e.g. if file system doesn't support it)
-    }
-    
-    fs.closeSync(fd);
-    
-    // Ensure write is settled before rename
-    if (!fs.existsSync(tmpPath)) {
-        throw new Error(`[SDD] Failed to create temp file: ${tmpPath}`);
+    // Explicitly verify temp file exists and has content before renaming
+    // If it doesn't settle quickly, it might be due to heavy I/O or race
+    let settled = false;
+    for (let i = 0; i < 5; i++) {
+        if (fs.existsSync(tmpPath) && fs.statSync(tmpPath).size > 0) {
+            settled = true;
+            break;
+        }
+        await sleep(20);
     }
 
-    fs.renameSync(tmpPath, currentGuardPath);
+    if (settled) {
+        fs.renameSync(tmpPath, currentGuardPath);
+    } else {
+        // Fallback: try rename anyway if it exists but size check failed (might be OS/FS quirk)
+        if (fs.existsSync(tmpPath)) {
+            fs.renameSync(tmpPath, currentGuardPath);
+        } else {
+            throw new Error(`[SDD] Failed to create temp file for guard mode: ${tmpPath}`);
+        }
+    }
   } finally {
     await release();
   }
@@ -582,18 +584,25 @@ export async function writeGuardModeState(state: GuardModeState): Promise<void> 
 
 export async function readGuardModeState(): Promise<GuardModeState | null> {
   const filePath = getGuardModePath();
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    if (!content || content.trim() === '') return null; // Avoid empty file issues
-    const parsed = JSON.parse(content);
-    if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block' || parsed.mode === 'disabled')) {
-      return parsed as GuardModeState;
+  
+  // Try to read multiple times in case of race conditions
+  for (let i = 0; i < 5; i++) {
+    if (fs.existsSync(filePath)) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        if (content && content.trim() !== '') {
+          const parsed = JSON.parse(content);
+          if (parsed && (parsed.mode === 'warn' || parsed.mode === 'block' || parsed.mode === 'disabled')) {
+            return parsed as GuardModeState;
+          }
+        }
+      } catch {
+        // Ignore parse/read errors and retry
+      }
     }
-    return null;
-  } catch {
-    return null;
+    if (i < 4) await sleep(20);
   }
+  return null;
 }
 
 /**

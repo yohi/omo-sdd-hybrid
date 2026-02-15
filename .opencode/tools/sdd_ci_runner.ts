@@ -58,7 +58,16 @@ function getChangedFiles(): string[] {
         
         // Use 'ls-tree' to list all files tracked in current commit
         // This is more reliable than 'show' for initial commit file listing
-        args = ['ls-tree', '-r', '--name-only', 'HEAD'];
+        // Note: ls-tree with -r --name-only returns paths relative to repo root
+        const lsTreeResult = spawnSync('git', ['-C', '..', 'ls-tree', '-r', '--name-only', 'HEAD'], {
+          encoding: 'utf-8'
+        });
+
+        if (lsTreeResult.status !== 0) {
+          throw new Error(`Git ls-tree failed: ${lsTreeResult.stderr}`);
+        }
+
+        return lsTreeResult.stdout.split('\n').filter(line => line.trim().length > 0);
       }
     }
   } else {
