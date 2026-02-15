@@ -98,18 +98,18 @@ export function computeTasksMdHashFromContent(content: string): string {
   return computeSha256(content);
 }
 
-function readTasksMdHash(): string {
+async function readTasksMdHash(): Promise<string> {
   const tasksPath = getTasksPath();
   if (!fs.existsSync(tasksPath)) {
     // Kiro統合のみを使用している場合、specs/tasks.mdは存在しない可能性がある
     // その場合は空文字列のハッシュを返す（.kiro/specs/*/scope.mdのみでタスク管理）
     return computeTasksMdHashFromContent('');
   }
-  const content = fs.readFileSync(tasksPath, 'utf-8');
+  const content = await fs.promises.readFile(tasksPath, 'utf-8');
   return computeTasksMdHashFromContent(content);
 }
 
-function getStateHmacKey(): string {
+async function getStateHmacKey(): Promise<string> {
   const envKey = process.env.SDD_STATE_HMAC_KEY;
   if (envKey && envKey.trim() !== '') return envKey.trim();
 
@@ -119,13 +119,14 @@ function getStateHmacKey(): string {
   // If file exists and has content, use it.
   // Note: There's still a small race if file is empty (being written), handled by retry below.
   if (fs.existsSync(keyPath)) {
-    const content = fs.readFileSync(keyPath, 'utf-8').trim();
-    if (content) return content;
+    const content = await fs.promises.readFile(keyPath, 'utf-8');
+    const trimmed = content.trim();
+    if (trimmed) return trimmed;
   }
 
   if (!fs.existsSync(stateDir)) {
     try {
-      fs.mkdirSync(stateDir, { recursive: true });
+      await fs.promises.mkdir(stateDir, { recursive: true });
     } catch { /* ignore if already exists */ }
   }
 
@@ -133,20 +134,24 @@ function getStateHmacKey(): string {
   
   try {
     // Atomic creation: fails if file exists
-    fs.writeFileSync(keyPath, generated, { mode: 0o600, flag: 'wx' });
+    // Using synchronous write here for safety with 'wx' flag across processes if possible,
+    // but fs.promises.writeFile with 'wx' flag is also fine.
+    // However, to match previous logic closely and ensure atomicity:
+    await fs.promises.writeFile(keyPath, generated, { mode: 0o600, flag: 'wx' });
     return generated;
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'EEXIST') {
+    if (error && typeof error === 'object' && 'code' in error && (error as any).code === 'EEXIST') {
       // Race condition: another process created it. Read it.
       // Retry a few times in case the other process is still writing (empty file)
       for (let i = 0; i < 5; i++) {
         try {
-          const content = fs.readFileSync(keyPath, 'utf-8').trim();
-          if (content) return content;
+          const content = await fs.promises.readFile(keyPath, 'utf-8');
+          const trimmed = content.trim();
+          if (trimmed) return trimmed;
         } catch { /* ignore read errors temporarily */ }
-        // Busy wait (synchronous sleep)
-        const start = Date.now();
-        while (Date.now() - start < 10); 
+        
+        // Async wait instead of busy wait
+        await sleep(10);
       }
       throw new Error(`Failed to read HMAC key after atomic creation race: ${keyPath}`);
     }
@@ -154,7 +159,7 @@ function getStateHmacKey(): string {
   }
 }
 
-export function computeStateHash(state: StateInput): string {
+export async function computeStateHash(state: StateInput): Promise<string> {
   const payload = {
     version: state.version,
     activeTaskId: state.activeTaskId,
@@ -167,7 +172,7 @@ export function computeStateHash(state: StateInput): string {
     tasksMdHash: state.tasksMdHash ?? '',
   };
 
-  const key = getStateHmacKey();
+  const key = await getStateHmacKey();
   return crypto.createHmac('sha256', key).update(JSON.stringify(payload)).digest('hex');
 }
 
@@ -259,7 +264,7 @@ export async function lockStateDir(taskId?: string | null): Promise<() => Promis
         } catch { /* ignore */ }
       };
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'EEXIST') {
+      if (error && typeof error === 'object' && 'code' in error && (error as any).code === 'EEXIST') {
         // Lock exists - check if stale
         if (isLockStale(lockPath, stale)) {
           try {
@@ -294,15 +299,18 @@ export async function writeState(state: StateInput): Promise<void> {
   const statePath = getStatePath();
   const release = await lockStateDir(state.activeTaskId);
   try {
-    const tasksMdHash = state.tasksMdHash && state.tasksMdHash.trim() !== ''
-      ? state.tasksMdHash
-      : readTasksMdHash();
+    let tasksMdHash = state.tasksMdHash;
+    if (!tasksMdHash || tasksMdHash.trim() === '') {
+      tasksMdHash = await readTasksMdHash();
+    }
+    
     const role = state.role ?? null;
-    const stateHash = computeStateHash({ ...state, tasksMdHash, role });
+    const stateHash = await computeStateHash({ ...state, tasksMdHash, role });
+    
     const stateToWrite: State = {
       ...state,
       role,
-      tasksMdHash,
+      tasksMdHash: tasksMdHash!,
       stateHash,
     };
 
@@ -341,54 +349,58 @@ function validateState(state: unknown): state is State {
   );
 }
 
-function tryParseState(filePath: string): { ok: true; state: State } | { ok: false; error: string } {
+// Pure parsing logic only
+function tryParseState(filePath: string): { ok: true; content: unknown } | { ok: false; error: string } {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(content);
-
-    // Migration: validateStateを通過させるために、不足しているハッシュを注入する。
-    // これにより、ハッシュを持たないレガシーなstateファイルを読み込み時に移行できる。
-    // ここでハッシュを計算するため、verifyStateIntegrityを通過するようになる。
-    const mutable = parsed as Record<string, unknown>;
-    if (!mutable.tasksMdHash || !mutable.stateHash) {
-      try {
-        if (!mutable.tasksMdHash) {
-          mutable.tasksMdHash = readTasksMdHash();
-        }
-        // stateハッシュを計算する前にroleが正規化されていることを確認する
-        if (!('role' in mutable)) {
-          mutable.role = null;
-        }
-        if (!mutable.stateHash) {
-          // 注入されたtasksMdHashとその他のフィールド（欠損や無効な可能性があってもcomputeStateHashは処理する）
-          // を使用してstateハッシュの計算を試みる
-          mutable.stateHash = computeStateHash(mutable as StateInput);
-        }
-      } catch (e) {
-        // readTasksMdHashが失敗した場合（例: tasks.mdが見つからない）、移行はできない。
-        // エラーは無視し、validateStateを失敗させる。
-      }
-    }
-
-    if (validateState(parsed)) {
-      // Migration: roleが不足している場合にデフォルト値を注入（上記でも処理しているが、安全策/フォールバックとして保持）
-      if (!('role' in parsed)) {
-        const mutable = parsed as Record<string, unknown>;
-        mutable.role = null;
-      }
-      const state = parsed as State;
-      return { ok: true, state };
-    }
-    return { ok: false, error: 'Invalid state schema' };
+    return { ok: true, content: parsed };
   } catch (error) {
     return { ok: false, error: (error as Error).message };
   }
 }
 
-function verifyStateIntegrity(state: State): { ok: true } | { ok: false; error: string } {
+// Separated migration logic
+async function migrateState(parsed: unknown): Promise<{ ok: true; state: State } | { ok: false; error: string }> {
+  if (!parsed || typeof parsed !== 'object') {
+    return { ok: false, error: 'Invalid JSON object' };
+  }
+
+  const mutable = parsed as Record<string, unknown>;
+
+  // Legacy Migration: Inject missing hashes
+  if (!mutable.tasksMdHash || !mutable.stateHash) {
+    try {
+      if (!mutable.tasksMdHash) {
+        mutable.tasksMdHash = await readTasksMdHash();
+      }
+      // Normalize role
+      if (!('role' in mutable)) {
+        mutable.role = null;
+      }
+      if (!mutable.stateHash) {
+        mutable.stateHash = await computeStateHash(mutable as StateInput);
+      }
+    } catch (e) {
+      // If migration fails (e.g. cannot read tasks.md), schema validation will fail below
+    }
+  }
+
+  if (validateState(mutable)) {
+    // Inject default role if missing (for safety)
+    if (!('role' in mutable)) {
+      mutable.role = null;
+    }
+    return { ok: true, state: mutable as State };
+  }
+  
+  return { ok: false, error: 'Invalid state schema after migration attempt' };
+}
+
+async function verifyStateIntegrity(state: State): Promise<{ ok: true } | { ok: false; error: string }> {
   let currentTasksHash: string;
   try {
-    currentTasksHash = readTasksMdHash();
+    currentTasksHash = await readTasksMdHash();
   } catch (error) {
     return { ok: false, error: (error as Error).message };
   }
@@ -397,7 +409,7 @@ function verifyStateIntegrity(state: State): { ok: true } | { ok: false; error: 
     return { ok: false, error: 'TASKS_HASH_MISMATCH' };
   }
 
-  const expected = computeStateHash(state);
+  const expected = await computeStateHash(state);
   if (state.stateHash !== expected) {
     return { ok: false, error: 'STATE_HASH_MISMATCH' };
   }
@@ -414,50 +426,64 @@ export async function readState(): Promise<StateResult> {
 
   let corruptionReason: string | null = null;
 
-  const result = tryParseState(statePath);
-  if (result.ok) {
-    const integrity = verifyStateIntegrity(result.state);
-    if (integrity.ok) {
-      return { status: 'ok', state: result.state };
+  const parseResult = tryParseState(statePath);
+  if (parseResult.ok) {
+    const migrationResult = await migrateState(parseResult.content);
+    if (migrationResult.ok) {
+      const integrity = await verifyStateIntegrity(migrationResult.state);
+      if (integrity.ok) {
+        return { status: 'ok', state: migrationResult.state };
+      }
+      corruptionReason = integrity.error;
+      appendStateAuditLog(`STATE_CORRUPTED: ${integrity.error}`);
+      logger.warn(`[SDD] State corrupted: ${integrity.error}. Attempting recovery from backup...`);
+    } else {
+       corruptionReason = migrationResult.error;
+       appendStateAuditLog(`STATE_CORRUPTED_SCHEMA: ${migrationResult.error}`);
+       logger.warn(`[SDD] State schema invalid: ${migrationResult.error}. Attempting recovery from backup...`);
     }
-    corruptionReason = integrity.error;
-    appendStateAuditLog(`STATE_CORRUPTED: ${integrity.error}`);
-    logger.warn(`[SDD] State corrupted: ${integrity.error}. Attempting recovery from backup...`);
   } else {
-    corruptionReason = result.error;
-    appendStateAuditLog(`STATE_CORRUPTED_PARSE: ${result.error}`);
-    logger.warn(`[SDD] State corrupted: ${result.error}. Attempting recovery from backup...`);
+    corruptionReason = parseResult.error;
+    appendStateAuditLog(`STATE_CORRUPTED_PARSE: ${parseResult.error}`);
+    logger.warn(`[SDD] State corrupted: ${parseResult.error}. Attempting recovery from backup...`);
   }
 
   const backupPaths = getBackupPaths(statePath);
   for (const backupPath of backupPaths) {
     if (!fs.existsSync(backupPath)) continue;
 
-    const backupResult = tryParseState(backupPath);
-    if (backupResult.ok) {
-      const integrity = verifyStateIntegrity(backupResult.state);
-      if (!integrity.ok) {
-        continue;
-      }
-      const release = await lockStateDir();
-      try {
-        // Check current state again after acquiring lock (avoid TOCTOU)
-        const current = tryParseState(statePath);
-        if (current.ok) {
-          const currentIntegrity = verifyStateIntegrity(current.state);
-          if (currentIntegrity.ok) {
-            return { status: 'ok', state: current.state };
-          }
+    const backupParse = tryParseState(backupPath);
+    if (backupParse.ok) {
+      const backupMigration = await migrateState(backupParse.content);
+      if (backupMigration.ok) {
+        const integrity = await verifyStateIntegrity(backupMigration.state);
+        if (!integrity.ok) {
+          continue;
         }
-        fs.copyFileSync(backupPath, statePath);
-        logger.warn(`[SDD] State recovered from ${backupPath}`);
-        appendStateAuditLog(`STATE_RECOVERED: from=${backupPath}`);
-        return { status: 'recovered', state: backupResult.state, fromBackup: backupPath };
-      } finally {
-        await release();
+        const release = await lockStateDir();
+        try {
+          // Check current state again after acquiring lock (avoid TOCTOU)
+          const currentParse = tryParseState(statePath);
+          if (currentParse.ok) {
+             const currentMigration = await migrateState(currentParse.content);
+             if (currentMigration.ok) {
+                const currentIntegrity = await verifyStateIntegrity(currentMigration.state);
+                if (currentIntegrity.ok) {
+                  return { status: 'ok', state: currentMigration.state };
+                }
+             }
+          }
+          
+          fs.copyFileSync(backupPath, statePath);
+          logger.warn(`[SDD] State recovered from ${backupPath}`);
+          appendStateAuditLog(`STATE_RECOVERED: from=${backupPath}`);
+          return { status: 'recovered', state: backupMigration.state, fromBackup: backupPath };
+        } finally {
+          await release();
+        }
       }
     } else {
-      appendStateAuditLog(`STATE_CORRUPTED_PARSE_BACKUP: file=${path.basename(backupPath)} error=${backupResult.error}`);
+      appendStateAuditLog(`STATE_CORRUPTED_PARSE_BACKUP: file=${path.basename(backupPath)} error=${backupParse.error}`);
     }
   }
 
