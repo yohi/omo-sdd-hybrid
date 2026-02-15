@@ -38,6 +38,11 @@ export default tool({
     
     if (stateResult.status === 'corrupted') {
       await clearState();
+      await writeGuardModeState({
+        mode: 'disabled',
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'sdd_end_task'
+      });
       return `警告: State が破損していました (${stateResult.error})。State をクリアしました。`;
     }
     
@@ -61,13 +66,22 @@ export default tool({
         ? `\n変更されたファイル:\n${changedFiles.map(f => `- ${f}`).join('\n')}`
         : '\n未コミットの変更はありません。';
 
-    await clearState();
-
     await writeGuardModeState({
       mode: 'disabled',
       updatedAt: new Date().toISOString(),
       updatedBy: 'sdd_end_task'
     });
+
+    try {
+      await clearState();
+    } catch (error) {
+      await writeGuardModeState({
+        mode: 'block',
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'sdd_end_task-rollback'
+      }).catch(e => console.error('Failed to rollback guard mode:', e));
+      throw error;
+    }
 
     // クリーンアップ: ロックファイルやHMACキー、監査ログ等が残っている場合は、ディレクトリが空なら削除を試みる
     // (テスト環境でのゴミ残りを防ぐため)
