@@ -27,6 +27,19 @@ describe('sdd_set_guard_mode', () => {
     expect(result).toContain("ガードモードを 'warn' に設定しました");
 
     const state = await readGuardModeState();
+    if (!state) {
+      const path = getGuardModePath();
+      console.error(`[DEBUG] readGuardModeState returned null. Path: ${path}`);
+      if (fs.existsSync(path)) {
+        console.error(`[DEBUG] File content: ${fs.readFileSync(path, 'utf-8')}`);
+      } else {
+        console.error('[DEBUG] File does not exist.');
+        const dir = process.env.SDD_STATE_DIR;
+        if (dir && fs.existsSync(dir)) {
+             console.error(`[DEBUG] Dir content: ${fs.readdirSync(dir).join(', ')}`);
+        }
+      }
+    }
     expect(state).not.toBeNull();
     expect(state?.mode).toBe('warn');
   });

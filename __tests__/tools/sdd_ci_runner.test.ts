@@ -88,11 +88,17 @@ describe('sdd_ci_runner', () => {
   }
 
   async function runCiValidator(args: string[] = []): Promise<{ code: number; output: string }> {
+    const env = { ...origEnv };
+    // CI環境変数がテストに干渉しないように削除
+    delete env.GITHUB_BASE_REF;
+    delete env.GITHUB_HEAD_REF;
+    delete env.GITHUB_REF_NAME;
+    
     const result = spawnSync('bun', ['run', 'tools/sdd_ci_runner.ts', ...args], {
       cwd: path.join(tmpDir, '.opencode'),
       encoding: 'utf-8',
       env: {
-        ...origEnv,
+        ...env,
         SDD_CI_MODE: 'true',
         NODE_ENV: 'test',
       },
