@@ -66,9 +66,9 @@ export class BashParser {
 
       if (!inSingle && !inDouble) {
         if (ch === '(') parenDepth++;
-        if (ch === ')') parenDepth--;
+        if (ch === ')') parenDepth = Math.max(0, parenDepth - 1);
         if (ch === '{') braceDepth++;
-        if (ch === '}') braceDepth--;
+        if (ch === '}') braceDepth = Math.max(0, braceDepth - 1);
 
         if (parenDepth === 0 && braceDepth === 0) {
           // Break at control operators
@@ -83,10 +83,9 @@ export class BashParser {
               i++;
               continue;
             }
-            if (ch === '|') { // pipe
-              pushSegment();
-              continue;
-            }
+            // pipe or background
+            pushSegment();
+            continue;
           }
         }
       }
