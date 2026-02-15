@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
 import { 
@@ -32,6 +32,10 @@ import { withTempDir, waitForFile } from '../helpers/temp-dir';
 
   fs.writeFileSync(path.join(tmpDir, 'specs', 'tasks.md'), '* [ ] Task-1: Test Task (Scope: `src/**`)', 'utf-8');
 };
+
+afterEach(() => {
+  setTestConfig(null);
+});
 
 describe('state-utils concurrent writes', () => {
   const createSampleState = (id: string): StateInput => ({
