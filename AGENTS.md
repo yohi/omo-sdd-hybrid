@@ -30,186 +30,127 @@ We do not "just write code". We define specs, lock the scope, and then implement
 
 Use **Bun** for all operations.
 
+### Build & Test Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run build` | Builds the project to `dist/`. |
+| `bun test` | Runs all tests in parallel (fast, but risky for state). |
+| `bun run test:seq` | **RECOMMENDED**. Runs tests sequentially to prevent State/Lock race conditions. |
+| `bun test <path>` | Runs a single test file (e.g., `bun test __tests__/tools/foo.test.ts`). |
+| `bun run lint:md` | Lints Markdown files using `markdownlint-cli2`. |
+| `bun run ci:validate` | Runs CI validation script (Scope & Changeset check). |
+| `bun run verify:flow` | Runs integration tests for SDD flow. |
+
 ### Global Environment Safety Rules (CRITICAL)
 
 **STRICTLY FORBIDDEN**: Running build/install commands (`bun install`, `npm install`, `make`, etc.) directly on the host machine.
 
-1. **Container Check**: Before running any build or dependency installation command, you **MUST** verify if you are inside a container using the following prioritized methods:
-   - **Method 1 (Preferred)**: Run `systemd-detect-virt --container`. If output is not "none", you are in a container.
-   - **Method 2**: Check for `/run/systemd/container` existence or `container=` environment variable in PID 1.
-   - **Method 3**: Check for runtime markers like `/.containerenv` or `/.dockerenv`.
-   - **Method 4 (Last Resort)**: Check cgroup heuristics (e.g., `/proc/1/cgroup` content).
+1. **Container Check**: Before running any build or dependency installation command, you **MUST** verify if you are inside a container using `systemd-detect-virt --container` or checking `/run/systemd/container`.
+2. **Action if on Host**: STOP IMMEDIATELY. Throw `E_HOST_COMMAND_BLOCKED`. Instruct user to execute inside the container.
 
-2. **Action if on Host**: If the check determines you are NOT in a container:
-   - **STOP IMMEDIATELY**.
-   - Throw an error with code `E_HOST_COMMAND_BLOCKED`.
-   - **Recovery**: Do not ask the user vaguely. Instead, instruct the operator to:
-     1. Locate the running container (e.g., `docker ps`).
-     2. Execute the command inside the container (e.g., `docker exec -it <container_id> <command>`).
+## 4. CODING STANDARDS
 
-3. **Environment Isolation**: Always ensure that the development environment is isolated to prevent host pollution.
+### Naming Conventions
+- **Files**:
+  - Tools (`.opencode/tools/`): `snake_case.ts` (must match CLI command).
+  - Source (`src/`, `lib/`): `kebab-case.ts` (e.g., `string-helpers.ts`).
+  - Classes/Interfaces: `PascalCase` (e.g., `TaskManager`).
+  - Variables/Functions: `camelCase` (e.g., `updateState`).
+  - Constants: `UPPER_SNAKE_CASE` (e.g., `DEFAULT_TIMEOUT`).
+- **Types**:
+  - `strict: true` (tsconfig). **NO `any`**.
+  - Use `zod` for runtime validation (e.g., API inputs, file parsing).
+  - Prefer `type` over `interface` for simple structures.
+  - Use `import type` for type-only imports to avoid runtime overhead.
 
-- **Test**:
-  - `bun test`: Run all tests (Parallel).
-  - `bun test:seq`: **Recommended**. Runs sequentially to prevent State/Lock race conditions.
-  - `bun test <path>`: Run specific test file.
-- **Build**: `bun run build` (Outputs to `dist/`).
-- **Lint**: Follow Prettier/ESLint (implicit). `markdownlint` for docs.
+### Formatting & Style
+- **Async/Await**: Prefer `async/await` over `.then()` chains.
+- **Imports**:
+  - Internal: Relative paths (e.g., `../lib/state-utils.js`).
+  - External: Standard imports.
+  - Node Builtins: `import fs from 'fs'` (preferred over `import * as fs`).
+- **Error Handling**:
+  - Use `throw new Error` for business logic failures.
+  - Prefix with `E_CODE` (e.g., `E_SCOPE_DENIED`).
+  - Fail Fast: Check preconditions at the start of functions.
 
-## 4. ARCHITECTURE & STATE MANAGEMENT
+### Testing Guidelines
+- **Structure**: `__tests__/tools/foo.test.ts` mirrors `.opencode/tools/foo.ts`.
+- **Mocking**: ALWAYS mock `fs` and `state-utils` when testing State operations to avoid polluting the environment.
+- **Cleanup**: Use `afterEach` to clean up `.opencode/state` artifacts.
+- **Single Test**: Use `bun test <path>` to verify fixes quickly.
+
+## 5. ARCHITECTURE & STATE MANAGEMENT
 
 ### State Isolation
 - **Single Source of Truth**: `.opencode/state/current_context.json`
 - **Strict Rule**: **NEVER** write to `.opencode/state/*.json` directly.
-- **Correct Access**:
-  ```typescript
-  import { readState, writeState, lockStateDir } from '../lib/state-utils.js';
-  // Use lockStateDir for atomic operations
-  ```
+- **Correct Access**: Use `readState`, `writeState`, `lockStateDir` from `../lib/state-utils.js`.
 
-### Gatekeeper Mechanism
+### Gatekeeper Mechanism (Safety)
 1. Intercepts `tool.execute.before`.
 2. Checks `allowedScopes` (Glob patterns) in State.
 3. Throws `E_SCOPE_DENIED` if target file matches NO pattern.
-   - **Recovery**: Do not force edit. ユーザーに報告し、アーキテクトによる `sdd_kiro tasks` でのスコープ更新を提案する。
+   - **Recovery**: Do not force edit. Report to user and suggest `sdd_kiro tasks` update.
 
-### Gatekeeper Error Handling (CRITICAL - NO SELF-RECOVERY)
+### Gatekeeper Error Handling (NO SELF-RECOVERY)
+Gatekeeper errors (`NO_ACTIVE_TASK`, `E_SCOPE_DENIED`, `OUTSIDE_WORKTREE`, `STATE_CORRUPTED`) are **safety mechanisms**. Do NOT attempt to auto-recover or bypass them. Report the error and wait for user instruction.
 
-Gatekeeperからエラーが返された場合、**絶対に自己回復を試みないこと**。以下の行動を**厳禁**とします：
-
-| エラー | 禁じられる行動 | 正しい対応 |
-|--------|---------------|-----------|
-| `NO_ACTIVE_TASK` | ユーザー承認なしに`sdd_scaffold_specs`、`sdd_kiro init`、`sdd_start_task`を実行してタスクを自動生成・開始すること | エラーをユーザーに報告し、明示的な指示を待つ |
-| `E_SCOPE_DENIED` | ユーザー承認なしに`tasks.md`や`scope.md`を編集してスコープを拡大すること | アーキテクトにスコープ更新を依頼する旨をユーザーに提案 |
-| `OUTSIDE_WORKTREE` | 無視して続行すること | 即座に停止し、ユーザーに報告 |
-| `STATE_CORRUPTED` | `current_context.json`を自動的に再作成・修復すること | 即座に停止し、ユーザーに状態ファイルの破損を報告 |
-
-**核心原則**: Gatekeeperエラーは**安全装置の作動**です。LLMが勝手に解除しようとすることは、SDDプロセスの根本を破壊する「ガード回避（Jailbreak）」行為です。
-
-## 5. AGENT WORKFLOW (SDD Cycle)
+## 6. AGENT WORKFLOW (SDD Cycle)
 
 Agents **MUST** follow this cycle. Do not skip steps.
 
 ### Phase A: Interview (Role: `architect`, via `/profile`)
-**Goal**: Collect requirements through structured interview.
-1. **Interview**: Follow `profile.md` protocol. Ask one topic at a time, wait for response.
-2. **Output**: Generate EARS-based profile document in Japanese.
-3. **STOP**: Present document to user. **DO NOT** proceed to Phase B without explicit user approval.
+1. **Interview**: Collect requirements (EARS).
+2. **Output**: Generate profile document (Japanese).
+3. **STOP**: Present to user. Wait for approval.
    - **Forbidden in Phase A**: `sdd_scaffold_specs`, `sdd_sync_kiro`, `sdd_kiro init`, `sdd_start_task`, file/directory creation, validation execution.
 
-### Phase B: Specification (Role: `architect`, after user approval)
-**Goal**: Define "What to build" with validated specs. `validate-gap` / `validate-design` / `lint_tasks` are **programmatically auto-chained** within each command.
+### Phase B: Specification (Role: `architect`, via `sdd_kiro`)
+**Goal**: Define "What to build" with validated specs.
+1. **Steering**: `sdd_kiro steering` (Review direction).
+2. **Init**: `sdd_kiro init --feature <name>`.
+3. **Requirements**: `sdd_kiro requirements --feature <name>` (Auto-validates gap).
+4. **Design**: `sdd_kiro design --feature <name>` (Auto-validates design).
+5. **Tasks**: `sdd_kiro tasks --feature <name>` (Auto-lints tasks).
+6. **Scope**: Define `(Scope: \`path/**\`)` in `specs/tasks.md`.
 
-> **DEPRECATED**: Manual SDD workflow (editing specs/*.md directly) is **deprecated** and **forbidden**.
-> You MUST use `sdd_kiro` for all spec operations.
-
-1. **Steering**: `sdd_kiro steering` — Review/Update project direction. **REPORT** to user.
-2. **Init**: `sdd_kiro init --feature <name>` — Create specs directory.
-3. **Requirements + validate-gap (auto-chained)**:
-   - `sdd_kiro requirements --feature <name>` — Creates requirements.md AND runs validate-gap internally.
-   - Greenfield (empty `src/`): validate-gap auto-skipped with notification.
-   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result.
-   - **★ STOP & CONFIRM**: Present the output (including validation logs) to the user. **DO NOT** proceed to Design without explicit approval.
-4. **Design + validate-design (auto-chained)**:
-   - `sdd_kiro design --feature <name>` — Creates design.md AND runs validate-design internally.
-   - **IF FAIL**: Fix and re-run (max 3 retries). **REPORT** result.
-   - **★ STOP & CONFIRM**: Present the output (including validation logs) to the user. **DO NOT** proceed to Tasks without explicit approval.
-5. **Tasks + lint_tasks (auto-chained)**:
-   - `sdd_kiro tasks --feature <name>` — Creates tasks.md AND runs lint_tasks internally.
-   - **★ STOP & CONFIRM**: Present the output to the user. **DO NOT** proceed to Scope Definition without explicit approval.
-6. **Scope Definition**: Define `(Scope: \`path/to/allow/**\`)` in `specs/tasks.md` or `.kiro/specs/<feature>/scope.md`.
-   - **Critical**: Gatekeeper uses this to PHYSICALLY BLOCK edits outside scope.
-
-### STRICT RULES FOR PHASE B (MANDATORY)
-
-> **Phase B で仕様ファイルを生成・修正する際の絶対ルール。違反は Vibe Coding と同等に扱う。**
-
-1. **手動編集の完全禁止**:
-   - `Edit` / `Write` ツールを `specs/*.md`, `.kiro/**/*.md` に対して **絶対に使用してはならない**。
-   - 仕様ファイルの生成・修正は **必ず `sdd_kiro` コマンド経由** で行うこと。
-   - 内容に問題がある場合は `--prompt` オプションで指示を渡して `sdd_kiro` を再実行する。`--overwrite` で上書き可能。
-   - ❌ `Edit("specs/requirements.md", ...)` — **禁止**
-   - ❌ `Write(".kiro/specs/feature/design.md", ...)` — **禁止**
-   - ✅ `sdd_kiro requirements --feature X --overwrite --prompt "修正指示"` — **正しい方法**
-
-2. **検証ログの完全報告義務**:
-   - `sdd_kiro` の各コマンド（requirements, design, tasks）は内部で検証ツールを自動実行する。
-   - その **生の検証ログ（validate-gap / validate-design / lint_tasks の出力）をユーザーにそのまま報告** すること。
-   - 「完了しました」「Done」等の要約で検証結果を省略することは **禁止**。
-   - ユーザーが検証結果を自分の目で確認できなければ、Phase B は完了したとみなされない。
-
-3. **再実行ループのルール**:
-   - 検証結果に問題がある場合: `--prompt` で修正指示を追加して `sdd_kiro` を再実行する（最大3回）。
-   - 3回失敗した場合: ユーザーに判断を委ねる。勝手に `Edit` で修正しない。
-
-4. **`sdd_kiro` Tool Usage Protocol（仕様ファイル操作の唯一の手段）**:
-   - **新規作成**: `sdd_kiro <command> --feature <name>` （例: `sdd_kiro requirements --feature auth`）
-   - **上書き再生成**: `sdd_kiro <command> --feature <name> --overwrite` （既存ファイルを再生成する場合）
-   - **内容修正**: `sdd_kiro <command> --feature <name> --overwrite --prompt "修正指示の詳細"` （内容に問題がある場合は prompt で指示）
-   - **利用可能コマンド**: `init`, `requirements`, `design`, `tasks`, `steering`, `finalize`
-   - **自動連鎖検証**: `requirements` → `validate-gap` / `design` → `validate-design` / `tasks` → `lint_tasks`
-   - **原則**: ツールが生成 → 検証が自動実行 → ユーザーが結果を確認。この流れを絶対に破らない。
+**STRICT RULES**:
+- **NO Manual Edits**: Use `sdd_kiro` for ALL spec changes.
+- **Report Validation Logs**: Always show `validate-gap/design/lint` output to user.
+- **Re-run on Fail**: Use `--prompt` to fix issues. Max 3 retries.
 
 ### Phase C: PR Creation (Role: `architect`)
-**Goal**: Create PR with spec documents for review.
-1. **Branch**: Create `feature/<name>` branch.
-2. **Commit**: Stage and commit spec files (Japanese commit message).
-3. **PR**: `gh pr create` and report URL to user.
-4. Session ends. Review handling is out of scope for this session.
+1. Branch: `feature/<name>`.
+2. Commit: Stage specs (Japanese message).
+3. PR: `gh pr create`.
 
-### Phase D: Finalize (Role: `architect`, user-initiated)
-**Goal**: Prepare for implementation after PR approval.
-1. **User runs**: `sdd_kiro finalize --feature <name>` (manual trigger after PR approval).
-2. **Consistency check**: Validates 3-document consistency (requirements, design, tasks).
-3. **Translation prep**: Renames Japanese specs to `*_ja.md`, prompts for English translation.
+### Phase D: Finalize (Role: `architect`)
+1. User runs `/finalize <feature-name>` after PR approval.
+2. Verify consistency.
+3. Rename specs to `*_ja.md` and prep for translation.
 
-### Phase E: Implementer (Role: `implementer`)
-**Goal**: Build "How it works" within Scope.
-**Strict Rule: 1 Task = 1 PR.** Do NOT execute multiple tasks in a row.
-
-1. **Start**: `sdd_start_task <TaskId>`. Activates the Scope.
+### Phase E: Implementer (Role: `implementer`, via `/impl`)
+**Goal**: Build within Scope. **1 Task = 1 PR.**
+1. **Start**: `sdd_start_task <TaskId>`.
 2. **Implement**: Edit ONLY files in `allowedScopes`.
-   - **Error**: `E_SCOPE_DENIED` means you touched a file outside scope.
-   - **Fix**: Ask Architect to update the scope -> `sdd_end_task` -> `sdd_start_task`.
 3. **Verify**: Run `sdd_validate_gap` frequently.
-4. **Completion**:
-   - Run `sdd_kiro validate-impl <feature-name>` BEFORE `sdd_end_task`.
-   - **STOP** after one task is complete. Create a PR/Commit.
-   - **DO NOT** start the next task until the current one is merged or approved.
+4. **Complete**: Run `sdd_kiro validate-impl` BEFORE `sdd_end_task`.
 
 ### Phase F: Reviewer (Role: `validate`)
-**Goal**: Verify "Does it match specs?".
-1. **Validate**: `sdd_validate_gap --deep` (if enabled).
+1. **Validate**: `sdd_validate_gap --deep`.
 2. **Test**: Ensure `bun test:seq` passes.
-3. **Close**: `sdd_end_task` only after success. **Once closed, validation context is lost.**
-
-## 6. CODING STANDARDS
-
-### Error Handling
-- Use `throw new Error` for business logic failures.
-- Prefix with `E_CODE`.
-- Fail Fast: Check preconditions at the start of functions.
-
-### Imports
-- **Internal**: Relative paths (e.g., `../lib/state-utils.js`).
-- **External**: Standard imports.
-- **Node Builtins**: `import fs from 'fs'` (preferred over `import * as fs`).
-
-### Testing
-- **Mirror Structure**: `__tests__/tools/foo.test.ts` tests `.opencode/tools/foo.ts`.
-- **Mocking**: ALWAYS mock `fs` and `state-utils` when testing State operations.
-- **Cleanup**: Use `afterEach` to clean up `.opencode/state` artifacts.
+3. **Close**: `sdd_end_task` only after success.
 
 ## 7. ANTI-PATTERNS (Forbidden)
-
 - ❌ **Manual SDD**: Creating specs without Kiro Integration.
 - ❌ **English Commits**: "Update README" -> "docs: READMEを更新"
 - ❌ **Direct State Edit**: Modifying `.opencode/state/*.json` manually.
 - ❌ **Zombie Locks**: If `ELOCKED` persists >1min, use `sdd_force_unlock`.
-- ❌ **Scope Bypass**: Trying to edit file outside scope without updating `tasks.md`.
-- ❌ **Vibe Coding**: Writing code without a corresponding Task or Spec.
-- ❌ **Missing .gitignore**: Always include a task to create or update `.gitignore` during project setup.
-- ❌ **Jailbreak Tasking**: Gatekeeperエラー（`NO_ACTIVE_TASK`, `E_SCOPE_DENIED` 等）発生後に、ユーザー承認なしに`sdd_scaffold_specs`、`sdd_kiro init`、`sdd_start_task`を実行してタスクを自動生成・開始すること。**これはSDDガードの回避行為**であり、厳禁です。
+- ❌ **Scope Bypass**: Editing outside scope without updating `tasks.md`.
+- ❌ **Vibe Coding**: Coding without Task/Spec.
+- ❌ **Jailbreak**: Auto-creating tasks after `NO_ACTIVE_TASK` error without user approval.
 
 ## 8. AGENT OPERATIONAL PROTOCOL
 

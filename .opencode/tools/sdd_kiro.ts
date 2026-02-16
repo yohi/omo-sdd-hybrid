@@ -425,15 +425,6 @@ export default tool({
           return `❌ エラー: 仕様ファイルが不足しています（ギャップあり）。\n\n${missingFiles}\n\n不足しているファイルを作成し、ユーザーにレビューを求めてください。`;
         }
 
-        // 2. 未完了タスクのチェック
-        // finalize は仕様確定フェーズなので、実装タスクが未完了でもブロックすべきではない
-        // 警告として表示する程度に留める
-        const hasIncompleteTasks = gapResult.suggestions.some(s => s.includes('未完了のタスクがあります'));
-        if (hasIncompleteTasks) {
-          const msg = gapResult.suggestions.find(s => s.includes('未完了のタスクがあります')) || '未完了のタスクがあります';
-          console.warn(`警告: ${msg}`);
-        }
-
         if (!fs.existsSync(targetDir)) {
           return `エラー: 機能ディレクトリが存在しません: ${feature}`;
         }
