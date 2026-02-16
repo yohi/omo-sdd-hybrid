@@ -497,7 +497,7 @@ export function evaluateAccess(
     return {
       allowed: allowedOnViolation,
       warned: true,
-      message: `SCOPE_DENIED: ${state.activeTaskId} は ${normalizedPath} への書き込み権限を持ちません。allowedScopes=${state.allowedScopes.join(', ')}`,
+      message: `E_SCOPE_DENIED: ${state.activeTaskId} は ${normalizedPath} への書き込み権限を持ちません。allowedScopes=${state.allowedScopes.join(', ')}`,
       rule: 'Rule2'
     };
   }

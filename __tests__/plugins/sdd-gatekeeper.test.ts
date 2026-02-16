@@ -115,7 +115,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
       const result = evaluateAccess('edit', 'src/pay/checkout.ts', undefined, validState as any, worktreeRoot);
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
-      expect(result.message).toContain('SCOPE_DENIED');
+      expect(result.message).toContain('E_SCOPE_DENIED');
       expect(result.message).toContain('Task-1');
       expect(result.rule).toBe('Rule2');
     });
@@ -213,7 +213,7 @@ describe('sdd-gatekeeper evaluateMultiEdit', () => {
     expect(result.allowed).toBe(true);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('1/2');
-    expect(result.message).toContain('SCOPE_DENIED');
+    expect(result.message).toContain('E_SCOPE_DENIED');
   });
 
   test('allows all files within scope', () => {
@@ -328,7 +328,7 @@ describe('Role-based Access Control', () => {
     test('denies writing outside scope (standard behavior)', () => {
       const result = evaluateRoleAccess('edit', 'src/other/feature.ts', undefined, implementerState as any, worktreeRoot, 'block');
       expect(result.allowed).toBe(false);
-      expect(result.message).toContain('SCOPE_DENIED');
+      expect(result.message).toContain('E_SCOPE_DENIED');
     });
   });
 });

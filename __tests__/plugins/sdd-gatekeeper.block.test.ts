@@ -62,7 +62,7 @@ describe('sdd-gatekeeper block mode', () => {
       const result = evaluateAccess('edit', 'src/pay/checkout.ts', undefined, validState, worktreeRoot, 'block');
       expect(result.allowed).toBe(false);
       expect(result.warned).toBe(true);
-      expect(result.message).toContain('SCOPE_DENIED');
+      expect(result.message).toContain('E_SCOPE_DENIED');
       expect(result.message).toContain('Task-1');
       expect(result.rule).toBe('Rule2');
     });
