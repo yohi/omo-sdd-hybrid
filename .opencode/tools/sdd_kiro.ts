@@ -210,6 +210,8 @@ export default tool({
           if (freshState.status === 'ok' || freshState.status === 'recovered') {
              await writeState({
                ...freshState.state,
+               activeTaskId: feature,
+               activeTaskTitle: `Phase B: ${feature}`,
                profileSession: {
                  active: false,
                  startedAt: ''
