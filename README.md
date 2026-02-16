@@ -211,8 +211,8 @@ AIと対話しながら「何を作りたいか」を明確化します。
 #### Phase B: 仕様策定 — Requirements → Design → Tasks
 ユーザーの承認後、仕様書一式を作成・検証します。**各 `sdd_kiro` サブコマンドが内部で対応する検証ツール（`sdd_validate_gap` / `sdd_validate_design` / `sdd_lint_tasks`）を自動連鎖実行します。**
 
-> **DEPRECATED**: Manual SDD workflow (editing specs/*.md directly) is **deprecated** and **forbidden**.
-> You MUST use `sdd_kiro` for all spec operations.
+> **非推奨（DEPRECATED）**: Manual SDD ワークフロー（`specs/*.md` の直接編集）は**非推奨**かつ**禁止**です。
+> 仕様操作はすべて `sdd_kiro` を使用してください。
 
 1. **ステアリング確認**:
    ```bash
