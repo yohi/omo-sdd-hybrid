@@ -411,12 +411,13 @@ async function migrateState(parsed: unknown): Promise<{ ok: true; state: State }
   const mutable = parsed as Record<string, unknown>;
 
   // Profile Session Migration
-  if (!mutable.profileSession) {
+  const profileSessionAdded = !mutable.profileSession;
+  if (profileSessionAdded) {
     mutable.profileSession = { active: false, startedAt: '' };
   }
 
   // Legacy Migration: Inject missing hashes
-  if (!mutable.tasksMdHash || !mutable.stateHash) {
+  if (!mutable.tasksMdHash || !mutable.stateHash || profileSessionAdded) {
     try {
       if (!mutable.tasksMdHash) {
         mutable.tasksMdHash = await readTasksMdHash();
@@ -425,7 +426,7 @@ async function migrateState(parsed: unknown): Promise<{ ok: true; state: State }
       if (!('role' in mutable)) {
         mutable.role = null;
       }
-      if (!mutable.stateHash) {
+      if (!mutable.stateHash || profileSessionAdded) {
         mutable.stateHash = await computeStateHash(mutable as StateInput);
       }
     } catch (e) {
