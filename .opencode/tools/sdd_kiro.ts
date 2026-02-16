@@ -200,7 +200,12 @@ export default tool({
           return 'エラー: feature は必須です\n使用法: sdd_kiro init <feature>';
         }
         
-        const result = await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
+        let result: string;
+        try {
+          result = await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
+        } catch (error: any) {
+          result = `エラー: scaffoldSpecs の実行中に例外が発生しました: ${error.message}`;
+        }
 
         // init成功時にセッションを消費（無効化）する
         // エラーマーカーがなければ成功とみなす
@@ -567,19 +572,19 @@ export default tool({
       case 'profile': {
         // プロファイルセッションの開始（ユーザーの明確な意図を記録）
         const stateResultForProfile = await readState();
+        let nextState: State | null = null;
         
         if (stateResultForProfile.status === 'ok' || stateResultForProfile.status === 'recovered') {
-           const nextState = {
+           nextState = {
              ...stateResultForProfile.state,
              profileSession: {
                active: true,
                startedAt: new Date().toISOString()
              }
            };
-           await writeState(nextState);
         } else if (stateResultForProfile.status === 'not_found') {
            // Stateが存在しない場合、初期Stateを作成してセッションを開始する
-           const initialState: State = {
+           nextState = {
              version: 1,
              activeTaskId: 'profile-session',
              activeTaskTitle: 'Profile Session',
@@ -595,7 +600,6 @@ export default tool({
                startedAt: new Date().toISOString()
              }
            };
-           await writeState(initialState);
         } else if (stateResultForProfile.status === 'corrupted') {
            return `エラー: Stateファイルが破損しているため、プロファイルセッションを開始できません。\n詳細: ${stateResultForProfile.error}\n\n修復するか、管理者（sdd_force_unlock）に問い合わせてください。`;
         }
@@ -685,7 +689,13 @@ export default tool({
         ].join('\n');
 
         if (finalPrompt) {
+          if (nextState) {
+            await writeState(nextState);
+          }
           return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}\n\n${stopGuard}`;
+        }
+        if (nextState) {
+          await writeState(nextState);
         }
         return `${profileContent}\n\n${stopGuard}`;
       }
