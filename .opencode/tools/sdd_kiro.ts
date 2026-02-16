@@ -174,6 +174,11 @@ export default tool({
         const stateResultForInit = await readState();
         let isProfiled = false;
 
+        // Stateが破損している場合は即座にエラーを返し、修復を促す
+        if (stateResultForInit.status === 'corrupted') {
+          return `❌ エラー: Stateファイルが破損しているため、初期化プロセスを実行できません。\n詳細: ${stateResultForInit.error}\n\n次のコマンドで状態をリセットするか、管理者（sdd_force_unlock）に問い合わせてください:\n\`sdd_force_unlock --force true\` (注意: ロックと状態がクリアされます)`;
+        }
+
         if (stateResultForInit.status === 'ok' || stateResultForInit.status === 'recovered') {
           const session = stateResultForInit.state.profileSession;
           if (session && session.active) {
@@ -517,12 +522,16 @@ export default tool({
         
         let validateOutput = `🔍 **総合検証 (Reviewer Mode) を開始します: ${feature}**\n\n`;
         let hasFailure = false;
+        const failureMarkers = ['❌', 'Error', '⚠️'];
 
         // 1. Validate Gap (実装 vs 仕様)
         validateOutput += `## 1. Validate Gap (Implementation Check)\n\n`;
         try {
           const gapResult = await validateGap.execute({ kiroSpec: feature, deep: true }, context);
           validateOutput += gapResult + '\n\n';
+          if (failureMarkers.some(marker => gapResult.includes(marker))) {
+            hasFailure = true;
+          }
         } catch (error: any) {
           validateOutput += `❌ validate-gap 実行エラー: ${error.message}\n\n`;
           hasFailure = true;
@@ -533,6 +542,9 @@ export default tool({
         try {
           const designResult = await validateDesign.execute({ feature }, context);
           validateOutput += designResult + '\n\n';
+          if (failureMarkers.some(marker => designResult.includes(marker))) {
+            hasFailure = true;
+          }
         } catch (error: any) {
           validateOutput += `❌ validate-design 実行エラー: ${error.message}\n\n`;
           hasFailure = true;
