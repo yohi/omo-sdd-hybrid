@@ -168,11 +168,65 @@ export default tool({
         }
       }
 
-      case 'init':
+      case 'init': {
+        // プロファイルセッションの検証 (Vibe Coding防止)
+        // ユーザーが /profile を経由して意図を明確にした場合のみ init を許可する
+        const stateResultForInit = await readState();
+        let isProfiled = false;
+
+        // Stateが破損している場合は即座にエラーを返し、修復を促す
+        if (stateResultForInit.status === 'corrupted') {
+          return `❌ エラー: Stateファイルが破損しているため、初期化プロセスを実行できません。\n詳細: ${stateResultForInit.error}\n\n次のコマンドで状態をリセットするか、管理者（sdd_force_unlock）に問い合わせてください:\n\`sdd_force_unlock --force true\` (注意: ロックと状態がクリアされます)`;
+        }
+
+        if (stateResultForInit.status === 'ok' || stateResultForInit.status === 'recovered') {
+          const session = stateResultForInit.state.profileSession;
+          if (session && session.active) {
+            // 有効期限のチェック（1時間以内）
+            // 未来時刻や不正な値を排除するため、数値変換後のチェックを厳格に行う
+            const startedAt = new Date(session.startedAt).getTime();
+            const now = Date.now();
+            if (Number.isFinite(startedAt) && now >= startedAt && (now - startedAt < 60 * 60 * 1000)) {
+              isProfiled = true;
+            }
+          }
+        }
+
+        if (!isProfiled) {
+          return 'エラー: sdd_kiro init は直接実行できません。\n必ず `/profile` (または `sdd_kiro profile`) コマンドを実行し、要件定義プロセスを経てから実行してください。\n(E_PROFILE_REQUIRED: No active profile session)';
+        }
+
         if (!feature) {
           return 'エラー: feature は必須です\n使用法: sdd_kiro init <feature>';
         }
-        return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
+        
+        let result: string;
+        try {
+          result = await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
+        } catch (error: any) {
+          result = `エラー: scaffoldSpecs の実行中に例外が発生しました: ${error.message}`;
+        }
+
+        // init成功時にセッションを消費（無効化）する
+        // エラーマーカーがなければ成功とみなす
+        const hasError = result.includes('エラー:') || result.includes('❌');
+        if (!hasError) {
+          const freshState = await readState();
+          if (freshState.status === 'ok' || freshState.status === 'recovered') {
+             await writeState({
+               ...freshState.state,
+               activeTaskId: feature,
+               activeTaskTitle: `Phase B: ${feature}`,
+               profileSession: {
+                 active: false,
+                 startedAt: ''
+               }
+             });
+          }
+        }
+
+        return result;
+      }
 
       case 'tasks': {
         if (!feature) return 'エラー: feature は必須です';
@@ -269,6 +323,7 @@ export default tool({
                   role: 'architect',
                   tasksMdHash: '',
                   stateHash: '',
+                  profileSession: { active: false, startedAt: '' },
                 };
                 const gapResult = await validateGapInternal(syntheticState, {
                   kiroSpec: feature,
@@ -469,17 +524,24 @@ export default tool({
         // 将来的には cc-sdd 準拠の専用ロジック (Requirements Traceability など) に差し替える
         return await validateGap.execute({ kiroSpec: feature, taskId: feature }, context);
 
-      case 'validate':
+      case 'validate': {
         if (!feature) return 'エラー: feature は必須です';
         
         let validateOutput = `🔍 **総合検証 (Reviewer Mode) を開始します: ${feature}**\n\n`;
         let hasFailure = false;
+        // ⚠️ を含める理由: 
+        // 1. 必須ドキュメント欠落 ("Missing Requirements Document") が ⚠️ で表現されているため
+        // 2. 意味的ギャップ ("Semantic Gap") も ⚠️ で表現され、Strict SDD ではこれを確認・解消すべき対象とするため
+        const failureMarkers = ['❌', 'Error', '⚠️'];
 
         // 1. Validate Gap (実装 vs 仕様)
         validateOutput += `## 1. Validate Gap (Implementation Check)\n\n`;
         try {
           const gapResult = await validateGap.execute({ kiroSpec: feature, deep: true }, context);
           validateOutput += gapResult + '\n\n';
+          if (failureMarkers.some(marker => gapResult.includes(marker))) {
+            hasFailure = true;
+          }
         } catch (error: any) {
           validateOutput += `❌ validate-gap 実行エラー: ${error.message}\n\n`;
           hasFailure = true;
@@ -490,6 +552,9 @@ export default tool({
         try {
           const designResult = await validateDesign.execute({ feature }, context);
           validateOutput += designResult + '\n\n';
+          if (failureMarkers.some(marker => designResult.includes(marker))) {
+            hasFailure = true;
+          }
         } catch (error: any) {
           validateOutput += `❌ validate-design 実行エラー: ${error.message}\n\n`;
           hasFailure = true;
@@ -502,8 +567,43 @@ export default tool({
           validateOutput += `✅ 総合検証完了`;
         }
         return validateOutput;
+      }
 
       case 'profile': {
+        // プロファイルセッションの開始（ユーザーの明確な意図を記録）
+        const stateResultForProfile = await readState();
+        let nextState: State | null = null;
+        
+        if (stateResultForProfile.status === 'ok' || stateResultForProfile.status === 'recovered') {
+           nextState = {
+             ...stateResultForProfile.state,
+             profileSession: {
+               active: true,
+               startedAt: new Date().toISOString()
+             }
+           };
+        } else if (stateResultForProfile.status === 'not_found') {
+           // Stateが存在しない場合、初期Stateを作成してセッションを開始する
+           nextState = {
+             version: 1,
+             activeTaskId: 'profile-session',
+             activeTaskTitle: 'Profile Session',
+             allowedScopes: [],
+             startedAt: new Date().toISOString(),
+             startedBy: 'sdd_kiro_profile',
+             validationAttempts: 0,
+             role: 'architect',
+             tasksMdHash: '', 
+             stateHash: '',
+             profileSession: {
+               active: true,
+               startedAt: new Date().toISOString()
+             }
+           };
+        } else if (stateResultForProfile.status === 'corrupted') {
+           return `エラー: Stateファイルが破損しているため、プロファイルセッションを開始できません。\n詳細: ${stateResultForProfile.error}\n\n修復するか、管理者（sdd_force_unlock）に問い合わせてください。`;
+        }
+
         // 優先順位:
         // 1. カレントディレクトリの .opencode/prompts/profile.md (ユーザーによる上書き/ローカル開発)
         // 2. パッケージ内の .opencode/prompts/profile.md (npmパッケージとしてインストール時)
@@ -589,7 +689,13 @@ export default tool({
         ].join('\n');
 
         if (finalPrompt) {
+          if (nextState) {
+            await writeState(nextState);
+          }
           return `${profileContent}\n\n=== 追加コンテキスト (prompt/promptFile) ===\n${finalPrompt}\n\n${stopGuard}`;
+        }
+        if (nextState) {
+          await writeState(nextState);
         }
         return `${profileContent}\n\n${stopGuard}`;
       }

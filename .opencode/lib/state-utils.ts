@@ -53,12 +53,20 @@ export interface State {
   role: 'architect' | 'implementer' | null;
   tasksMdHash: string;
   stateHash: string;
+  profileSession: {
+    active: boolean;
+    startedAt: string;
+  };
 }
 
-export type StateInput = Omit<State, 'stateHash' | 'tasksMdHash' | 'role'> & {
+export type StateInput = Omit<State, 'stateHash' | 'tasksMdHash' | 'role' | 'profileSession'> & {
   tasksMdHash?: string;
   stateHash?: string;
   role?: 'architect' | 'implementer' | null;
+  profileSession?: {
+    active: boolean;
+    startedAt: string;
+  };
 };
 
 export interface LockInfo {
@@ -189,6 +197,7 @@ export async function computeStateHash(state: StateInput): Promise<string> {
     validationAttempts: state.validationAttempts,
     role: state.role ?? null,
     tasksMdHash: state.tasksMdHash ?? '',
+    profileSession: state.profileSession || { active: false, startedAt: '' },
   };
 
   const key = await getStateHmacKey();
@@ -329,13 +338,15 @@ export async function writeState(state: StateInput): Promise<void> {
     }
     
     const role = state.role ?? null;
-    const stateHash = await computeStateHash({ ...state, tasksMdHash, role });
+    const profileSession = state.profileSession || { active: false, startedAt: '' };
+    const stateHash = await computeStateHash({ ...state, tasksMdHash, role, profileSession });
     
     const stateToWrite: State = {
       ...state,
       role,
       tasksMdHash: tasksMdHash!,
       stateHash,
+      profileSession,
     };
 
     rotateBackup(currentStatePath);
@@ -369,7 +380,15 @@ function validateState(state: unknown): state is State {
     typeof s.startedBy === 'string' && s.startedBy.trim() !== '' &&
     typeof s.validationAttempts === 'number' && Number.isFinite(s.validationAttempts) &&
     typeof s.tasksMdHash === 'string' && s.tasksMdHash.trim() !== '' &&
-    typeof s.stateHash === 'string' && s.stateHash.trim() !== ''
+    typeof s.stateHash === 'string' && s.stateHash.trim() !== '' &&
+    // profileSession は後方互換のため undefined を許容（migrateState でデフォルト注入される）
+    (
+      s.profileSession === undefined || (
+        typeof s.profileSession === 'object' && s.profileSession !== null &&
+        typeof (s.profileSession as any).active === 'boolean' &&
+        typeof (s.profileSession as any).startedAt === 'string'
+      )
+    )
   );
 }
 
@@ -392,8 +411,14 @@ async function migrateState(parsed: unknown): Promise<{ ok: true; state: State }
 
   const mutable = parsed as Record<string, unknown>;
 
+  // Profile Session Migration
+  const profileSessionAdded = !mutable.profileSession;
+  if (profileSessionAdded) {
+    mutable.profileSession = { active: false, startedAt: '' };
+  }
+
   // Legacy Migration: Inject missing hashes
-  if (!mutable.tasksMdHash || !mutable.stateHash) {
+  if (!mutable.tasksMdHash || !mutable.stateHash || profileSessionAdded) {
     try {
       if (!mutable.tasksMdHash) {
         mutable.tasksMdHash = await readTasksMdHash();
@@ -402,7 +427,7 @@ async function migrateState(parsed: unknown): Promise<{ ok: true; state: State }
       if (!('role' in mutable)) {
         mutable.role = null;
       }
-      if (!mutable.stateHash) {
+      if (!mutable.stateHash || profileSessionAdded) {
         mutable.stateHash = await computeStateHash(mutable as StateInput);
       }
     } catch (e) {
@@ -415,7 +440,10 @@ async function migrateState(parsed: unknown): Promise<{ ok: true; state: State }
     if (!('role' in mutable)) {
       mutable.role = null;
     }
-    return { ok: true, state: mutable as State };
+    if (!mutable.profileSession) {
+      mutable.profileSession = { active: false, startedAt: '' };
+    }
+    return { ok: true, state: mutable as unknown as State };
   }
   
   return { ok: false, error: 'Invalid state schema after migration attempt' };

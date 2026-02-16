@@ -27,11 +27,31 @@ describe('sdd_kiro', () => {
     return module.default.execute(args, {});
   }
 
-  it('initコマンドで仕様書の雛形を作成する（Architectロールへの切り替えを確認）', async () => {
+  it('initコマンドを直接実行するとエラーになる（profile必須制約）', async () => {
+    // Implementerロールで開始
+    await writeState({
+      version: 1,
+      activeTaskId: 'Task-Direct-Init',
+      activeTaskTitle: 'Test Task',
+      allowedScopes: ['src/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'test',
+      validationAttempts: 0,
+      role: 'implementer'
+    });
+
+    const feature = 'direct-init-flow';
+    const result = await runTool({ command: 'init', feature });
+
+    expect(result).toContain('エラー: sdd_kiro init は直接実行できません');
+    expect(result).toContain('E_PROFILE_REQUIRED');
+  });
+
+  it('profile実行後にinitコマンドを実行すると成功する', async () => {
     // 初期の状態を作成（Implementerロール）
     await writeState({
       version: 1,
-      activeTaskId: 'Task-1',
+      activeTaskId: 'Task-Profile-Init',
       activeTaskTitle: 'Test Task',
       allowedScopes: ['src/**'],
       startedAt: new Date().toISOString(),
@@ -41,15 +61,41 @@ describe('sdd_kiro', () => {
     });
 
     const feature = 'auth-flow';
+
+    // 1. profileを実行（セッション開始）
+    // profileコマンドはprofile.mdのパス解決が必要なため、プロセスCWDを一時的に変更する
+    const originalCwd = process.cwd();
+    try {
+        process.chdir(tmpDir);
+        // モック用のプロファイルを作成
+        const profileDir = path.join(tmpDir, '.opencode', 'prompts');
+        fs.mkdirSync(profileDir, { recursive: true });
+        fs.writeFileSync(path.join(profileDir, 'profile.md'), '# Mock Profile');
+
+        await runTool({ command: 'profile' });
+    } finally {
+        process.chdir(originalCwd);
+    }
+
+    // Stateが更新され、profileSessionがactiveになっているか確認
+    let stateResult = await readState();
+    expect(stateResult.status).toBe('ok');
+    if (stateResult.status === 'ok') {
+        expect(stateResult.state.profileSession?.active).toBe(true);
+    }
+
+    // 2. initを実行（成功するはず）
     const result = await runTool({ command: 'init', feature });
 
     expect(result).toContain(`✅ 仕様書の雛形を作成しました: ${feature}`);
     
     // ロールが architect に切り替わっているか確認
-    const stateResult = await readState();
+    stateResult = await readState();
     expect(stateResult.status).toBe('ok');
     if (stateResult.status === 'ok') {
       expect(stateResult.state.role).toBe('architect');
+      // init成功後、セッションが終了しているか確認
+      expect(stateResult.state.profileSession?.active).toBe(false);
     }
 
     const specDir = path.join(kiroDir, 'specs', feature);
@@ -122,6 +168,30 @@ describe('sdd_kiro', () => {
   });
 
   it('initコマンドでfeature引数がない場合にエラーメッセージを返す', async () => {
+    // State初期化
+    await writeState({
+      version: 1,
+      activeTaskId: 'Task-Init-Error',
+      activeTaskTitle: 'Test Task',
+      allowedScopes: ['src/**'],
+      startedAt: new Date().toISOString(),
+      startedBy: 'test',
+      validationAttempts: 0,
+      role: 'architect'
+    });
+
+    // セッション開始が必要
+    const originalCwd = process.cwd();
+    try {
+        process.chdir(tmpDir);
+        const profileDir = path.join(tmpDir, '.opencode', 'prompts');
+        fs.mkdirSync(profileDir, { recursive: true });
+        fs.writeFileSync(path.join(profileDir, 'profile.md'), '# Mock Profile');
+        await runTool({ command: 'profile' });
+    } finally {
+        process.chdir(originalCwd);
+    }
+
     const result = await runTool({ command: 'init' });
     expect(result).toContain('エラー: feature は必須です');
     expect(result).toContain('使用法: sdd_kiro init <feature>');
