@@ -524,6 +524,9 @@ export default tool({
         
         let validateOutput = `🔍 **総合検証 (Reviewer Mode) を開始します: ${feature}**\n\n`;
         let hasFailure = false;
+        // ⚠️ を含める理由: 
+        // 1. 必須ドキュメント欠落 ("Missing Requirements Document") が ⚠️ で表現されているため
+        // 2. 意味的ギャップ ("Semantic Gap") も ⚠️ で表現され、Strict SDD ではこれを確認・解消すべき対象とするため
         const failureMarkers = ['❌', 'Error', '⚠️'];
 
         // 1. Validate Gap (実装 vs 仕様)
