@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { setupTestState, cleanupTestState } from '../helpers/test-harness';
+import { withTempDir } from '../helpers/temp-dir';
 import { getStatePath, getStateDir } from '../../.opencode/lib/state-utils';
 import fs from 'fs';
 import path from 'path';
@@ -268,6 +269,44 @@ describe('access-policy', () => {
       const result = evaluateAccess('bash', undefined, 'echo {rm;-rf}', { status: 'not_found' }, WORKTREE_ROOT, 'warn');
       expect(result.allowed).toBe(true);
       expect(result.warned).toBe(false);
+    });
+
+    test('SDD-GATEKEEPER-BYPASS: allows when neither .kiro nor specs/tasks.md exists', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      
+      const result = await withTempDir((tempRoot) => {
+        const filePath = path.join(tempRoot, 'src/app.ts');
+        return evaluateAccess('edit', filePath, undefined, { status: 'not_found' }, tempRoot, 'warn');
+      });
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('SDD-GATEKEEPER-BYPASS: warns when .kiro exists', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      
+      const result = await withTempDir((tempRoot) => {
+        fs.mkdirSync(path.join(tempRoot, '.kiro'));
+        const filePath = path.join(tempRoot, 'src/app.ts');
+        return evaluateAccess('edit', filePath, undefined, { status: 'not_found' }, tempRoot, 'warn');
+      });
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule1');
+    });
+
+    test('SDD-GATEKEEPER-BYPASS: warns when specs/tasks.md exists', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      
+      const result = await withTempDir((tempRoot) => {
+        fs.mkdirSync(path.join(tempRoot, 'specs'), { recursive: true });
+        fs.writeFileSync(path.join(tempRoot, 'specs', 'tasks.md'), '');
+        const filePath = path.join(tempRoot, 'src/app.ts');
+        return evaluateAccess('edit', filePath, undefined, { status: 'not_found' }, tempRoot, 'warn');
+      });
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule1');
     });
   });
 
