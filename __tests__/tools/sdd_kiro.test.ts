@@ -257,7 +257,7 @@ describe('sdd_kiro', () => {
     expect(fs.existsSync(path.join(specDir, 'requirements_ja.md'))).toBe(false);
   });
 
-  it('finalizeコマンドで未完了タスクがある場合にエラーになる', async () => {
+  it('finalizeコマンドで未完了タスクがある場合は警告のみで成功する（エラーにはならない）', async () => {
     // Architectロールに設定
     await writeState({
       version: 1,
@@ -281,12 +281,11 @@ describe('sdd_kiro', () => {
 
     const result = await runTool({ command: 'finalize', feature });
 
-    expect(result).toContain('❌ エラー');
-    expect(result).toContain('未完了のタスクが残っています');
-    
-    // リネームされていないことを確認
-    expect(fs.existsSync(path.join(specDir, 'tasks.md'))).toBe(true);
-    expect(fs.existsSync(path.join(specDir, 'tasks_ja.md'))).toBe(false);
+    // エラーではなく成功することを確認
+    expect(result).toContain('✅ ファイナライズ完了');
+    // リネームされていることを確認
+    expect(fs.existsSync(path.join(specDir, 'tasks.md'))).toBe(false);
+    expect(fs.existsSync(path.join(specDir, 'tasks_ja.md'))).toBe(true);
   });
 
   it('finalizeコマンドでロールが変更されないことを確認する', async () => {
