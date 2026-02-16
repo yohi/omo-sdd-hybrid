@@ -480,7 +480,12 @@ export function evaluateAccess(
   const state = stateResult.state;
 
   if (!state.activeTaskId || state.allowedScopes.length === 0) {
-    return { allowed: true, warned: false, rule: "Rule1" };
+    return {
+      allowed: allowedOnViolation,
+      warned: true,
+      message: 'NO_ACTIVE_TASK: 先に sdd_start_task <TaskID> を実行してください',
+      rule: 'Rule1'
+    };
   }
 
   if (!matchesScope(normalizedPath, state.allowedScopes)) {
