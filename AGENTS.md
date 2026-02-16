@@ -105,6 +105,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 1. **Interview**: Collect requirements (EARS).
 2. **Output**: Generate profile document (Japanese).
 3. **STOP**: Present to user. Wait for approval.
+   - **Forbidden in Phase A**: `sdd_scaffold_specs`, `sdd_sync_kiro`, `sdd_kiro init`, `sdd_start_task`, file/directory creation, validation execution.
 
 ### Phase B: Specification (Role: `architect`, via `sdd_kiro`)
 **Goal**: Define "What to build" with validated specs.
@@ -150,3 +151,16 @@ Agents **MUST** follow this cycle. Do not skip steps.
 - ❌ **Scope Bypass**: Editing outside scope without updating `tasks.md`.
 - ❌ **Vibe Coding**: Coding without Task/Spec.
 - ❌ **Jailbreak**: Auto-creating tasks after `NO_ACTIVE_TASK` error without user approval.
+
+## 8. AGENT OPERATIONAL PROTOCOL
+
+1. **Check Context First**: Run `sdd_show_context` to see active task/scope.
+2. **Respect Locks**: If `ELOCKED`, wait 5s and retry. Do not force unlock immediately.
+3. **Validation**: Before `sdd_end_task`, run `sdd_validate_gap` to ensure clean state.
+4. **Communication**: Report progress in **Japanese**.
+5. **Interaction**: Check if `question` tool is available. If YES, use it. If NO, use text input.
+
+## 9. CI/CD & RELEASE
+- **Trigger**: Push to `master`.
+- **Versioning**: Automatic patch increment. **DO NOT** manually bump version.
+- **CI Check**: `scripts/sdd_ci_validate.ts` enforces Scope rules.
