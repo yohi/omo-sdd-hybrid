@@ -198,7 +198,9 @@ export default tool({
         const result = await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
 
         // init成功時にセッションを消費（無効化）する
-        if (result.includes('✅ 仕様書の雛形を作成しました')) {
+        // エラーマーカーがなければ成功とみなす
+        const hasError = result.includes('エラー:') || result.includes('❌');
+        if (!hasError) {
           const freshState = await readState();
           if (freshState.status === 'ok' || freshState.status === 'recovered') {
              await writeState({

@@ -381,6 +381,7 @@ function validateState(state: unknown): state is State {
     typeof s.validationAttempts === 'number' && Number.isFinite(s.validationAttempts) &&
     typeof s.tasksMdHash === 'string' && s.tasksMdHash.trim() !== '' &&
     typeof s.stateHash === 'string' && s.stateHash.trim() !== '' &&
+    // profileSession は後方互換のため undefined を許容（migrateState でデフォルト注入される）
     (
       s.profileSession === undefined || (
         typeof s.profileSession === 'object' && s.profileSession !== null &&
