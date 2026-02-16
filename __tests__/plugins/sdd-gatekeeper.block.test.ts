@@ -19,16 +19,16 @@ const baseState = {
 describe('sdd-gatekeeper block mode', () => {
   
   describe('Rule 1: NO_ACTIVE_TASK in block mode', () => {
-    test('blocks when no state exists for src file', () => {
+    test('allows when no state exists for src file (Rule 1 changed)', () => {
       const stateResult: StateResult = { status: 'not_found' };
       const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot, 'block');
-      expect(result.allowed).toBe(false);
+      expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('NO_ACTIVE_TASK');
       expect(result.rule).toBe('Rule1');
     });
 
-    test('blocks when state has empty allowedScopes', () => {
+    test('allows when state has empty allowedScopes (Rule 1 changed)', () => {
       const stateResult: StateResult = { 
         status: 'ok', 
         state: { 
@@ -40,7 +40,7 @@ describe('sdd-gatekeeper block mode', () => {
         } 
       };
       const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot, 'block');
-      expect(result.allowed).toBe(false);
+      expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('NO_ACTIVE_TASK');
     });

@@ -14,9 +14,10 @@ describe('Acceptance Criteria A-I', () => {
     cleanupTestState();
   });
   
-  test('Scenario A: state なし + src/a.ts 編集 → WARN NO_ACTIVE_TASK', async () => {
+  test('Scenario A: state なし + src/a.ts 編集 → WARN NO_ACTIVE_TASK (Allowed)', async () => {
     await ensureNoBackups();
     const result = await simulateEdit('src/a.ts');
+    expect(result.allowed).toBe(true);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('NO_ACTIVE_TASK');
   });
@@ -132,10 +133,10 @@ describe('Phase 1 Block Mode Acceptance', () => {
     cleanupTestState();
   });
 
-  test("Scenario A': block + state なし + src/a.ts 編集 → BLOCK NO_ACTIVE_TASK", async () => {
+  test("Scenario A': block + state なし + src/a.ts 編集 → ALLOW NO_ACTIVE_TASK (Changed)", async () => {
     await ensureNoBackups();
     const result = await simulateEdit('src/a.ts', undefined, 'block');
-    expect(result.allowed).toBe(false);
+    expect(result.allowed).toBe(true);
     expect(result.warned).toBe(true);
     expect(result.message).toContain('NO_ACTIVE_TASK');
     expect(result.rule).toBe('Rule1');

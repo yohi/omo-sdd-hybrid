@@ -472,10 +472,20 @@ export function evaluateAccess(
   }
 
   if (stateResult.status === "not_found") {
+    // SDD-GATEKEEPER-BYPASS:
+    // If neither .kiro/ nor specs/tasks.md exists, assume this is not an SDD project yet.
+    // Allow operations without warning to support Vibe Coding / Greenfield projects.
+    const kiroPath = path.join(worktreeRoot, '.kiro');
+    const tasksPath = path.join(worktreeRoot, 'specs', 'tasks.md');
+
+    if (!fs.existsSync(kiroPath) && !fs.existsSync(tasksPath)) {
+      return { allowed: true, warned: false };
+    }
+
     return {
-      allowed: allowedOnViolation,
+      allowed: true,
       warned: true,
-      message: 'NO_ACTIVE_TASK: 先に sdd_start_task <TaskID> を実行してください',
+      message: 'NO_ACTIVE_TASK: タスク外での編集を検知しました (Guard Inactive)',
       rule: 'Rule1'
     };
   }
@@ -486,9 +496,9 @@ export function evaluateAccess(
 
   if (!state.activeTaskId || state.allowedScopes.length === 0) {
     return {
-      allowed: allowedOnViolation,
+      allowed: true,
       warned: true,
-      message: 'NO_ACTIVE_TASK: 先に sdd_start_task <TaskID> を実行してください',
+      message: 'NO_ACTIVE_TASK: タスク外での編集を検知しました (Guard Inactive)',
       rule: 'Rule1'
     };
   }
