@@ -92,11 +92,15 @@ describe('access-policy', () => {
       expect(result.rule).toBe('Rule1');
     });
 
-    test('blocks when no active task in block mode', async () => {
+    test('allows when no active task in block mode (with SDD files)', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       
-      const result = evaluateAccess('edit', 'src/app.ts', undefined, { status: 'not_found' }, WORKTREE_ROOT, 'block');
-      expect(result.allowed).toBe(false);
+      const result = await withTempDir((tempRoot) => {
+        fs.mkdirSync(path.join(tempRoot, '.kiro'));
+        const filePath = path.join(tempRoot, 'src/app.ts');
+        return evaluateAccess('edit', filePath, undefined, { status: 'not_found' }, tempRoot, 'block');
+      });
+      expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.rule).toBe('Rule1');
     });

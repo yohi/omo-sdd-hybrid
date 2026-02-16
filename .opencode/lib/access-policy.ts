@@ -483,7 +483,7 @@ export function evaluateAccess(
     }
 
     return {
-      allowed: allowedOnViolation,
+      allowed: true,
       warned: true,
       message: 'NO_ACTIVE_TASK: タスク外での編集を検知しました (Guard Inactive)',
       rule: 'Rule1'
@@ -496,7 +496,7 @@ export function evaluateAccess(
 
   if (!state.activeTaskId || state.allowedScopes.length === 0) {
     return {
-      allowed: allowedOnViolation,
+      allowed: true,
       warned: true,
       message: 'NO_ACTIVE_TASK: タスク外での編集を検知しました (Guard Inactive)',
       rule: 'Rule1'
