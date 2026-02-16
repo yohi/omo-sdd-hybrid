@@ -198,9 +198,10 @@ export default tool({
 
         // init成功時にセッションを消費（無効化）する
         if (result.includes('✅ 仕様書の雛形を作成しました')) {
-          if (stateResultForInit.status === 'ok' || stateResultForInit.status === 'recovered') {
+          const freshState = await readState();
+          if (freshState.status === 'ok' || freshState.status === 'recovered') {
              await writeState({
-               ...stateResultForInit.state,
+               ...freshState.state,
                profileSession: {
                  active: false,
                  startedAt: ''
@@ -307,6 +308,7 @@ export default tool({
                   role: 'architect',
                   tasksMdHash: '',
                   stateHash: '',
+                  profileSession: { active: false, startedAt: '' },
                 };
                 const gapResult = await validateGapInternal(syntheticState, {
                   kiroSpec: feature,
@@ -554,6 +556,26 @@ export default tool({
              }
            };
            await writeState(nextState);
+        } else if (stateResultForProfile.status === 'not_found') {
+           // Stateが存在しない場合、初期Stateを作成してセッションを開始する
+           // プロファイル段階ではタスクはまだないので、プレースホルダー的な値を設定
+           const initialState: State = {
+             version: 1,
+             activeTaskId: 'profile-session', // 仮のタスクID
+             activeTaskTitle: 'Profile Session',
+             allowedScopes: [], // まだ何も許可しない
+             startedAt: new Date().toISOString(),
+             startedBy: 'sdd_kiro_profile',
+             validationAttempts: 0,
+             role: 'architect',
+             tasksMdHash: '', // 初期化時は空でOK（writeStateで計算または補完される）
+             stateHash: '', // writeStateで計算される
+             profileSession: {
+               active: true,
+               startedAt: new Date().toISOString()
+             }
+           };
+           await writeState(initialState);
         }
 
         // 優先順位:
