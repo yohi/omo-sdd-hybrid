@@ -36,7 +36,7 @@ Use **Bun** for all operations.
 |---------|-------------|
 | `bun run build` | Builds the project to `dist/`. |
 | `bun test` | Runs all tests in parallel (fast, but risky for state). |
-| `bun test:seq` | **RECOMMENDED**. Runs tests sequentially to prevent State/Lock race conditions. |
+| `bun run test:seq` | **RECOMMENDED**. Runs tests sequentially to prevent State/Lock race conditions. |
 | `bun test <path>` | Runs a single test file (e.g., `bun test __tests__/tools/foo.test.ts`). |
 | `bun run lint:md` | Lints Markdown files using `markdownlint-cli2`. |
 | `bun run ci:validate` | Runs CI validation script (Scope & Changeset check). |
@@ -127,7 +127,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 3. PR: `gh pr create`.
 
 ### Phase D: Finalize (Role: `architect`)
-1. User runs `sdd_kiro finalize` after PR approval.
+1. User runs `/finalize <feature-name>` after PR approval.
 2. Verify consistency.
 3. Rename specs to `*_ja.md` and prep for translation.
 
