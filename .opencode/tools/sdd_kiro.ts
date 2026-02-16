@@ -178,9 +178,10 @@ export default tool({
           const session = stateResultForInit.state.profileSession;
           if (session && session.active) {
             // 有効期限のチェック（1時間以内）
+            // 未来時刻や不正な値を排除するため、数値変換後のチェックを厳格に行う
             const startedAt = new Date(session.startedAt).getTime();
             const now = Date.now();
-            if (now - startedAt < 60 * 60 * 1000) {
+            if (Number.isFinite(startedAt) && now >= startedAt && (now - startedAt < 60 * 60 * 1000)) {
               isProfiled = true;
             }
           }
@@ -547,6 +548,7 @@ export default tool({
       case 'profile': {
         // プロファイルセッションの開始（ユーザーの明確な意図を記録）
         const stateResultForProfile = await readState();
+        
         if (stateResultForProfile.status === 'ok' || stateResultForProfile.status === 'recovered') {
            const nextState = {
              ...stateResultForProfile.state,
@@ -558,24 +560,25 @@ export default tool({
            await writeState(nextState);
         } else if (stateResultForProfile.status === 'not_found') {
            // Stateが存在しない場合、初期Stateを作成してセッションを開始する
-           // プロファイル段階ではタスクはまだないので、プレースホルダー的な値を設定
            const initialState: State = {
              version: 1,
-             activeTaskId: 'profile-session', // 仮のタスクID
+             activeTaskId: 'profile-session',
              activeTaskTitle: 'Profile Session',
-             allowedScopes: [], // まだ何も許可しない
+             allowedScopes: [],
              startedAt: new Date().toISOString(),
              startedBy: 'sdd_kiro_profile',
              validationAttempts: 0,
              role: 'architect',
-             tasksMdHash: '', // 初期化時は空でOK（writeStateで計算または補完される）
-             stateHash: '', // writeStateで計算される
+             tasksMdHash: '', 
+             stateHash: '',
              profileSession: {
                active: true,
                startedAt: new Date().toISOString()
              }
            };
            await writeState(initialState);
+        } else if (stateResultForProfile.status === 'corrupted') {
+           return `エラー: Stateファイルが破損しているため、プロファイルセッションを開始できません。\n詳細: ${stateResultForProfile.error}\n\n修復するか、管理者（sdd_force_unlock）に問い合わせてください。`;
         }
 
         // 優先順位:
