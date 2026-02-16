@@ -168,11 +168,49 @@ export default tool({
         }
       }
 
-      case 'init':
+      case 'init': {
+        // プロファイルセッションの検証 (Vibe Coding防止)
+        // ユーザーが /profile を経由して意図を明確にした場合のみ init を許可する
+        const stateResultForInit = await readState();
+        let isProfiled = false;
+
+        if (stateResultForInit.status === 'ok' || stateResultForInit.status === 'recovered') {
+          const session = stateResultForInit.state.profileSession;
+          if (session && session.active) {
+            // 有効期限のチェック（1時間以内）
+            const startedAt = new Date(session.startedAt).getTime();
+            const now = Date.now();
+            if (now - startedAt < 60 * 60 * 1000) {
+              isProfiled = true;
+            }
+          }
+        }
+
+        if (!isProfiled) {
+          return 'エラー: sdd_kiro init は直接実行できません。\n必ず `/profile` (または `sdd_kiro profile`) コマンドを実行し、要件定義プロセスを経てから実行してください。\n(E_PROFILE_REQUIRED: No active profile session)';
+        }
+
         if (!feature) {
           return 'エラー: feature は必須です\n使用法: sdd_kiro init <feature>';
         }
-        return await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
+        
+        const result = await scaffoldSpecs.execute({ feature, prompt: finalPrompt, overwrite }, context);
+
+        // init成功時にセッションを消費（無効化）する
+        if (result.includes('✅ 仕様書の雛形を作成しました')) {
+          if (stateResultForInit.status === 'ok' || stateResultForInit.status === 'recovered') {
+             await writeState({
+               ...stateResultForInit.state,
+               profileSession: {
+                 active: false,
+                 startedAt: ''
+               }
+             });
+          }
+        }
+
+        return result;
+      }
 
       case 'tasks': {
         if (!feature) return 'エラー: feature は必須です';
@@ -469,7 +507,7 @@ export default tool({
         // 将来的には cc-sdd 準拠の専用ロジック (Requirements Traceability など) に差し替える
         return await validateGap.execute({ kiroSpec: feature, taskId: feature }, context);
 
-      case 'validate':
+      case 'validate': {
         if (!feature) return 'エラー: feature は必須です';
         
         let validateOutput = `🔍 **総合検証 (Reviewer Mode) を開始します: ${feature}**\n\n`;
@@ -502,8 +540,22 @@ export default tool({
           validateOutput += `✅ 総合検証完了`;
         }
         return validateOutput;
+      }
 
       case 'profile': {
+        // プロファイルセッションの開始（ユーザーの明確な意図を記録）
+        const stateResultForProfile = await readState();
+        if (stateResultForProfile.status === 'ok' || stateResultForProfile.status === 'recovered') {
+           const nextState = {
+             ...stateResultForProfile.state,
+             profileSession: {
+               active: true,
+               startedAt: new Date().toISOString()
+             }
+           };
+           await writeState(nextState);
+        }
+
         // 優先順位:
         // 1. カレントディレクトリの .opencode/prompts/profile.md (ユーザーによる上書き/ローカル開発)
         // 2. パッケージ内の .opencode/prompts/profile.md (npmパッケージとしてインストール時)
