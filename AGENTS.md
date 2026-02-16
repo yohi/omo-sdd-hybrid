@@ -71,7 +71,7 @@ Use **Bun** for all operations.
 1. Intercepts `tool.execute.before`.
 2. Checks `allowedScopes` (Glob patterns) in State.
 3. Throws `E_SCOPE_DENIED` if target file matches NO pattern.
-   - **Recovery**: Do not force edit. Update `specs/tasks.md` or `.kiro/specs/**/scope.md`.
+   - **Recovery**: Do not force edit. Update specs via `sdd_kiro tasks`.
 
 ## 5. AGENT WORKFLOW (SDD Cycle)
 
@@ -86,6 +86,10 @@ Agents **MUST** follow this cycle. Do not skip steps.
 
 ### Phase B: Specification (Role: `architect`, after user approval)
 **Goal**: Define "What to build" with validated specs. `validate-gap` / `validate-design` / `lint_tasks` are **programmatically auto-chained** within each command.
+
+> **DEPRECATED**: Manual SDD workflow (editing specs/*.md directly) is **deprecated** and **forbidden**.
+> You MUST use `sdd_kiro` for all spec operations.
+
 1. **Steering**: `sdd_kiro steering` — Review/Update project direction. **REPORT** to user.
 2. **Init**: `sdd_kiro init --feature <name>` — Create specs directory.
 3. **Requirements + validate-gap (auto-chained)**:
@@ -185,6 +189,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 
 ## 7. ANTI-PATTERNS (Forbidden)
 
+- ❌ **Manual SDD**: Creating specs without Kiro Integration.
 - ❌ **English Commits**: "Update README" -> "docs: READMEを更新"
 - ❌ **Direct State Edit**: Modifying `.opencode/state/*.json` manually.
 - ❌ **Zombie Locks**: If `ELOCKED` persists >1min, use `sdd_force_unlock`.

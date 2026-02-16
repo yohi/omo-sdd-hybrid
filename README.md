@@ -133,7 +133,7 @@ Kiroツール (`.kiro/`) とSDD (`specs/`) を組み合わせた理想的な開�
 
 ### 1. タスク定義ファイルの作成
 
-プロジェクトルートに `specs/tasks.md` を作成し、タスクと編集スコープ（Scope）を定義します。
+仕様策定フェーズにおいて、`sdd_kiro tasks` コマンドを使用してタスクと編集スコープ（Scope）を定義します。
 
 **`specs/tasks.md` の例:**
 ```markdown
@@ -211,6 +211,9 @@ AIと対話しながら「何を作りたいか」を明確化します。
 #### Phase B: 仕様策定 — Requirements → Design → Tasks
 ユーザーの承認後、仕様書一式を作成・検証します。**各 `sdd_kiro` サブコマンドが内部で対応する検証ツール（`sdd_validate_gap` / `sdd_validate_design` / `sdd_lint_tasks`）を自動連鎖実行します。**
 
+> **非推奨（DEPRECATED）**: Manual SDD ワークフロー（`specs/*.md` の直接編集）は**非推奨**かつ**禁止**です。
+> 仕様操作はすべて `sdd_kiro` を使用してください。
+
 1. **ステアリング確認**:
    ```bash
    🤖 sdd_kiro steering
@@ -284,7 +287,7 @@ PR のレビュー・承認が完了した後、ユーザーが手動で `sdd_ki
 - 英語の仕様書が **Source of Truth** となり、以降の実装（`/impl`）はこれに基づいて行われます
 
 #### 💡 仕様変更が必要になったら？
-実装中に仕様の不備に気づいた場合、勝手にコードを変える（Vibe Coding）のではなく、**必ず Phase B (Architect) に戻って仕様書から修正**してください。これにより「ドキュメントとコードの乖離」を恒久的に防ぎます。
+実装中に仕様の不備に気づいた場合、勝手にコードを変える（Vibe Coding）のではなく、**必ず Phase B (Architect) に戻って `sdd_kiro` コマンドで仕様書を修正**してください。これにより「ドキュメントとコードの乖離」を恒久的に防ぎます。
 
 ### 4. 実装フロー（Implementer）
 
@@ -511,7 +514,7 @@ SDD_EMBEDDINGS_MODEL="text-embedding-004"
 ### Kiro統合のベストプラクティス
 
 1. **仕様の一元管理**:
-   - 原則として、仕様変更は必ず `.kiro/specs/` 内のMarkdownファイルを更新してからコードに反映させてください。
+   - 原則として、仕様変更は必ず `sdd_kiro` を通じて `.kiro/specs/` 内のMarkdownファイルを更新してからコードに反映させてください。
    - コード先行で仕様が変わると、`validate_gap` で常に警告が出ることになり、形骸化の原因になります。
 
 2. **Tasks の連携**:
