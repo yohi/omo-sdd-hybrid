@@ -400,7 +400,8 @@ npx cc-sdd@latest --claude
 | `impl` | 実装フェーズへ移行し、タスクロックを取得します。 |
 | `validate-gap` | 実装と仕様のギャップ分析を行います。 |
 | `validate-design` | 設計書の整合性レビューを行います。 |
-| `validate-impl` | 実装品質の検証を行います（テスト実行、要件追跡、設計整合性）。 |
+| `validate-impl` | 実装品質の検証を行います（※現バージョンでは `validate-gap` と同等の動作）。 |
+| `validate` | 総合検証（validate-gap + validate-design）を行います（Reviewerロール向け）。 |
 | `finalize` | **Hybrid Language Workflow**: 日本語仕様書を英語へ移行する準備を行います。 |
 
 #### コンテキスト管理 (Context Management)
@@ -688,7 +689,8 @@ omo-sdd-hybrid/
 |---------|------|
 | `bun test` | 全テストを並列実行します。高速ですが、Stateの競合が発生する可能性があります。 |
 | `bun test:seq` | **推奨**。全テストを直列実行します。StateやLockの競合を確実に防ぐため、開発中およびCIではこちらを使用してください。 |
-| `bun run scripts/sdd_ci_validate.ts` | CI用バリデーションスクリプトを実行します。 |
+| `bun run ci:validate` | CI用バリデーションスクリプトを実行します（変更範囲とScopeの整合性チェック）。 |
+| `bun run verify:flow` | SDDフロー（タスク開始・終了、ガードモード遷移）の結合テストを実行します。 |
 
 ## ライセンス
 
