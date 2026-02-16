@@ -61,7 +61,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
   });
 
   describe('Rule 1: State Required', () => {
-    test('warns when no state exists for src file', () => {
+    test('warns when no state exists for src file (Allowed)', () => {
       const stateResult: StateResult = { status: 'not_found' };
       const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult as any, worktreeRoot);
       expect(result.allowed).toBe(true);
@@ -70,7 +70,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
       expect(result.rule).toBe('Rule1');
     });
 
-    test('warns when state has empty allowedScopes', () => {
+    test('warns when state has empty allowedScopes (Allowed)', () => {
       const stateResult: StateResult = { 
         status: 'ok', 
         state: { 
@@ -87,6 +87,7 @@ describe('sdd-gatekeeper evaluateAccess', () => {
         } 
       };
       const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult as any, worktreeRoot);
+      expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('NO_ACTIVE_TASK');
     });

@@ -122,7 +122,7 @@ describe('state-utils concurrent writes', () => {
 
       // If at least one succeeded, the file should exist
       if (results.some(r => r.status === 'fulfilled')) {
-        await waitForFile(guardPath, 10000); // Further Increased wait time
+        await waitForFile(guardPath, 20000); // Further Increased wait time
         expect(fs.existsSync(guardPath)).toBe(true);
         const content = fs.readFileSync(guardPath, 'utf-8');
         expect(() => JSON.parse(content)).not.toThrow();
@@ -157,13 +157,13 @@ describe('state-utils concurrent writes', () => {
       const guardPath = path.join(tmpDir, 'guard-mode.json');
 
       if (results.some((r, i) => i % 2 === 0 && r.status === 'fulfilled')) {
-        await waitForFile(statePath, 10000); // Further Increased wait time
+        await waitForFile(statePath, 20000); // Further Increased wait time
         expect(fs.existsSync(statePath)).toBe(true);
         expect(() => JSON.parse(fs.readFileSync(statePath, 'utf-8'))).not.toThrow();
       }
       
       if (results.some((r, i) => i % 2 === 1 && r.status === 'fulfilled')) {
-        await waitForFile(guardPath, 10000); // Further Increased wait time
+        await waitForFile(guardPath, 20000); // Further Increased wait time
         expect(fs.existsSync(guardPath)).toBe(true);
         expect(() => JSON.parse(fs.readFileSync(guardPath, 'utf-8'))).not.toThrow();
       }

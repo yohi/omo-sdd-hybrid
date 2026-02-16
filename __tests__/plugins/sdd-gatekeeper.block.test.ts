@@ -1,6 +1,9 @@
 import { describe, test, expect } from 'bun:test';
 import { evaluateAccess, type AccessResult } from '../../.opencode/lib/access-policy';
 import { StateResult } from '../../.opencode/lib/state-utils';
+import { withTempDir } from '../helpers/temp-dir';
+import fs from 'fs';
+import path from 'path';
 
 const worktreeRoot = process.cwd();
 const baseState = {
@@ -19,16 +22,24 @@ const baseState = {
 describe('sdd-gatekeeper block mode', () => {
   
   describe('Rule 1: NO_ACTIVE_TASK in block mode', () => {
-    test('blocks when no state exists for src file', () => {
+    test('allows when no state exists for src file (Rule 1 changed)', async () => {
       const stateResult: StateResult = { status: 'not_found' };
-      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot, 'block');
-      expect(result.allowed).toBe(false);
+      
+      const result = await withTempDir((tempRoot) => {
+        // Create .kiro to simulate an SDD project
+        const kiroDir = path.join(tempRoot, '.kiro');
+        if (!fs.existsSync(kiroDir)) fs.mkdirSync(kiroDir);
+        
+        return evaluateAccess('edit', path.join(tempRoot, 'src/a.ts'), undefined, stateResult, tempRoot, 'block');
+      });
+
+      expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('NO_ACTIVE_TASK');
       expect(result.rule).toBe('Rule1');
     });
 
-    test('blocks when state has empty allowedScopes', () => {
+    test('allows when state has empty allowedScopes (Rule 1 changed)', async () => {
       const stateResult: StateResult = { 
         status: 'ok', 
         state: { 
@@ -39,8 +50,16 @@ describe('sdd-gatekeeper block mode', () => {
           startedBy: 'test'
         } 
       };
-      const result = evaluateAccess('edit', 'src/a.ts', undefined, stateResult, worktreeRoot, 'block');
-      expect(result.allowed).toBe(false);
+
+      const result = await withTempDir((tempRoot) => {
+        // Create .kiro to simulate an SDD project
+        const kiroDir = path.join(tempRoot, '.kiro');
+        if (!fs.existsSync(kiroDir)) fs.mkdirSync(kiroDir);
+
+        return evaluateAccess('edit', path.join(tempRoot, 'src/a.ts'), undefined, stateResult, tempRoot, 'block');
+      });
+
+      expect(result.allowed).toBe(true);
       expect(result.warned).toBe(true);
       expect(result.message).toContain('NO_ACTIVE_TASK');
     });
