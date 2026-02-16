@@ -73,6 +73,18 @@ Use **Bun** for all operations.
 3. Throws `E_SCOPE_DENIED` if target file matches NO pattern.
    - **Recovery**: Do not force edit. Update specs via `sdd_kiro tasks`.
 
+### Gatekeeper Error Handling (CRITICAL - NO SELF-RECOVERY)
+
+Gatekeeperからエラーが返された場合、**絶対に自己回復を試みないこと**。以下の行動を**厳禁**とします：
+
+| エラー | 禁じられる行動 | 正しい対応 |
+|--------|---------------|-----------|
+| `NO_ACTIVE_TASK` | ユーザー承認なしに`sdd_scaffold_specs`、`sdd_kiro init`、`sdd_start_task`を実行してタスクを自動生成・開始すること | エラーをユーザーに報告し、明示的な指示を待つ |
+| `E_SCOPE_DENIED` | ユーザー承認なしに`tasks.md`や`scope.md`を編集してスコープを拡大すること | アーキテクトにスコープ更新を依頼する旨をユーザーに提案 |
+| `OUTSIDE_WORKTREE` | 無視して続行すること | 即座に停止し、ユーザーに報告 |
+
+**核心原則**: Gatekeeperエラーは**安全装置の作動**です。LLMが勝手に解除しようとすることは、SDDプロセスの根本を破壊する「ガード回避（Jailbreak）」行為です。
+
 ## 5. AGENT WORKFLOW (SDD Cycle)
 
 Agents **MUST** follow this cycle. Do not skip steps.
@@ -82,7 +94,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 1. **Interview**: Follow `profile.md` protocol. Ask one topic at a time, wait for response.
 2. **Output**: Generate EARS-based profile document in Japanese.
 3. **STOP**: Present document to user. **DO NOT** proceed to Phase B without explicit user approval.
-   - **Forbidden in Phase A**: `sdd_scaffold_specs`, `sdd_sync_kiro`, file/directory creation, validation execution.
+   - **Forbidden in Phase A**: `sdd_scaffold_specs`, `sdd_sync_kiro`, `sdd_kiro init`, `sdd_start_task`, file/directory creation, validation execution.
 
 ### Phase B: Specification (Role: `architect`, after user approval)
 **Goal**: Define "What to build" with validated specs. `validate-gap` / `validate-design` / `lint_tasks` are **programmatically auto-chained** within each command.
@@ -196,6 +208,7 @@ Agents **MUST** follow this cycle. Do not skip steps.
 - ❌ **Scope Bypass**: Trying to edit file outside scope without updating `tasks.md`.
 - ❌ **Vibe Coding**: Writing code without a corresponding Task or Spec.
 - ❌ **Missing .gitignore**: Always include a task to create or update `.gitignore` during project setup.
+- ❌ **Jailbreak Tasking**: Gatekeeperエラー（`NO_ACTIVE_TASK`, `E_SCOPE_DENIED` 等）発生後に、ユーザー承認なしに`sdd_scaffold_specs`、`sdd_kiro init`、`sdd_start_task`を実行してタスクを自動生成・開始すること。**これはSDDガードの回避行為**であり、厳禁です。
 
 ## 8. AGENT OPERATIONAL PROTOCOL
 
