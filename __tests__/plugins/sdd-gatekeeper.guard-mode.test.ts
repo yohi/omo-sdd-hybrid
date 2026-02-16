@@ -48,7 +48,7 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
+    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] E_SCOPE_DENIED');
   });
 
   test('env=block overrides file=warn', async () => {
@@ -83,7 +83,7 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
+    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] E_SCOPE_DENIED');
   });
 
   test('file=warn and env=warn allows with warning', async () => {
@@ -180,6 +180,6 @@ describe('sdd-gatekeeper guard mode priority', () => {
       }
     };
 
-    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] SCOPE_DENIED');
+    await expect(hook(event as any, {} as any)).rejects.toThrow('[SDD-GATEKEEPER] E_SCOPE_DENIED');
   });
 });

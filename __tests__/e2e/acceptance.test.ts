@@ -52,7 +52,7 @@ describe('Acceptance Criteria A-I', () => {
     
     const result = await simulateEdit('src/pay/y.ts');
     expect(result.warned).toBe(true);
-    expect(result.message).toContain('SCOPE_DENIED');
+    expect(result.message).toContain('E_SCOPE_DENIED');
   });
   
   test('Scenario D: specs/tasks.md 編集 → allow (Rule 0)', async () => {
@@ -156,7 +156,7 @@ describe('Phase 1 Block Mode Acceptance', () => {
     const result = await simulateEdit('src/pay/y.ts', undefined, 'block');
     expect(result.allowed).toBe(false);
     expect(result.warned).toBe(true);
-    expect(result.message).toContain('SCOPE_DENIED');
+    expect(result.message).toContain('E_SCOPE_DENIED');
     expect(result.rule).toBe('Rule2');
   });
 
