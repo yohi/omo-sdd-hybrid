@@ -471,8 +471,8 @@ export function evaluateAccess(
     };
   }
 
-  if (stateResult.status === 'not_found') {
-    return { allowed: allowedOnViolation, warned: true, message: 'NO_ACTIVE_TASK: 先に sdd_start_task を実行してください', rule: 'Rule1' };
+  if (stateResult.status === "not_found") {
+    return { allowed: true, warned: false, rule: "Rule1" };
   }
 
   // 'recovered' ステータスは 'ok' と同様に処理 (stateResult.state が利用可能)
@@ -480,7 +480,7 @@ export function evaluateAccess(
   const state = stateResult.state;
 
   if (!state.activeTaskId || state.allowedScopes.length === 0) {
-    return { allowed: allowedOnViolation, warned: true, message: 'NO_ACTIVE_TASK: 先に sdd_start_task を実行してください', rule: 'Rule1' };
+    return { allowed: true, warned: false, rule: "Rule1" };
   }
 
   if (!matchesScope(normalizedPath, state.allowedScopes)) {
