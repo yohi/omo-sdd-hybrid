@@ -371,11 +371,12 @@ export default tool({
         }
 
         // 2. 未完了タスクのチェック
-        // tasks.md に未完了タスクがある場合は finalize をブロックする
+        // finalize は仕様確定フェーズなので、実装タスクが未完了でもブロックすべきではない
+        // 警告として表示する程度に留める
         const hasIncompleteTasks = gapResult.suggestions.some(s => s.includes('未完了のタスクがあります'));
         if (hasIncompleteTasks) {
           const msg = gapResult.suggestions.find(s => s.includes('未完了のタスクがあります')) || '未完了のタスクがあります';
-          return `❌ エラー: 未完了のタスクが残っています（ギャップあり）。\n\n> ${msg}\n\ntasks.md を確認し、全てのタスクを完了（[x]）にするか、不要なタスクを削除してから、ユーザーにレビューを求めてください。`;
+          console.warn(`警告: ${msg}`);
         }
 
         if (!fs.existsSync(targetDir)) {
@@ -470,7 +471,37 @@ export default tool({
 
       case 'validate':
         if (!feature) return 'エラー: feature は必須です';
-        return await validateDesign.execute({ feature }, context);
+        
+        let validateOutput = `🔍 **総合検証 (Reviewer Mode) を開始します: ${feature}**\n\n`;
+        let hasFailure = false;
+
+        // 1. Validate Gap (実装 vs 仕様)
+        validateOutput += `## 1. Validate Gap (Implementation Check)\n\n`;
+        try {
+          const gapResult = await validateGap.execute({ kiroSpec: feature, deep: true }, context);
+          validateOutput += gapResult + '\n\n';
+        } catch (error: any) {
+          validateOutput += `❌ validate-gap 実行エラー: ${error.message}\n\n`;
+          hasFailure = true;
+        }
+
+        // 2. Validate Design (設計整合性)
+        validateOutput += `## 2. Validate Design (Consistency Check)\n\n`;
+        try {
+          const designResult = await validateDesign.execute({ feature }, context);
+          validateOutput += designResult + '\n\n';
+        } catch (error: any) {
+          validateOutput += `❌ validate-design 実行エラー: ${error.message}\n\n`;
+          hasFailure = true;
+        }
+
+        validateOutput += `---\n`;
+        if (hasFailure) {
+          validateOutput += `❌ 総合検証失敗: エラーが発生しました。詳細を確認してください。`;
+        } else {
+          validateOutput += `✅ 総合検証完了`;
+        }
+        return validateOutput;
 
       case 'profile': {
         // 優先順位:
