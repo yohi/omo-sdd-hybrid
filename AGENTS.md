@@ -70,8 +70,8 @@ Use **Bun** for all operations.
 ### Gatekeeper Mechanism
 1. Intercepts `tool.execute.before`.
 2. Checks `allowedScopes` (Glob patterns) in State.
-3. Throws `E_SCOPE_DENIED` if target file matches NO pattern.
-   - **Recovery**: Do not force edit. Update specs via `sdd_kiro tasks`.
+3. Throws `SCOPE_DENIED` if target file matches NO pattern.
+   - **Recovery**: Do not force edit. ユーザーに報告し、アーキテクトによる `sdd_kiro tasks` でのスコープ更新を提案する。
 
 ### Gatekeeper Error Handling (CRITICAL - NO SELF-RECOVERY)
 
@@ -80,8 +80,9 @@ Gatekeeperからエラーが返された場合、**絶対に自己回復を試�
 | エラー | 禁じられる行動 | 正しい対応 |
 |--------|---------------|-----------|
 | `NO_ACTIVE_TASK` | ユーザー承認なしに`sdd_scaffold_specs`、`sdd_kiro init`、`sdd_start_task`を実行してタスクを自動生成・開始すること | エラーをユーザーに報告し、明示的な指示を待つ |
-| `E_SCOPE_DENIED` | ユーザー承認なしに`tasks.md`や`scope.md`を編集してスコープを拡大すること | アーキテクトにスコープ更新を依頼する旨をユーザーに提案 |
+| `SCOPE_DENIED` | ユーザー承認なしに`tasks.md`や`scope.md`を編集してスコープを拡大すること | アーキテクトにスコープ更新を依頼する旨をユーザーに提案 |
 | `OUTSIDE_WORKTREE` | 無視して続行すること | 即座に停止し、ユーザーに報告 |
+| `STATE_CORRUPTED` | `current_context.json`を自動的に再作成・修復すること | 即座に停止し、ユーザーに状態ファイルの破損を報告 |
 
 **核心原則**: Gatekeeperエラーは**安全装置の作動**です。LLMが勝手に解除しようとすることは、SDDプロセスの根本を破壊する「ガード回避（Jailbreak）」行為です。
 
