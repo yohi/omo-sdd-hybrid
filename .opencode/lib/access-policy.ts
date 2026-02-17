@@ -379,24 +379,115 @@ function matchPolicyEntries(tokens: string[], entries: string[]): boolean {
   });
 }
 
-const SAFE_COMPLEX_PATTERNS = [
+const SAFE_SUBSTITUTION_PATTERNS = [
   /^git branch --show-current$/,
-  /^gh pr list/
 ];
+
+function extractSubstitutions(input: string): string[] {
+  const substitutions: string[] = [];
+  
+  // Extract $(...)
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === '$' && input[i + 1] === '(') {
+      if (depth === 0) start = i + 2;
+      depth++;
+      i++; // Skip next char
+    } else if (input[i] === ')' && depth > 0) {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        substitutions.push(input.substring(start, i));
+        start = -1;
+      }
+    }
+  }
+
+  // Extract backticks `...`
+  // Simple regex for non-nested backticks (BashParser handles simple cases)
+  const backtickRegex = /`([^`]*)`/g;
+  let match;
+  while ((match = backtickRegex.exec(input)) !== null) {
+    substitutions.push(match[1]);
+  }
+
+  return substitutions;
+}
+
+function sanitizeSubstitutions(input: string): string {
+  // Replace $(...) and `...` with a safe placeholder
+  let sanitized = input;
+  
+  // Replace $(...) with __SAFE_SUBST__
+  // Note: This naive replacement handles non-nested balanced parens for this specific purpose
+  let depth = 0;
+  let start = -1;
+  let result = '';
+  let lastIndex = 0;
+  
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === '$' && input[i + 1] === '(') {
+      if (depth === 0) {
+        result += input.substring(lastIndex, i);
+        start = i;
+      }
+      depth++;
+      i++; 
+    } else if (input[i] === ')' && depth > 0) {
+      depth--;
+      if (depth === 0) {
+        result += '__SAFE_SUBST__';
+        lastIndex = i + 1;
+        start = -1;
+      }
+    }
+  }
+  result += input.substring(lastIndex);
+  sanitized = result;
+
+  // Replace backticks
+  sanitized = sanitized.replace(/`[^`]*`/g, '__SAFE_SUBST__');
+  
+  return sanitized;
+}
 
 function isDestructiveBash(command: string, policy: { destructiveBash: string[] }, mode: GuardMode): boolean {
   const nodes = BashParser.parse(command);
   for (const node of nodes) {
     if (node.type === 'complex') {
-      // Allow specific safe patterns even in complex commands (e.g. $(git branch --show-current))
-      // Use node.raw to match against the specific segment, not the whole command
       const rawCommand = 'raw' in node ? node.raw : command; 
-      const isSafe = SAFE_COMPLEX_PATTERNS.some(pattern => pattern.test(rawCommand));
-      if (isSafe) {
-        continue;
+      
+      const substitutions = extractSubstitutions(rawCommand);
+      
+      // If no explicit substitutions found in a complex node, it might be heredoc or process substitution.
+      // Treat as destructive unless we can prove otherwise.
+      if (substitutions.length === 0) {
+        return true;
       }
-      // Flag complex constructs as potentially destructive/unsafe
-      return true;
+
+      // Check all substitutions against whitelist
+      const allSafe = substitutions.every(sub => 
+        SAFE_SUBSTITUTION_PATTERNS.some(pattern => pattern.test(sub.trim()))
+      );
+
+      if (!allSafe) {
+        return true;
+      }
+
+      // If substitutions are safe, we must also check the command ITSELF is safe.
+      // We do this by sanitizing the substitutions and recursively checking the command.
+      const sanitized = sanitizeSubstitutions(rawCommand);
+      
+      // Prevent infinite recursion if sanitization didn't change anything (should not happen if substitutions found)
+      if (sanitized === rawCommand) {
+        return true;
+      }
+
+      if (isDestructiveBash(sanitized, policy, mode)) {
+        return true;
+      }
+
+      continue;
     }
 
     const tokens = node.tokens;
