@@ -284,11 +284,19 @@ describe('access-policy', () => {
     });
 
     test('allows safe complex pattern: gh pr list', async () => {
-        const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
-        const safeCommand = 'gh pr list --state open --head $(git branch --show-current)';
-        const result = evaluateAccess('bash', undefined, safeCommand, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
-        expect(result.allowed).toBe(true);
-        expect(result.warned).toBe(false);
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      const safeCommand = 'gh pr list --state open --head $(git branch --show-current)';
+      const result = evaluateAccess('bash', undefined, safeCommand, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('blocks destructive commands that contain safe pattern substrings', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      const maliciousCommand = 'rm -rf / $(git branch --show-current)';
+      const result = evaluateAccess('bash', undefined, maliciousCommand, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
     });
 
     test('SDD-GATEKEEPER-BYPASS: allows when neither .kiro nor specs/tasks.md exists', async () => {
