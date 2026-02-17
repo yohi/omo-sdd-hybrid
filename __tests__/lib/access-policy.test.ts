@@ -299,6 +299,15 @@ describe('access-policy', () => {
       expect(result.rule).toBe('Rule4');
     });
 
+    test('blocks safe string + dangerous substitution bypass', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      const maliciousCommand = 'echo $(rm -rf /) && gh pr list';
+      const result = evaluateAccess('bash', undefined, maliciousCommand, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      // Should be warned/blocked because $(rm -rf /) is dangerous
+      expect(result.warned).toBe(true);
+      expect(result.rule).toBe('Rule4');
+    });
+
     test('SDD-GATEKEEPER-BYPASS: allows when neither .kiro nor specs/tasks.md exists', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       

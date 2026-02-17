@@ -95,13 +95,10 @@ export function determineEffectiveGuardMode(
   envMode: string | undefined,
   fileState: GuardModeState | null
 ): GuardMode {
-  // Fail-Closed: 設定ファイルが欠損している場合
   if (fileState === null) {
-    // 環境変数が明示的に指定されている場合はそれを尊重する（初期セットアップやテスト用）
     if (envMode === 'warn') return 'warn';
     if (envMode === 'disabled') return 'disabled';
     
-    // 指定がない場合は安全側に倒して block し、監査ログを記録
     appendAuditLog({
       event: 'DEFAULT_SECURE',
       message: `Guard mode state is missing and env is '${envMode}'. Enforcing 'block' (Default Secure).`,
@@ -269,14 +266,12 @@ function stripBashWrappers(tokens: string[]): string[] {
       const wrapper = token;
       index += 1;
 
-      // Consume options
       while (index < tokens.length && tokens[index].startsWith('-')) {
         const option = tokens[index];
         index += 1;
 
         const argOptions = WRAPPER_ARG_OPTIONS[wrapper];
 
-        // Special handling for 'command -v/-V' -> treat as query (stop detection)
         if (wrapper === 'command' && (option === '-v' || option === '-V')) {
           return [];
         }
@@ -379,24 +374,62 @@ function matchPolicyEntries(tokens: string[], entries: string[]): boolean {
   });
 }
 
-const SAFE_COMPLEX_PATTERNS = [
+const SAFE_SUBSTITUTION_PATTERNS = [
   /^git branch --show-current$/,
-  /^gh pr list/
 ];
 
-function isDestructiveBash(command: string, policy: { destructiveBash: string[] }, mode: GuardMode): boolean {
+function isDestructiveBash(command: string, policy: { destructiveBash: string[], safeSubstitutions?: string[] }, mode: GuardMode): boolean {
   const nodes = BashParser.parse(command);
+  
+  const userSafePatterns = (policy.safeSubstitutions || []).map(p => {
+    try {
+      // Treat as literal string by escaping regex special characters
+      // This prevents ReDoS from malicious user config
+      const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`^${escaped}$`);
+    } catch (e) {
+      logger.error(`Invalid safeSubstitution pattern: ${p}`, e);
+      return null;
+    }
+  }).filter((p): p is RegExp => p !== null);
+
+  const effectiveSafePatterns = [
+    ...SAFE_SUBSTITUTION_PATTERNS,
+    ...userSafePatterns
+  ];
+
   for (const node of nodes) {
     if (node.type === 'complex') {
-      // Allow specific safe patterns even in complex commands (e.g. $(git branch --show-current))
-      // Use node.raw to match against the specific segment, not the whole command
       const rawCommand = 'raw' in node ? node.raw : command; 
-      const isSafe = SAFE_COMPLEX_PATTERNS.some(pattern => pattern.test(rawCommand));
-      if (isSafe) {
-        continue;
+      
+      const substitutions = BashParser.extractSubstitutions(rawCommand);
+      
+      // If no substitutions found in a complex command (pipe, redirect, etc.),
+      // treat as potentially destructive (safe default) to prevent bypasses.
+      // We can't guarantee safety of complex constructs without variable expansion.
+      if (substitutions.length === 0) {
+        return true;
       }
-      // Flag complex constructs as potentially destructive/unsafe
-      return true;
+
+      const allSafe = substitutions.every(sub => 
+        effectiveSafePatterns.some(pattern => pattern.test(sub.trim()))
+      );
+
+      if (!allSafe) {
+        return true;
+      }
+
+      const sanitized = BashParser.sanitizeSubstitutions(rawCommand);
+      
+      if (sanitized === rawCommand) {
+        return true;
+      }
+
+      if (isDestructiveBash(sanitized, policy, mode)) {
+        return true;
+      }
+
+      continue;
     }
 
     const tokens = node.tokens;
@@ -484,9 +517,6 @@ export function evaluateAccess(
   }
 
   if (stateResult.status === "not_found") {
-    // SDD-GATEKEEPER-BYPASS:
-    // .kiro/ も specs/tasks.md も存在しない場合、まだSDDプロジェクトではないとみなす。
-    // Vibe Coding / Greenfield プロジェクトをサポートするため、警告なしで操作を許可する。
     const kiroPath = path.join(worktreeRoot, '.kiro');
     const tasksPath = path.join(worktreeRoot, 'specs', 'tasks.md');
 
@@ -501,8 +531,6 @@ export function evaluateAccess(
       rule: 'Rule1'
     };
   }
-
-  // 'recovered' ステータスは 'ok' と同様に処理 (stateResult.state が利用可能)
 
   const state = stateResult.state;
 
@@ -537,17 +565,14 @@ export function evaluateRoleAccess(
 ): AccessResult {
   const baseResult = evaluateAccess(toolName, filePath, command, stateResult, worktreeRoot, mode);
 
-  // Rule0 (specs/, .opencode/) is absolute
   if (baseResult.rule === 'Rule0') {
     return baseResult;
   }
 
-  // Only check write tools and existing file paths
   if (!filePath || !WRITE_TOOLS.includes(toolName)) {
     return baseResult;
   }
 
-  // Only check if state is available and role is defined
   if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
     return baseResult;
   }
@@ -562,11 +587,9 @@ export function evaluateRoleAccess(
   const allowedOnViolation = mode === 'warn' || mode === 'disabled';
 
   if (role === 'architect') {
-    // Architect: Only allow .kiro/** (Priority over scope)
     if (isKiroPath) {
       return { allowed: true, warned: false, rule: 'RoleAllowed' };
     } else {
-      // Deny everything else (except Rule0 handled above)
       return {
         allowed: allowedOnViolation,
         warned: true,

@@ -7,11 +7,13 @@ let hasLoggedPolicy = false;
 export interface PolicyConfig {
   alwaysAllow: string[];
   destructiveBash: string[];
+  safeSubstitutions: string[];
 }
 
 export const DEFAULT_POLICY: PolicyConfig = {
   alwaysAllow: ['specs/', '.opencode/'],
-  destructiveBash: []
+  destructiveBash: [],
+  safeSubstitutions: []
 };
 
 export const _resetPolicyLogged = () => {
@@ -75,9 +77,10 @@ export function loadPolicyConfig(): PolicyConfig {
       return trimmed;
     });
 
-    const policy = {
+    const policy: PolicyConfig = {
       alwaysAllow: alwaysAllowNormalized,
-      destructiveBash: Array.isArray(userConfig.destructiveBash) ? userConfig.destructiveBash : DEFAULT_POLICY.destructiveBash
+      destructiveBash: Array.isArray(userConfig.destructiveBash) ? userConfig.destructiveBash : DEFAULT_POLICY.destructiveBash,
+      safeSubstitutions: Array.isArray(userConfig.safeSubstitutions) ? userConfig.safeSubstitutions : DEFAULT_POLICY.safeSubstitutions
     };
 
     if (!hasLoggedPolicy) {
