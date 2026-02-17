@@ -378,8 +378,26 @@ const SAFE_SUBSTITUTION_PATTERNS = [
   /^git branch --show-current$/,
 ];
 
-function isDestructiveBash(command: string, policy: { destructiveBash: string[] }, mode: GuardMode): boolean {
+function isDestructiveBash(command: string, policy: { destructiveBash: string[], safeSubstitutions?: string[] }, mode: GuardMode): boolean {
   const nodes = BashParser.parse(command);
+  
+  const userSafePatterns = (policy.safeSubstitutions || []).map(p => {
+    try {
+      // If it looks like a regex (starts with ^), treat as regex
+      // Otherwise escape it for literal match?
+      // For now, let's assume they are regex strings as implied by "safeSubstitutions" in policy-loader
+      return new RegExp(p);
+    } catch (e) {
+      logger.error(`Invalid safeSubstitution pattern: ${p}`, e);
+      return null;
+    }
+  }).filter((p): p is RegExp => p !== null);
+
+  const effectiveSafePatterns = [
+    ...SAFE_SUBSTITUTION_PATTERNS,
+    ...userSafePatterns
+  ];
+
   for (const node of nodes) {
     if (node.type === 'complex') {
       const rawCommand = 'raw' in node ? node.raw : command; 
@@ -391,12 +409,13 @@ function isDestructiveBash(command: string, policy: { destructiveBash: string[] 
       }
 
       const allSafe = substitutions.every(sub => 
-        SAFE_SUBSTITUTION_PATTERNS.some(pattern => pattern.test(sub.trim()))
+        effectiveSafePatterns.some(pattern => pattern.test(sub.trim()))
       );
 
       if (!allSafe) {
         return true;
       }
+
 
       const sanitized = BashParser.sanitizeSubstitutions(rawCommand);
       
