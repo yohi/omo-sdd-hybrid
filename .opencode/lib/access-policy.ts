@@ -383,10 +383,10 @@ function isDestructiveBash(command: string, policy: { destructiveBash: string[],
   
   const userSafePatterns = (policy.safeSubstitutions || []).map(p => {
     try {
-      // If it looks like a regex (starts with ^), treat as regex
-      // Otherwise escape it for literal match?
-      // For now, let's assume they are regex strings as implied by "safeSubstitutions" in policy-loader
-      return new RegExp(p);
+      // Treat as literal string by escaping regex special characters
+      // This prevents ReDoS from malicious user config
+      const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`^${escaped}$`);
     } catch (e) {
       logger.error(`Invalid safeSubstitution pattern: ${p}`, e);
       return null;
@@ -404,6 +404,9 @@ function isDestructiveBash(command: string, policy: { destructiveBash: string[],
       
       const substitutions = BashParser.extractSubstitutions(rawCommand);
       
+      // If no substitutions found in a complex command (pipe, redirect, etc.),
+      // treat as potentially destructive (safe default) to prevent bypasses.
+      // We can't guarantee safety of complex constructs without variable expansion.
       if (substitutions.length === 0) {
         return true;
       }
@@ -415,7 +418,6 @@ function isDestructiveBash(command: string, policy: { destructiveBash: string[],
       if (!allSafe) {
         return true;
       }
-
 
       const sanitized = BashParser.sanitizeSubstitutions(rawCommand);
       
