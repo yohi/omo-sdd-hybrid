@@ -275,6 +275,22 @@ describe('access-policy', () => {
       expect(result.warned).toBe(false);
     });
 
+    test('allows safe complex pattern: git branch --show-current', async () => {
+      const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+      const safeCommand = 'export CI=true; git branch --show-current && git status && gh pr list --state open --head $(git branch --show-current) --json url,number,title';
+      const result = evaluateAccess('bash', undefined, safeCommand, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+      expect(result.allowed).toBe(true);
+      expect(result.warned).toBe(false);
+    });
+
+    test('allows safe complex pattern: gh pr list', async () => {
+        const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
+        const safeCommand = 'gh pr list --state open --head $(git branch --show-current)';
+        const result = evaluateAccess('bash', undefined, safeCommand, { status: 'not_found' }, WORKTREE_ROOT, 'warn');
+        expect(result.allowed).toBe(true);
+        expect(result.warned).toBe(false);
+    });
+
     test('SDD-GATEKEEPER-BYPASS: allows when neither .kiro nor specs/tasks.md exists', async () => {
       const { evaluateAccess } = await import('../../.opencode/lib/access-policy');
       
