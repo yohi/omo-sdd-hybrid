@@ -95,13 +95,10 @@ export function determineEffectiveGuardMode(
   envMode: string | undefined,
   fileState: GuardModeState | null
 ): GuardMode {
-  // Fail-Closed: 設定ファイルが欠損している場合
   if (fileState === null) {
-    // 環境変数が明示的に指定されている場合はそれを尊重する（初期セットアップやテスト用）
     if (envMode === 'warn') return 'warn';
     if (envMode === 'disabled') return 'disabled';
     
-    // 指定がない場合は安全側に倒して block し、監査ログを記録
     appendAuditLog({
       event: 'DEFAULT_SECURE',
       message: `Guard mode state is missing and env is '${envMode}'. Enforcing 'block' (Default Secure).`,
@@ -269,14 +266,12 @@ function stripBashWrappers(tokens: string[]): string[] {
       const wrapper = token;
       index += 1;
 
-      // Consume options
       while (index < tokens.length && tokens[index].startsWith('-')) {
         const option = tokens[index];
         index += 1;
 
         const argOptions = WRAPPER_ARG_OPTIONS[wrapper];
 
-        // Special handling for 'command -v/-V' -> treat as query (stop detection)
         if (wrapper === 'command' && (option === '-v' || option === '-V')) {
           return [];
         }
@@ -383,112 +378,18 @@ const SAFE_SUBSTITUTION_PATTERNS = [
   /^git branch --show-current$/,
 ];
 
-function extractSubstitutions(input: string): string[] {
-  const substitutions: string[] = [];
-  
-  // Extract $(...)
-  let depth = 0;
-  let start = -1;
-  for (let i = 0; i < input.length; i++) {
-    if (input[i] === '$' && input[i + 1] === '(') {
-      if (depth === 0) start = i + 2;
-      depth++;
-      i++; // Skip next char
-    } else if (input[i] === ')' && depth > 0) {
-      depth--;
-      if (depth === 0 && start !== -1) {
-        substitutions.push(input.substring(start, i));
-        start = -1;
-      }
-    }
-  }
-
-  // Extract backticks `...`
-  let backtickStart = -1;
-  let insideBacktick = false;
-
-  for (let i = 0; i < input.length; i++) {
-    if (input[i] === '`') {
-      let backslashCount = 0;
-      let j = i - 1;
-      while (j >= 0 && input[j] === '\\') {
-        backslashCount++;
-        j--;
-      }
-
-      // If odd backslashes, the backtick is escaped
-      const isEscaped = (backslashCount % 2 !== 0);
-
-      if (!isEscaped) {
-        if (insideBacktick) {
-          // Found closing backtick
-          const content = input.substring(backtickStart, i);
-          
-          // Unescape backticks inside the captured content
-          // e.g. `ls \`pwd\`` -> ls `pwd` (which allows recursive analysis)
-          substitutions.push(content.replace(/\\`/g, '`'));
-          
-          insideBacktick = false;
-          backtickStart = -1;
-        } else {
-          // Found opening backtick
-          insideBacktick = true;
-          backtickStart = i + 1;
-        }
-      }
-    }
-  }
-
-  return substitutions;
-}
-
-function sanitizeSubstitutions(input: string): string {
-  // Replace $(...) and `...` with a safe placeholder
-  
-  // Replace $(...) with __SAFE_SUBST__
-  // Note: This naive replacement handles non-nested balanced parens for this specific purpose
-  let depth = 0;
-  let sanitized = '';
-  let lastIndex = 0;
-  
-  for (let i = 0; i < input.length; i++) {
-    if (input[i] === '$' && input[i + 1] === '(') {
-      if (depth === 0) {
-        sanitized += input.substring(lastIndex, i);
-      }
-      depth++;
-      i++; 
-    } else if (input[i] === ')' && depth > 0) {
-      depth--;
-      if (depth === 0) {
-        sanitized += '__SAFE_SUBST__';
-        lastIndex = i + 1;
-      }
-    }
-  }
-  sanitized += input.substring(lastIndex);
-
-  // Replace backticks
-  sanitized = sanitized.replace(/`[^`]*`/g, '__SAFE_SUBST__');
-  
-  return sanitized;
-}
-
 function isDestructiveBash(command: string, policy: { destructiveBash: string[] }, mode: GuardMode): boolean {
   const nodes = BashParser.parse(command);
   for (const node of nodes) {
     if (node.type === 'complex') {
       const rawCommand = 'raw' in node ? node.raw : command; 
       
-      const substitutions = extractSubstitutions(rawCommand);
+      const substitutions = BashParser.extractSubstitutions(rawCommand);
       
-      // If no explicit substitutions found in a complex node, it might be heredoc or process substitution.
-      // Treat as destructive unless we can prove otherwise.
       if (substitutions.length === 0) {
         return true;
       }
 
-      // Check all substitutions against whitelist
       const allSafe = substitutions.every(sub => 
         SAFE_SUBSTITUTION_PATTERNS.some(pattern => pattern.test(sub.trim()))
       );
@@ -497,11 +398,8 @@ function isDestructiveBash(command: string, policy: { destructiveBash: string[] 
         return true;
       }
 
-      // If substitutions are safe, we must also check the command ITSELF is safe.
-      // We do this by sanitizing the substitutions and recursively checking the command.
-      const sanitized = sanitizeSubstitutions(rawCommand);
+      const sanitized = BashParser.sanitizeSubstitutions(rawCommand);
       
-      // Prevent infinite recursion if sanitization didn't change anything (should not happen if substitutions found)
       if (sanitized === rawCommand) {
         return true;
       }
@@ -598,9 +496,6 @@ export function evaluateAccess(
   }
 
   if (stateResult.status === "not_found") {
-    // SDD-GATEKEEPER-BYPASS:
-    // .kiro/ も specs/tasks.md も存在しない場合、まだSDDプロジェクトではないとみなす。
-    // Vibe Coding / Greenfield プロジェクトをサポートするため、警告なしで操作を許可する。
     const kiroPath = path.join(worktreeRoot, '.kiro');
     const tasksPath = path.join(worktreeRoot, 'specs', 'tasks.md');
 
@@ -615,8 +510,6 @@ export function evaluateAccess(
       rule: 'Rule1'
     };
   }
-
-  // 'recovered' ステータスは 'ok' と同様に処理 (stateResult.state が利用可能)
 
   const state = stateResult.state;
 
@@ -651,17 +544,14 @@ export function evaluateRoleAccess(
 ): AccessResult {
   const baseResult = evaluateAccess(toolName, filePath, command, stateResult, worktreeRoot, mode);
 
-  // Rule0 (specs/, .opencode/) is absolute
   if (baseResult.rule === 'Rule0') {
     return baseResult;
   }
 
-  // Only check write tools and existing file paths
   if (!filePath || !WRITE_TOOLS.includes(toolName)) {
     return baseResult;
   }
 
-  // Only check if state is available and role is defined
   if (stateResult.status !== 'ok' && stateResult.status !== 'recovered') {
     return baseResult;
   }
@@ -676,11 +566,9 @@ export function evaluateRoleAccess(
   const allowedOnViolation = mode === 'warn' || mode === 'disabled';
 
   if (role === 'architect') {
-    // Architect: Only allow .kiro/** (Priority over scope)
     if (isKiroPath) {
       return { allowed: true, warned: false, rule: 'RoleAllowed' };
     } else {
-      // Deny everything else (except Rule0 handled above)
       return {
         allowed: allowedOnViolation,
         warned: true,
