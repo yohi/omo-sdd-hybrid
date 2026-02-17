@@ -6,7 +6,7 @@ export type BashCommandNode = {
   tokens: string[];
 };
 
-export type BashNode = BashCommandNode | { type: 'complex'; reason: string };
+export type BashNode = BashCommandNode | { type: 'complex'; reason: string; raw: string };
 
 /**
  * Robust Bash Parser without external dependencies.
@@ -111,15 +111,15 @@ export class BashParser {
   private static parseSegment(segment: string): BashNode {
     // Check for complex constructs that we don't fully parse but should flag
     if (segment.includes('$(') || segment.includes('`') || segment.includes('<(') || segment.includes('>(')) {
-      return { type: 'complex', reason: 'substitution_detected' };
+      return { type: 'complex', reason: 'substitution_detected', raw: segment };
     }
     if (segment.includes('<<')) {
-       return { type: 'complex', reason: 'heredoc_detected' };
+       return { type: 'complex', reason: 'heredoc_detected', raw: segment };
     }
 
     const tokens = this.tokenize(segment);
     if (tokens.length === 0) {
-      return { type: 'complex', reason: 'empty_segment' };
+      return { type: 'complex', reason: 'empty_segment', raw: segment };
     }
 
     return {

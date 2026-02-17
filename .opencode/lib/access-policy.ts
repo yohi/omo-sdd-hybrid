@@ -379,10 +379,22 @@ function matchPolicyEntries(tokens: string[], entries: string[]): boolean {
   });
 }
 
+const SAFE_COMPLEX_PATTERNS = [
+  /^git branch --show-current$/,
+  /^gh pr list/
+];
+
 function isDestructiveBash(command: string, policy: { destructiveBash: string[] }, mode: GuardMode): boolean {
   const nodes = BashParser.parse(command);
   for (const node of nodes) {
     if (node.type === 'complex') {
+      // Allow specific safe patterns even in complex commands (e.g. $(git branch --show-current))
+      // Use node.raw to match against the specific segment, not the whole command
+      const rawCommand = 'raw' in node ? node.raw : command; 
+      const isSafe = SAFE_COMPLEX_PATTERNS.some(pattern => pattern.test(rawCommand));
+      if (isSafe) {
+        continue;
+      }
       // Flag complex constructs as potentially destructive/unsafe
       return true;
     }
