@@ -404,11 +404,39 @@ function extractSubstitutions(input: string): string[] {
   }
 
   // Extract backticks `...`
-  // Simple regex for non-nested backticks (BashParser handles simple cases)
-  const backtickRegex = /`([^`]*)`/g;
-  let match;
-  while ((match = backtickRegex.exec(input)) !== null) {
-    substitutions.push(match[1]);
+  let backtickStart = -1;
+  let insideBacktick = false;
+
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === '`') {
+      let backslashCount = 0;
+      let j = i - 1;
+      while (j >= 0 && input[j] === '\\') {
+        backslashCount++;
+        j--;
+      }
+
+      // If odd backslashes, the backtick is escaped
+      const isEscaped = (backslashCount % 2 !== 0);
+
+      if (!isEscaped) {
+        if (insideBacktick) {
+          // Found closing backtick
+          const content = input.substring(backtickStart, i);
+          
+          // Unescape backticks inside the captured content
+          // e.g. `ls \`pwd\`` -> ls `pwd` (which allows recursive analysis)
+          substitutions.push(content.replace(/\\`/g, '`'));
+          
+          insideBacktick = false;
+          backtickStart = -1;
+        } else {
+          // Found opening backtick
+          insideBacktick = true;
+          backtickStart = i + 1;
+        }
+      }
+    }
   }
 
   return substitutions;
@@ -416,34 +444,29 @@ function extractSubstitutions(input: string): string[] {
 
 function sanitizeSubstitutions(input: string): string {
   // Replace $(...) and `...` with a safe placeholder
-  let sanitized = input;
   
   // Replace $(...) with __SAFE_SUBST__
   // Note: This naive replacement handles non-nested balanced parens for this specific purpose
   let depth = 0;
-  let start = -1;
-  let result = '';
+  let sanitized = '';
   let lastIndex = 0;
   
   for (let i = 0; i < input.length; i++) {
     if (input[i] === '$' && input[i + 1] === '(') {
       if (depth === 0) {
-        result += input.substring(lastIndex, i);
-        start = i;
+        sanitized += input.substring(lastIndex, i);
       }
       depth++;
       i++; 
     } else if (input[i] === ')' && depth > 0) {
       depth--;
       if (depth === 0) {
-        result += '__SAFE_SUBST__';
+        sanitized += '__SAFE_SUBST__';
         lastIndex = i + 1;
-        start = -1;
       }
     }
   }
-  result += input.substring(lastIndex);
-  sanitized = result;
+  sanitized += input.substring(lastIndex);
 
   // Replace backticks
   sanitized = sanitized.replace(/`[^`]*`/g, '__SAFE_SUBST__');
